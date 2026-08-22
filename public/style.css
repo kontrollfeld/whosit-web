@@ -1,0 +1,1479 @@
+/* SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Self-hosted IBM Plex Sans (OFL) — keine Google-Fonts-Uebertragung (Datenschutz) */
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-400.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-ext-400.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-sans-500.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-sans-ext-500.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-sans-600.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-sans-ext-600.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-700.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-ext-700.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+
+:root {
+  /* light "public service / eID" palette (slate base + blue primary + verified green) */
+  color-scheme: light;
+  --bg: #f5f8fc;
+  --bg-tint: #eef3fa;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e3e9f2;
+  --border-strong: #cfd8e6;
+
+  --navy: #0f172a;
+  --text: #1b2433;
+  --text-muted: #5d6b85;
+  --text-faint: #94a3b8;
+
+  --accent: #0369a1;
+  --accent-strong: #075e8c;
+  --accent-soft: #e3f0f9;
+  --on-accent: #ffffff;          /* text/icons ON an accent surface (dark mode flips it) */
+  --accent-border: rgba(3, 105, 161, 0.4);
+  --accent-ring: rgba(3, 105, 161, 0.16);
+
+  --ok: #059669;
+  --ok-strong: #047857;
+  --ok-soft: #e2f5ee;
+  --ok-border: rgba(5, 150, 105, 0.45);
+  --ok-btn: #047857;
+
+  --warn-soft: #fff7e6;
+  --warn-border: #f0c36d;
+  --warn-text: #7a5200;
+
+  --danger: #dc2626;
+  --danger-strong: #b91c1c;
+  --danger-soft: #fdeaea;
+
+  /* page-background signature glows — European blue tint */
+  --glow-a: rgba(3, 105, 161, 0.1);
+  --glow-b: rgba(0, 68, 148, 0.08);
+  /* EU accent (sparing): the European gold, e.g. logo star, trust badges */
+  --eu-gold: #FFCC00;
+  --eu-blue: #004494;
+  /* translucent surface for sticky glass bars (blur behind) */
+  --veil: rgba(255, 255, 255, 0.93);
+
+  --r-sm: 9px;
+  --r: 13px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+  --shadow: 0 18px 40px -22px rgba(15, 23, 42, 0.28);
+  --shadow-sm: 0 4px 14px -8px rgba(15, 23, 42, 0.22);
+  --shadow-btn: 0 8px 18px -8px rgba(3, 105, 161, 0.5);
+  --t: 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---- dark theme -----------------------------------------------------------
+ * Same semantic tokens, desaturated dark values (never plain inversion).
+ * Applies (a) automatically via OS preference unless the user forced light,
+ * (b) when the user forced dark (html[data-theme] set by theme.js).
+ * The video stage keeps its own always-dark literals: a bright stage would wash out the
+ * video and the SAS overlay, so it does not follow the light theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg-tint: #0d1626;
+  --surface: #121d32;
+  --surface-2: #1b2942;
+  --border: #243450;
+  --border-strong: #37496c;
+  --navy: #ecf2fb;
+  --text: #d7e1f0;
+  --text-muted: #9db0cc;
+  --text-faint: #66779a;
+  --accent: #4aabe0;
+  --accent-strong: #7cc4ec;
+  --accent-soft: #14283f;
+  --on-accent: #06111d;
+  --accent-border: rgba(74, 171, 224, 0.45);
+  --accent-ring: rgba(74, 171, 224, 0.2);
+  --ok: #34d399;
+  --ok-strong: #7fe7c3;
+  --ok-soft: #0d2b23;
+  --ok-border: rgba(52, 211, 153, 0.4); --ok-btn: #34d399;
+  --warn-soft: #2d2410;
+  --warn-border: #6b5620;
+  --warn-text: #ead9a0;
+  --danger: #f87171;
+  --danger-strong: #fca5a5;
+  --danger-soft: #341520;
+  --glow-a: rgba(74, 171, 224, 0.08);
+  --glow-b: rgba(74, 130, 224, 0.06); --eu-gold: #FFD633; --eu-blue: #6f9be0;
+  --veil: rgba(18, 29, 50, 0.92);
+  --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.75);
+  --shadow-sm: 0 4px 14px -8px rgba(0, 0, 0, 0.65);
+  --shadow-btn: 0 8px 18px -8px rgba(74, 171, 224, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --bg-tint: #0d1626;
+    --surface: #121d32;
+    --surface-2: #1b2942;
+    --border: #243450;
+    --border-strong: #37496c;
+    --navy: #ecf2fb;
+    --text: #d7e1f0;
+    --text-muted: #9db0cc;
+    --text-faint: #66779a;
+    --accent: #4aabe0;
+    --accent-strong: #7cc4ec;
+    --accent-soft: #14283f;
+    --on-accent: #06111d;
+    --accent-border: rgba(74, 171, 224, 0.45);
+    --accent-ring: rgba(74, 171, 224, 0.2);
+    --ok: #34d399;
+    --ok-strong: #7fe7c3;
+    --ok-soft: #0d2b23;
+    --ok-border: rgba(52, 211, 153, 0.4); --ok-btn: #34d399;
+    --warn-soft: #2d2410;
+    --warn-border: #6b5620;
+    --warn-text: #ead9a0;
+    --danger: #f87171;
+    --danger-strong: #fca5a5;
+    --danger-soft: #341520;
+    --glow-a: rgba(74, 171, 224, 0.08);
+    --glow-b: rgba(74, 130, 224, 0.06); --eu-gold: #FFD633; --eu-blue: #6f9be0;
+    --veil: rgba(18, 29, 50, 0.92);
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.75);
+    --shadow-sm: 0 4px 14px -8px rgba(0, 0, 0, 0.65);
+    --shadow-btn: 0 8px 18px -8px rgba(74, 171, 224, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* author `button{display:...}` would otherwise beat the UA [hidden] rule */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  color: var(--text);
+  background:
+    radial-gradient(820px 460px at 50% -6%, var(--glow-a), transparent 60%),
+    radial-gradient(640px 460px at 100% 0%, var(--glow-b), transparent 55%),
+    var(--bg);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 40px) 18px 28px;
+  /* native app (viewport-fit=cover): keep content clear of notch/rounded corners */
+  padding-left: max(18px, env(safe-area-inset-left));
+  padding-right: max(18px, env(safe-area-inset-right));
+  padding-top: max(clamp(20px, 4vw, 40px), env(safe-area-inset-top));
+}
+
+/* ---- footer / version badge + language switcher ---- */
+.app-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 40px;
+  padding-bottom: max(40px, calc(24px + env(safe-area-inset-bottom)));
+}
+.lang-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 22px 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 10px;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color var(--t), border-color var(--t);
+}
+.lang-switch:hover { color: var(--text-muted); border-color: var(--border-strong); }
+.lang-switch:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  user-select: none;
+  transition: color var(--t), border-color var(--t);
+}
+.version-badge::before {
+  content: "";
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-soft);
+}
+.version-badge:hover { color: var(--text-muted); border-color: var(--border-strong); }
+
+/* Theme toggle: footer meta pill (auto/dark/light), same family as lang/version. */
+.theme-toggle {
+  min-height: 36px; width: 36px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  color: var(--text-faint);
+  box-shadow: none;
+  cursor: pointer;
+}
+.theme-toggle:hover:not(:disabled) { color: var(--text-muted); border-color: var(--border-strong); background: var(--surface-2); transform: none; filter: none; }
+.theme-toggle:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.theme-toggle svg { width: 16px; height: 16px; }
+
+/* ---- header / logo ---- */
+header { margin-bottom: 22px; }
+.logo { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; }
+.logo-mark {
+  width: 46px; height: 46px; flex: none;
+  filter: drop-shadow(0 8px 16px rgba(3, 105, 161, 0.28));
+}
+.logo h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4.6vw, 1.95rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--navy);
+}
+.sub { color: var(--text-muted); margin: 0; font-size: 0.98rem; max-width: 54ch; }
+.sub strong { color: var(--navy); font-weight: 600; }
+
+/* ---- benefits list ---- */
+.benefits { list-style: none; margin: 20px 0 2px; padding: 0; display: grid; gap: 11px; max-width: 56ch; }
+.benefits li { display: flex; gap: 11px; align-items: flex-start; font-size: 0.92rem; color: var(--text-muted); line-height: 1.45; }
+.benefits strong { color: var(--navy); font-weight: 600; }
+.benefits .check {
+  flex: none; width: 22px; height: 22px; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--ok-soft); color: var(--ok-strong);
+  font-size: 0.78rem; font-weight: 800;
+}
+.wallet-note { text-align: center; margin-top: 12px; font-size: 0.8rem; }
+
+/* ---- status + restart ---- */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 15px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 18px 0 16px;
+  box-shadow: var(--shadow-sm);
+}
+.status::before {
+  content: "";
+  width: 8px; height: 8px; flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+/* ---- cards ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  animation: rise var(--t) both;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+}
+.h-ic { width: 19px; height: 19px; flex: none; color: var(--accent); }
+.h-ic.ok { color: var(--ok-strong); }
+.card h2 .hint { margin-left: -3px; }
+.hint { color: var(--text-muted); font-size: 0.86rem; font-weight: 400; line-height: 1.45; }
+
+.row { display: flex; gap: 9px; margin-top: 14px; }
+
+/* ---- inputs ---- */
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 0.9rem;
+  transition: border-color var(--t), box-shadow var(--t);
+}
+input[type="text"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+input::placeholder { color: var(--text-faint); }
+
+/* ---- buttons ---- */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 11px 18px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--t), filter var(--t), background var(--t), box-shadow var(--t);
+  box-shadow: var(--shadow-btn);
+}
+button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+button:active:not(:disabled) { transform: translateY(0); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+button svg { width: 18px; height: 18px; flex: none; }
+
+button.ghost {
+  background: var(--surface);
+  color: var(--navy);
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+button.ghost:hover:not(:disabled) { background: var(--surface-2); }
+
+button.danger { background: var(--danger); box-shadow: 0 8px 18px -8px rgba(220, 38, 38, 0.5); }
+button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1px var(--danger); }
+
+.restart {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  margin: -4px 0 16px;
+}
+.restart:hover:not(:disabled) { background: var(--accent-soft); transform: none; filter: none; }
+
+/* ---- QR / auth ---- */
+.qr {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: #fff; /* always white — QR contrast for wallet scanners (both themes) */
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  width: fit-content;
+  margin: 14px auto 4px;
+  box-shadow: var(--shadow-sm);
+}
+.qr img, .qr canvas { display: block; border-radius: 4px; }
+.same-device {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.same-device:hover { text-decoration: underline; }
+.same-device svg { width: 16px; height: 16px; flex: none; }
+
+/* ---- participant chips ---- */
+.ids { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+#peer-chips { display: contents; }
+.id-chip {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 9px 15px 9px 13px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  transition: border-color var(--t), background var(--t);
+}
+.id-chip .dot {
+  width: 9px; height: 9px; flex: none;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: background var(--t), box-shadow var(--t);
+}
+.id-chip.verified { border-color: var(--ok-border); background: var(--ok-soft); color: var(--ok-strong); }
+.id-chip.verified .dot { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
+.id-chip.host { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-strong); }
+.id-chip.host .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* Ausstehende EIGENE Aktion — gesetzt in app.js nur fuer den noch nicht ausgewiesenen
+ * Host bzw. den noch nicht bestaetigten Gast. Ein anonymer Host oder ein fertiger
+ * Teilnehmer hat nichts zu tun und bleibt ruhig.
+ *
+ * Der Chip atmet, damit „du bist dran" nicht nur zu LESEN, sondern zu SEHEN ist: der
+ * Text allein wurde uebersehen, weil das Auge auf der groessten Box landet.
+ * Zwei zurueckhaltende Signale statt eines lauten — ein auslaufender Ring am Chip und
+ * der vorhandene `pulse` am Punkt (dasselbe Keyframe wie die Statuszeile, eine Sprache). */
+.id-chip.pending { animation: chip-attention 2.4s ease-in-out infinite; }
+.id-chip.pending .dot { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+@keyframes chip-attention {
+  0%   { box-shadow: 0 0 0 0 var(--accent-ring); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  /* bei Spread 0 ist der Farbsprung zurueck auf 0% unsichtbar -> nahtlose Schleife */
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* Reduzierte Bewegung: das Signal BLEIBT, nur ohne Animation — ein statischer Ring
+ * statt gar keiner Hervorhebung. */
+@media (prefers-reduced-motion: reduce) {
+  .id-chip.pending,
+  .id-chip.pending .dot { animation: none; }
+  .id-chip.pending { box-shadow: 0 0 0 3px var(--accent-ring); }
+}
+
+/* ---- video tiles ---- */
+.videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tile {
+  position: relative;
+  background: #0b1220;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+.tile video { width: 100%; height: 100%; object-fit: cover; background: #0b1220; }
+/* Spotlight / stage layout (Pro): click a tile to enlarge it; a screen-share auto-stages.
+   Grid stays a grid; stage-mode switches to a big tile (full row) + a thumbnail strip. */
+.videos.spotlightable .tile { cursor: pointer; }
+.videos.stage-mode { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.videos.stage-mode .tile { flex: 0 0 128px; aspect-ratio: 16 / 10; order: 2; }
+.videos.stage-mode .tile.on-stage { flex: 1 1 100%; aspect-ratio: 16 / 9; order: 1; }
+/* Shared screens: letterbox (contain) so nothing is cropped — camera stays cover. */
+.tile.is-screen video { object-fit: contain; }
+/* Nur das EIGENE Kamerabild spiegeln — so kennt man sich aus dem Spiegel, und so macht es
+   jede Videoanwendung. Ungespiegelt wirkt die eigene Vorschau verkehrt herum, weil die
+   Hand auf der „falschen" Seite erscheint. Die Gegenseite bleibt ungespiegelt, sonst wäre
+   dort jede Schrift unlesbar. Eine geteilte Bildschirmfläche ebenfalls nicht — die ist
+   kein Spiegelbild, sondern ein Dokument. */
+.tile[data-peer="self"] video { transform: scaleX(-1); }
+.tile[data-peer="self"].is-screen video { transform: none; }
+/* Fluid stage: during a video call the section breaks out of the narrow reading column
+   and grows with the viewport (centered on it), so the stage isn't capped at ~680px. */
+#peers.fluid { width: min(96vw, 1500px); margin-left: 50%; transform: translateX(-50%); }
+#peers.fluid .videos.stage-mode .tile.on-stage { max-height: 78vh; }
+/* Per-tile fullscreen button (Pro spotlight): subtle, brightens on hover. */
+.tile-fs {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  display: none; width: 32px; height: 32px; padding: 0;
+  align-items: center; justify-content: center;
+  border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(7, 11, 22, 0.62); color: #f1f5f9; cursor: pointer;
+}
+.tile-fs svg { width: 16px; height: 16px; }
+.videos.spotlightable .tile-fs { display: inline-flex; opacity: 0.5; transition: opacity 0.15s; }
+.videos.spotlightable .tile:hover .tile-fs { opacity: 1; }
+/* A tile in native fullscreen fills the screen; never crop its content there. */
+.tile:fullscreen { aspect-ratio: auto; width: 100vw; height: 100vh; }
+.tile:fullscreen video { object-fit: contain; background: #000; }
+.tile .name {
+  position: absolute; left: 9px; bottom: 9px; right: 9px;
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: calc(100% - 18px);
+  background: rgba(7, 11, 22, 0.74);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+  padding: 5px 11px; border-radius: var(--r-pill);
+  font-size: 0.82rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile .name.verified::before {
+  content: "✓";
+  color: #34d399;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+.compat-note { text-align: center; margin: 14px 0 0; }
+/* Floating, always-reachable control bar: on a tall page (video + chat + shared
+   document) the alternative is scrolling all the way down just to hang up. Sticks to
+   the bottom of the viewport once scrolled to; a plain top border/shadow reads as a
+   detached bar without needing a backdrop that would obscure content behind it. */
+.call-controls {
+  display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+  position: sticky; bottom: max(14px, calc(6px + env(safe-area-inset-bottom))); z-index: 20;
+  margin: 16px auto 0; width: fit-content; max-width: 96vw;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+}
+#hangup-btn svg { transform: rotate(135deg); }
+#screen-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.call-controls .ghost.ctrl-off { background: var(--danger-soft); color: var(--danger); border-color: rgba(220, 38, 38, 0.4); }
+
+/* ---- chat row: icon buttons, emoji picker, file transfer ---- */
+.chat-row { align-items: center; }
+.icon-btn {
+  flex: none; min-height: 44px; width: 44px; padding: 0;
+  background: var(--surface); color: var(--text-muted);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  box-shadow: none;
+}
+.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--accent); transform: none; filter: none; }
+.icon-btn svg { width: 20px; height: 20px; }
+.emoji-palette {
+  display: flex; flex-wrap: wrap; gap: 2px;
+  padding: 8px; margin-top: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+}
+.emoji-palette .emoji {
+  all: unset; cursor: pointer; font-size: 1.25rem; line-height: 1;
+  padding: 6px; border-radius: var(--r-sm); min-width: 34px; text-align: center;
+}
+.emoji-palette .emoji:hover, .emoji-palette .emoji:focus-visible { background: var(--accent-soft); outline: none; }
+.msg.file { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; margin: 4px 0; }
+.file-label { font-size: 0.86rem; color: var(--text); word-break: break-all; }
+.file-bar { height: 5px; margin-top: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.file-bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 120ms linear; }
+.file-bar.done span { background: var(--ok); }
+.file-dl { color: var(--accent); font-size: 0.86rem; font-weight: 600; text-decoration: none; word-break: break-all; }
+.file-dl:hover { text-decoration: underline; }
+
+/* ---- chat ---- */
+.chat-log {
+  height: 210px; overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.chat-log::-webkit-scrollbar { width: 8px; }
+.chat-log::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+.msg { line-height: 1.4; }
+.msg .who { color: var(--accent); font-weight: 600; }
+.msg.system .who { color: var(--text-faint); }
+
+/* ---- request-config: presets + attribute checkboxes ---- */
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.chip-btn {
+  min-height: 36px; padding: 7px 13px;
+  background: var(--surface); color: var(--accent);
+  border: 1px solid var(--border-strong); border-radius: var(--r-pill);
+  font-size: 0.84rem; font-weight: 600; box-shadow: none;
+}
+.chip-btn:hover:not(:disabled) { background: var(--accent-soft); transform: none; filter: none; }
+.attr-list { display: grid; gap: 3px; margin: 12px 0 6px; }
+.attr-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  cursor: pointer; transition: background var(--t);
+}
+.attr-row:hover { background: var(--surface-2); }
+.attr-row input { width: 19px; height: 19px; flex: none; accent-color: var(--accent); cursor: pointer; }
+.attr-row .attr-ic { width: 17px; height: 17px; flex: none; color: var(--text-faint); }
+.attr-label { font-size: 0.93rem; color: var(--navy); font-weight: 500; }
+.attr-note { color: var(--text-faint); font-size: 0.8rem; font-weight: 400; }
+.attr-row.locked { opacity: 0.55; cursor: default; }
+.attr-row.locked input { cursor: default; }
+
+/* WRP-Compliance-Hinweis unter jeder Attribut-Gruppe (und im Review). Unaufdringlich,
+ * aber dauerhaft sichtbar: die Beschraenkung ist eine Zusage, kein Fehlerzustand — also
+ * kein Warn-Gelb, sondern eine ruhige Randnotiz mit gerader Akzentkante. */
+/* Aufmerksamkeitslenkung vor dem Anruf (nur Desktop/Website).
+ * `body.wizard` heißt: kleiner Screen oder App, dort führt der Schritt-Wizard schon —
+ * dann greifen diese Regeln absichtlich nicht, sonst läge zweierlei Steuerung übereinander.
+ * Bewusst zurückhaltend: die anderen Karten bleiben lesbar und benutzbar, sie treten nur
+ * zurück. Kein `pointer-events: none` — der Host darf den Link kopieren, während er noch
+ * seinen Ausweis vorzeigen muss. */
+body:not(.wizard) .card.is-muted {
+  opacity: 0.62;
+  transition: opacity var(--t);
+}
+body:not(.wizard) .card.is-muted:hover,
+body:not(.wizard) .card.is-muted:focus-within { opacity: 1; }
+body:not(.wizard) .card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Wer Bewegung reduziert haben will, bekommt den Zustand ohne Überblendung. */
+@media (prefers-reduced-motion: reduce) {
+  body:not(.wizard) .card.is-muted { transition: none; }
+}
+
+.policy-note {
+  margin: 6px 2px 0; padding: 6px 0 6px 10px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-faint); font-size: 0.78rem; line-height: 1.45;
+}
+/* Zweckbindung im Privacy-Review — der eine Satz, an den die Abfrage rechtlich gebunden
+ * ist. Deutlicher als .hint, damit er beim Zustimmen nicht ueberlesen wird. */
+.purpose-binding {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin: 12px 0 4px; padding: 10px 12px;
+  background: var(--accent-soft); border-left: 3px solid var(--accent);
+  color: var(--text); font-size: 0.86rem; line-height: 1.45;
+}
+.purpose-binding .icon { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--accent); }
+.purpose-binding .pb-label { font-weight: 600; color: var(--navy); }
+.preview { margin: 8px 2px 0; font-size: 0.86rem; color: var(--text-muted); }
+.preview strong { color: var(--navy); font-weight: 600; }
+
+/* ---- consent list (guest) ---- */
+.consent { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.consent li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border-radius: var(--r-sm);
+  background: var(--ok-soft); border: 1px solid var(--ok-border);
+  font-size: 0.92rem; color: var(--navy); font-weight: 500;
+}
+.consent li::before { content: "✓"; color: var(--ok-strong); font-weight: 800; }
+
+/* ---- result list (verifier) ---- */
+.ok-check { color: var(--ok-strong); }
+.result-list { display: grid; gap: 9px; margin-top: 8px; }
+.result-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: var(--r-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.result-row .r-label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--text-muted); }
+.result-row .r-label .attr-ic { width: 16px; height: 16px; flex: none; color: var(--text-faint); }
+.result-row .r-value { font-size: 0.95rem; font-weight: 600; color: var(--navy); text-align: right; }
+.result-row .r-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 11px; border-radius: var(--r-pill);
+  background: var(--ok-soft); color: var(--ok-strong);
+  font-size: 0.86rem; font-weight: 700;
+}
+/* masked field (pre-confirm review): name shown, value hidden until both agree */
+.result-row.pending { border-style: dashed; background: var(--surface); }
+.result-row .r-value.masked { color: var(--text-faint); letter-spacing: 3px; font-weight: 700; }
+
+/* ---- setup: mode segmented + field labels ---- */
+.field-label {
+  display: block;
+  margin: 18px 0 9px;
+  font-size: 0.8rem; font-weight: 650; letter-spacing: 0.02em;
+  color: var(--navy); text-transform: uppercase;
+}
+.field-note { font-weight: 400; text-transform: none; color: var(--text-faint); letter-spacing: 0; }
+.field-label .h-ic { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; color: var(--accent); }
+
+/* ---- schedule (calendar invite) ---- */
+#cal-title { display: block; width: 100%; margin: 0 0 9px; }
+.schedule-fields { display: flex; gap: 9px; }
+.schedule-fields input[type="date"],
+.schedule-fields input[type="time"],
+.schedule-fields select {
+  flex: 1; min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  font: inherit; font-size: 0.9rem;
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.schedule-fields select { cursor: pointer; appearance: none; -webkit-appearance: none; }
+.schedule-fields input:focus-visible,
+.schedule-fields select:focus-visible {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.schedule-actions { margin-top: 9px; }
+.seg {
+  display: flex; gap: 4px; padding: 4px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r);
+}
+.seg button {
+  flex: 1; min-height: 38px; padding: 8px 10px;
+  background: transparent; color: var(--text-muted);
+  border: none; border-radius: var(--r-sm); box-shadow: none;
+  font-size: 0.88rem; font-weight: 600;
+}
+.seg button svg { width: 17px; height: 17px; flex: none; }
+.seg button:hover:not(:disabled) { transform: none; filter: none; color: var(--navy); }
+.seg button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
+.seg button.active:disabled { color: var(--accent); opacity: 1; }
+
+/* ---- open-room toggle ---- */
+.openroom { display: flex; align-items: flex-start; gap: 9px; margin-top: 14px; cursor: pointer; font-size: 0.9rem; }
+.openroom input { margin-top: 2px; width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
+
+/* ---- review ---- */
+.review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 6px 0 10px; }
+.review-col .field-label { margin-top: 0; }
+.result-empty {
+  padding: 12px 14px; border-radius: var(--r-sm);
+  background: var(--surface-2); border: 1px dashed var(--border-strong);
+  color: var(--text-muted); font-size: 0.88rem;
+}
+.review-wait { color: var(--ok-strong); font-weight: 600; }
+.peer-block-head { font-size: 0.82rem; font-weight: 650; color: var(--navy); margin: 10px 0 4px; }
+.peer-block-head:first-child { margin-top: 0; }
+
+/* ---- info tooltip ---- */
+.info-wrap { position: relative; display: inline-flex; vertical-align: -3px; margin-left: 4px; }
+.info-btn {
+  all: unset;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; min-height: 0;
+  color: var(--text-faint); cursor: pointer; border-radius: 50%;
+}
+.info-btn svg { width: 15px; height: 15px; }
+.info-btn:hover, .info-btn:focus-visible { color: var(--accent); }
+.info-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: min(290px, 74vw);
+  background: var(--navy); color: #eef2f8;
+  font-size: 0.8rem; font-weight: 400; line-height: 1.45;
+  letter-spacing: 0; text-transform: none;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; z-index: 40;
+  transition: opacity var(--t), visibility var(--t);
+  pointer-events: none;
+}
+.tooltip::after {
+  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: var(--navy);
+}
+.info-wrap:hover .tooltip,
+.info-btn:focus .tooltip,
+.info-btn:focus-visible + .tooltip,
+.info-wrap:focus-within .tooltip { opacity: 1; visibility: visible; }
+
+/* ---- SAS security code ---- */
+.sas-row { display: flex; align-items: center; gap: 14px; }
+.sas-row .h-ic { flex: none; width: 22px; height: 22px; }
+.sas-text { flex: 1; min-width: 0; }
+.sas-text .field-label { margin: 0 0 2px; }
+.sas-text .hint { margin: 0; }
+.sas-code {
+  flex: none;
+  font-size: 1.35rem;
+  letter-spacing: 0.18em;
+  padding: 8px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  user-select: all;
+}
+@media (max-width: 560px) {
+  .sas-row { flex-wrap: wrap; }
+  .sas-code { flex-basis: 100%; text-align: center; }
+}
+
+/* ---- call banner (audio / chat) ---- */
+.banner { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 600; color: var(--navy); }
+.banner-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); animation: pulse 2s ease-in-out infinite; }
+
+/* ---- responsive ---- */
+@media (max-width: 560px) {
+  .videos { grid-template-columns: 1fr; }
+  .review-grid { grid-template-columns: 1fr; }
+  .row { flex-direction: column; }
+  .row button { width: 100%; }
+  /* .chat-row stacks too (icon buttons full-width) — but flex-direction:column turns
+     the main axis vertical, so the input's `flex:1` (built for a horizontal row) no
+     longer stretches its WIDTH; pin it explicitly so it matches the buttons above/below. */
+  .chat-row #chat-input { align-self: stretch; }
+  .schedule-fields { flex-wrap: wrap; }
+  .schedule-fields select { flex-basis: 100%; }
+}
+
+/* Call controls: icon-only compact pill on narrow screens — 5-7 labelled buttons
+   would either wrap into a blocky multi-row cluster or overflow; dropping the text
+   label (icon meaning is already standard from every video-call app) keeps everything
+   in one reachable row, consistent with the floating/sticky bar above. */
+@media (max-width: 640px) {
+  .call-controls { gap: 6px; padding: 8px 10px; }
+  .call-controls button { padding: 10px; min-width: 44px; }
+  /* Visually hide the label, NOT display:none — the button's accessible name comes
+     from this text (no separate aria-label), so it must stay in the a11y tree. */
+  .call-controls button span {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+}
+
+/* ---- embed mode: compact widget (loaded in a third-party iframe) ---- */
+.embedded body { background: var(--surface); }
+.embedded main { padding-top: 18px; padding-bottom: 18px; }
+.embedded #benefits,
+.embedded header .sub,
+.embedded .app-footer { display: none; }
+.embedded header .logo { transform: scale(0.9); transform-origin: left center; margin-bottom: 6px; }
+
+/* ==== setup redesign: stepper · two-column setup zone · party colors · mobile auth ==== */
+
+/* progress stepper (role-aware, filled by app.js) */
+.stepper { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 14px; padding: 0; }
+.stepper li { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-faint); }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.74rem; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text-muted);
+}
+.stepper li.active { color: var(--accent-strong); }
+.stepper li.active .step-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.stepper li.done { color: var(--ok-strong); }
+.stepper li.done .step-dot { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok-strong); }
+
+/* participants: compact bar right under the status line */
+.identities { padding: 12px 16px; }
+
+/* setup-phase two-column layout: explainer text (logo/title/benefits) sticks on the
+   left, the actual forms/status/QR/review sit on the right — breaks out of the narrow
+   reading column on wide screens, same technique as .setup-zone below. Fallback
+   (narrow / no :has): plain single-column stack, unchanged from before. */
+.setup-columns { display: contents; }
+@media (min-width: 1020px) {
+  .setup-columns {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    width: min(94vw, 1180px);
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+  .setup-columns-left { position: sticky; top: 20px; }
+  .setup-columns-right { min-width: 0; }
+  /* The inner setup-zone breakout below would otherwise re-center on the viewport,
+     escaping the right column — keep it inline here instead. */
+  .setup-columns-right .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
+    width: auto; margin-left: 0; transform: none;
+  }
+}
+
+/* setup zone: on wide screens, when the host both configures AND identifies, the two
+   cards sit side by side (cause → effect: pick "Daten teilen" → QR appears NEXT to it)
+   and the zone breaks out of the narrow reading column. Fallback (no :has): stacked. */
+.setup-zone { display: contents; }
+@media (min-width: 1020px) {
+  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 16px;
+    align-items: start;
+    width: min(94vw, 1060px);
+    margin-left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 16px;
+  }
+  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > .card { margin-bottom: 0; }
+  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > #auth { position: sticky; top: 12px; }
+}
+
+/* chat + shared document: side by side on wide screens when BOTH are open (same
+   breakout technique as .setup-zone above); a chat-only or doc-only call just stacks
+   normally — no reason to force a half-width column when there's nothing beside it. */
+.call-panels { display: contents; }
+@media (min-width: 1200px) {
+  .call-panels:has(> #chat:not([hidden])):has(> #qes-box:not([hidden])) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+    width: min(94vw, 1400px);
+    margin-left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 16px;
+  }
+  .call-panels:has(> #chat:not([hidden])):has(> #qes-box:not([hidden])) > .card { margin-bottom: 0; }
+}
+
+/* who is who: self = blue (accent), guest/peers = green (ok) — used consistently on
+   the setup panels, participant chips and the review/result columns */
+.party { border-left: 3px solid var(--border-strong); border-radius: 2px; padding: 2px 0 4px 14px; margin-top: 16px; }
+.party > .field-label:first-child { margin-top: 0; }
+.party.you { border-left-color: var(--accent); }
+.party.guest { border-left-color: var(--ok); }
+.party.you > .field-label > span:first-child { color: var(--accent-strong); }
+.party.guest > .field-label > span:first-child { color: var(--ok-strong); }
+
+.id-chip.you { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-strong); }
+.id-chip.you .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-ring); }
+
+.review-col.you { border-top: 3px solid var(--accent); border-radius: 2px; padding-top: 10px; }
+.review-col.guest { border-top: 3px solid var(--ok); border-radius: 2px; padding-top: 10px; }
+
+/* presets: highlighted only while the checked set matches the preset (app.js syncs) */
+.chip-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip-btn.active:hover:not(:disabled) { background: var(--accent-strong); }
+
+/* the config summary: a highlighted footer line; on SMALL screens (long scroll through
+   the attribute lists) it sticks to the viewport bottom so the outcome stays visible.
+   Not sticky on desktop — there the tall card would keep it hovering over the rows. */
+#setup .preview {
+  margin-top: 16px; padding: 10px 14px;
+  background: var(--veil);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+}
+@media (max-width: 640px) {
+  #setup .preview {
+    position: sticky; bottom: 10px;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* calendar invite: secondary → collapsed behind a disclosure */
+.schedule-details > summary { cursor: pointer; list-style: none; }
+.schedule-details > summary::-webkit-details-marker { display: none; }
+.schedule-details > summary::after { content: "▸"; margin-left: 8px; color: var(--text-faint); }
+.schedule-details[open] > summary::after { content: "▾"; }
+
+/* identify CTA: desktop = QR first (wallet is on the phone), same-device link below;
+   mobile = "open wallet on this device" is the primary action, QR is the alternative */
+.auth-cta { display: flex; flex-direction: column; }
+.qr-hint--mobile { display: none; }
+@media (min-width: 641px) {
+  .auth-cta .qr-hint--desktop { order: 1; }
+  .auth-cta .qr { order: 2; }
+  .auth-cta #auth-link { order: 3; margin-top: 12px; }
+  /* ACHTUNG: Wer hier ohne `order` einsortiert wird, bekommt den Standardwert 0 und springt
+     damit VOR den QR-Code. Genau so stand der Erneuern-Knopf zuerst ganz oben. */
+  .auth-cta #auth-renew { order: 4; }
+}
+@media (max-width: 640px) {
+  .qr-hint--desktop { display: none; }
+  .qr-hint--mobile { display: block; margin-top: 16px; }
+  .auth-cta #auth-link {
+    margin-top: 6px; padding: 13px 18px;
+    background: var(--accent); color: var(--on-accent);
+    border-radius: var(--r-sm); box-shadow: var(--shadow-btn);
+    font-size: 0.95rem;
+  }
+  .auth-cta #auth-link:hover { text-decoration: none; }
+  .auth-cta .qr img, .auth-cta .qr canvas { width: 176px !important; height: 176px !important; }
+}
+
+/* ==== in-call identity banderole · raise hand · retractable files · collapsible result ==== */
+
+/* click a tile's name badge → banderole with that person's verified claims */
+.tile .name { cursor: pointer; }
+.banderole {
+  position: absolute; left: 8px; right: 8px; bottom: 48px; z-index: 2;
+  background: rgba(7, 11, 22, 0.9);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--r-sm);
+  padding: 8px 11px; color: #f1f5f9; font-size: 0.82rem;
+  display: grid; gap: 2px;
+  max-height: 62%; overflow-y: auto;
+}
+.banderole .result-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 2px; background: none; border: 0; }
+.banderole .r-label { color: #cbd5e1; display: inline-flex; align-items: center; gap: 6px; }
+.banderole .r-label .attr-ic { color: #94a3b8; }
+.banderole .r-value, .banderole .r-badge { color: #fff; font-weight: 600; }
+.banderole .result-empty { color: #cbd5e1; padding: 2px; }
+
+/* unified status badges on a tile (mic/camera/hand/screen/document) — same icons as
+   the matching control button, so the state is legible without reading the controls.
+   Rendered by app.js (renderTileBadges); "off"/active states reuse the same red tint
+   the buttons themselves use for their pressed/muted state. */
+.tile-badges {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  max-width: calc(100% - 70px); /* leave room for .cred-badge at top-right */
+}
+.tile-badge {
+  flex: none; width: 28px; height: 28px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(7, 11, 22, 0.74);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
+  animation: hand-pop 200ms ease-out;
+}
+.tile-badge svg { width: 15px; height: 15px; }
+.tile-badge.off { background: rgba(220, 38, 38, 0.82); border-color: rgba(255, 255, 255, 0.24); }
+@keyframes hand-pop { from { transform: scale(0.4); opacity: 0; } }
+#hand-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+/* sender-side "Löschen" on a shared file row */
+.msg.file { position: relative; }
+.file-del {
+  min-height: 0; margin-top: 6px; padding: 3px 10px;
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--r-pill);
+  color: var(--text-muted); font-size: 0.78rem; font-weight: 600; box-shadow: none;
+}
+.file-del:hover { color: var(--danger-strong); border-color: var(--danger-strong); background: none; transform: none; filter: none; }
+
+/* collapsible "Geprüfte Angaben" card (video: starts collapsed — data lives on the tiles) */
+#result h2 { display: flex; align-items: center; gap: 8px; }
+.collapse-btn {
+  margin-left: auto; min-height: 0; padding: 4px 12px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-pill);
+  color: var(--text-muted); font-size: 0.78rem; font-weight: 600; box-shadow: none;
+}
+.collapse-btn:hover { background: var(--surface-2); color: var(--accent); transform: none; filter: none; }
+#result.collapsed .review-grid, #result.collapsed > .hint { display: none; }
+#result.collapsed { padding-bottom: 14px; }
+
+/* ==== in-call credential requests (Pro): host panel · consent modal · tile badge ==== */
+
+/* host: picker panel above the call controls */
+.credreq-panel {
+  display: grid; gap: 6px;
+  max-width: 26rem; margin: 12px auto 0;
+  padding: 10px;
+}
+.credreq-item {
+  min-height: 0; padding: 9px 14px; text-align: left;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  font-size: 0.9rem; font-weight: 600; box-shadow: none;
+}
+.credreq-item:hover:not(:disabled) { background: var(--surface-2); color: var(--accent); transform: none; filter: none; }
+.credreq-item:disabled { opacity: 0.55; }
+
+/* target: consent modal (fields first, wallet link/QR after accept) */
+.cred-modal {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(7, 11, 22, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.cred-modal[hidden] { display: none; }
+.cred-dialog { max-width: 26rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+.cred-actions { margin-top: 14px; }
+.cred-actions button { flex: 1; }
+
+/* presented-credential badge on a tile (click → banderole with the values) */
+.tile .cred-badge {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  max-width: calc(100% - 16px);
+  background: rgba(7, 11, 22, 0.74);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  color: #d1fae5;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: 0.76rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* ---- QES im Call: Dokument teilen & gemeinsam durchgehen (public/qes/) ---- */
+.qes-progress { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; margin: 8px 0; }
+.qes-verify { margin: 10px 0 4px; }
+.qes-hash {
+  display: block; margin: 6px 0 2px; padding: 8px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem; letter-spacing: 0.03em; word-break: break-all; color: var(--text);
+}
+.qes-hash.ok { border-color: var(--ok); background: var(--ok-soft); color: var(--ok-strong); }
+.qes-hash.bad { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.qes-sign { margin: 12px 0 6px; }
+.qes-demo-banner {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: var(--r-sm);
+  color: var(--warn-text); font-size: 0.86rem; line-height: 1.45;
+  padding: 10px 12px;
+}
+.qes-demo-banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; color: #b7791f; }
+.qes-demo-banner strong { color: #6b4700; }
+.qes-sign-row { align-items: stretch; }
+.qes-sign-row select {
+  flex: 1; min-width: 0;
+  background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+  border-radius: var(--r-sm); padding: 10px 12px; font: inherit; font-size: 0.9rem;
+}
+.qes-signatures { margin-top: 10px; display: grid; gap: 6px; }
+.qes-sig-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 8px 10px; font-size: 0.88rem;
+}
+.qes-sig-demo {
+  flex: none; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em;
+  background: var(--warn-soft); border: 1px solid var(--warn-border); color: var(--warn-text);
+  border-radius: var(--r-pill); padding: 3px 9px; text-transform: uppercase;
+}
+/* identity binding verdict (§6) on a signature row */
+.qes-bind {
+  flex: none; font-size: 0.78rem; font-weight: 600;
+  border-radius: var(--r-pill); padding: 3px 9px;
+}
+.qes-bind-match { background: var(--ok-soft); border: 1px solid var(--ok); color: var(--ok-strong); }
+.qes-bind-mismatch, .qes-bind-invalid { background: var(--danger-soft); border: 1px solid var(--danger); color: var(--danger); }
+.qes-bind-unknown { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text-muted); }
+.qes-mismatch {
+  margin: 12px 0 6px; padding: 12px 14px;
+  background: var(--danger-soft); border: 1px solid var(--danger); border-radius: var(--r-sm);
+  color: var(--danger); font-size: 0.9rem; line-height: 1.5;
+}
+.qes-mismatch .row button:not(.ghost) { background: var(--danger); box-shadow: none; }
+.qes-pager { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 8px; }
+.qes-pgbtn { min-width: 38px; padding: 4px 10px; font-size: 1.05rem; line-height: 1; }
+.qes-page-info { font-size: 0.86rem; color: var(--text-muted); min-width: 7.5em; text-align: center; }
+.qes-follow { display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; color: var(--text-muted); margin-left: auto; cursor: pointer; }
+.qes-follow input { accent-color: var(--accent); }
+.qes-canvas-wrap {
+  border: 1px solid var(--border); border-radius: var(--r-sm); overflow: auto;
+  max-height: min(72vh, 900px); background: var(--surface-2);
+  /* flex-start: the default `stretch` would squash the canvas (and its text) vertically
+     to the wrapper's capped height, distorting the page's aspect ratio. */
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.qes-canvas-wrap canvas { display: block; margin: 0 auto; }
+.qes-validate { margin-top: 12px; }
+.qes-validate-list { display: grid; gap: 8px; margin-top: 10px; }
+.qes-val-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px 12px; }
+.qes-val-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; font-size: 0.9rem; }
+.qes-val-line { font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ---- accessibility: respect reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---- native app shell (Capacitor) --------------------------------------
+ * Active only when the bundled app runs (html.native-app, set in <head> from
+ * EUDI_APP_CONFIG.native). The website never gets the class — zero impact.
+ * Layout: compact header, marketing stripped, bottom tab bar (Anruf/Mehr). */
+html.native-app .sub,
+html.native-app .benefits,
+html.native-app .wallet-note { display: none; }
+html.native-app header { margin-bottom: 8px; }
+html.native-app .logo { margin-bottom: 0; gap: 10px; }
+html.native-app .logo-mark { width: 34px; height: 34px; filter: none; }
+html.native-app .logo h1 { font-size: 1.22rem; }
+html.native-app main { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+/* footer meta pills live in the settings tab instead */
+html.native-app .app-footer { display: none; }
+/* keep the sticky call controls above the tab bar */
+html.native-app .call-controls { bottom: calc(66px + env(safe-area-inset-bottom)); }
+html.native-app body.in-call .call-controls { bottom: max(14px, calc(6px + env(safe-area-inset-bottom))); }
+
+/* tab switching: settings tab hides the call flow */
+html.native-app body[data-tab="settings"] #setup-columns,
+html.native-app body[data-tab="settings"] .call-controls { display: none; }
+
+/* bottom tab bar */
+.app-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; align-items: stretch;
+  background: var(--veil);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+  padding: 6px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+.app-tabbar .tab {
+  flex: 1; min-height: 50px; padding: 4px 8px;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: none; border: none; box-shadow: none; border-radius: var(--r-sm);
+  color: var(--text-faint); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.01em;
+}
+.app-tabbar .tab:hover:not(:disabled) { transform: none; filter: none; background: none; }
+.app-tabbar .tab svg { width: 22px; height: 22px; }
+.app-tabbar .tab.active { color: var(--accent); }
+.app-tabbar .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+/* during a call the bar disappears — full focus, controls take the bottom */
+body.in-call .app-tabbar { display: none; }
+
+/* settings tab */
+.app-settings .settings-title { margin: 0 0 14px; font-size: 1.05rem; color: var(--navy); }
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 2px; border-bottom: 1px solid var(--border);
+}
+.settings-row:last-of-type { border-bottom: none; }
+.settings-label { font-size: 0.92rem; font-weight: 600; color: var(--navy); }
+.settings-about { margin: 14px 2px 0; font-size: 0.8rem; color: var(--text-faint); }
+/* the moved-in footer pills keep their look; version badge loses its hover cursor */
+.settings-row .lang-switch, .settings-row .version-badge { font-size: 0.8rem; }
+
+/* ---- native app: in-call trust bar --------------------------------------
+ * During a call the pre-call blocks (header, stepper, status, chips, verified
+ * data, SAS card) collapse into one slim bar: shield + names + SAS code.
+ * Tapping toggles body.trust-open which brings the original cards back. */
+.trust-bar { display: none; }
+html.native-app body.in-call .trust-bar {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 48px; margin: 0 0 12px; padding: 10px 14px;
+  background: var(--surface); color: var(--navy);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.9rem; font-weight: 600; text-align: left;
+}
+html.native-app body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; background: var(--surface); }
+.trust-bar .t-ic { width: 18px; height: 18px; flex: none; color: var(--ok); }
+.trust-bar .trust-names { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trust-bar .trust-sas { flex: none; font-size: 0.95rem; letter-spacing: 2px; }
+.trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-faint); transition: transform var(--t); }
+.trust-bar[aria-expanded="true"] .trust-chev { transform: rotate(180deg); }
+/* header + stepper are done once connected — always collapsed in-call (app) */
+html.native-app body.in-call header,
+html.native-app body.in-call #stepper { display: none; }
+/* the informational blocks collapse behind the bar; body.trust-open restores them */
+html.native-app body.in-call:not(.trust-open) #status-bar,
+html.native-app body.in-call:not(.trust-open) #identities,
+html.native-app body.in-call:not(.trust-open) #call-banner,
+html.native-app body.in-call:not(.trust-open) #result,
+html.native-app body.in-call:not(.trust-open) #sas-card { display: none; }
+
+/* ---- setup wizard (mobile/app) ------------------------------------------
+ * On small screens / in the native app the host setup becomes a 4-step flow:
+ * 1 Verbindungsart · 2 Ich teile · 3 Gast teilt · 4 Einladen (summary+share).
+ * Purely presentational: body.wizard + data-wkind gate which blocks show; the
+ * app logic's own [hidden] attributes keep full authority. app.js activates
+ * the mode and removes it for guests (callee) / embeds / desktop. */
+#wiz-nav { display: none; }
+body.wizard #wiz-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 18px;
+}
+body.wizard #wiz-nav button { min-width: 108px; }
+.wiz-dots { display: inline-flex; gap: 7px; }
+.wiz-dots .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border-strong); transition: background var(--t), transform var(--t);
+}
+.wiz-dots .dot.active { background: var(--accent); transform: scale(1.25); }
+.wiz-dots .dot.done { background: var(--ok); }
+/* step gating — nach Schritt-Art (data-wkind): mode · you · guest · invite · auth.
+ * Jeder Schritt blendet die NICHT-zugehoerigen Teile aus (nie display erzwingen,
+ * damit die natuerliche Darstellung erhalten bleibt). */
+body.wizard[data-wkind="mode"] #setup .party.you,
+body.wizard[data-wkind="mode"] #setup .party.guest,
+body.wizard[data-wkind="mode"] #openroom-row,
+body.wizard[data-wkind="mode"] #setup .preview { display: none; }
+body.wizard[data-wkind="you"] #mode-block,
+body.wizard[data-wkind="you"] #setup .party.guest,
+body.wizard[data-wkind="you"] #openroom-row { display: none; }
+body.wizard[data-wkind="guest"] #mode-block,
+body.wizard[data-wkind="guest"] #setup .party.you { display: none; }
+body.wizard[data-wkind="invite"] #mode-block,
+body.wizard[data-wkind="invite"] #setup .party.you,
+body.wizard[data-wkind="invite"] #setup .party.guest,
+body.wizard[data-wkind="invite"] #openroom-row,
+body.wizard[data-wkind="invite"] #setup .preview { display: none; }
+body.wizard[data-wkind="auth"] #mode-block,
+body.wizard[data-wkind="auth"] #setup .party.you,
+body.wizard[data-wkind="auth"] #setup .party.guest,
+body.wizard[data-wkind="auth"] #openroom-row,
+body.wizard[data-wkind="auth"] #setup .preview { display: none; }
+/* Eigene Ausweisung nur auf dem Ausweisen-Schritt */
+body.wizard:not([data-wkind="auth"]) #auth { display: none; }
+/* Einladen-Box auf ihrem eigenen Schritt UND (eingeklappt) auf dem Ausweisen-Schritt */
+body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #share { display: none; }
+body.wizard[data-wkind="auth"] #share.wiz-collapsed > :not(h2) { display: none; }
+body.wizard[data-wkind="auth"] #share > h2 { cursor: pointer; display: flex; align-items: center; }
+body.wizard[data-wkind="auth"] #share > h2::after {
+  content: ""; margin-left: auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint);
+  transform: rotate(-45deg); transition: transform var(--t);
+}
+body.wizard[data-wkind="auth"] #share:not(.wiz-collapsed) > h2::after { transform: rotate(45deg); }
+
+/* invite card: "now vs. scheduled" segment sits directly under the heading */
+.invite-when { margin-bottom: 12px; }
+
+/* "Neuer Anruf" — primary action at the top of the settings tab (native app) */
+.new-call-btn { width: 100%; margin: 4px 0 16px; }
+
+/* Compact stepper on narrow screens: the three labelled steps wrap ugly at ~375px.
+ * Keep the numbered circles in one non-wrapping row and show ONLY the active step's
+ * label — the wizard dots carry the fine-grained setup progress separately. */
+@media (max-width: 640px) {
+  .stepper { flex-wrap: nowrap; justify-content: center; gap: 0; margin-bottom: 12px; }
+  .stepper li { flex: 0 0 auto; gap: 0; }
+  /* connector line between the circles */
+  .stepper li + li::before {
+    content: ""; width: 20px; height: 2px; margin: 0 6px;
+    background: var(--border-strong); border-radius: 2px; align-self: center;
+  }
+  .stepper li.done + li::before,
+  .stepper li.active::before { background: var(--accent); }
+  /* hide every label except the active step's, which sits inline after its circle */
+  .stepper li span:last-child { display: none; }
+  .stepper li.active span:last-child { display: inline; margin-left: 8px; white-space: nowrap; }
+}
+/* native app: tighten the header→stepper gap so it reads as one unit under the logo */
+html.native-app header { margin-bottom: 10px; }
+html.native-app .stepper { margin-bottom: 14px; }
+
+/* Logo: der Gold-Sternkranz dreht sich sehr langsam (nur transform, GPU). Das Schild
+ * bleibt statisch. Respektiert prefers-reduced-motion (dann steht der Kranz still). */
+.logo-ring { transform-box: view-box; transform-origin: 24px 24px; animation: logo-ring-spin 72s linear infinite; }
+@keyframes logo-ring-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .logo-ring { animation: none; } }
+
+/* Impressum-Verweise: Settings-Tab-Link + Web-Footer-Link */
+.settings-row .settings-link { color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600; }
+.settings-row .settings-link:hover { text-decoration: underline; }
+.app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; }
+.app-footer .footer-link:hover { color: var(--text-muted); }
+
+/* ---- App-Stärken (erster Wizard-Screen) ---- */
+.app-strengths { display: none; }
+body.wizard[data-wkind="mode"] .app-strengths {
+  display: block;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 20px 20px 6px; margin-top: 14px;
+}
+.app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
+.strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
+.strength .s-ic {
+  flex: none; width: 38px; height: 38px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.strength .s-ic svg { width: 20px; height: 20px; }
+.strength h3 { font-size: 0.92rem; margin: 0 0 2px; color: var(--navy); font-weight: 650; }
+.strength p { font-size: 0.86rem; margin: 0; color: var(--text-muted); line-height: 1.45; }
+/* auf schmalen Screens ersetzt der Stärken-Block die obere Benefits-Liste */
+@media (max-width: 640px) { .benefits { display: none; } }
+
+/* ---- Tooltip: immer dunkel (Fix: --navy ist im Dark-Theme hell → weiß auf weiß) ---- */
+.tooltip { background: #0f172a; color: #eef2f8; border: 1px solid rgba(255, 255, 255, 0.12); }
+.tooltip::after { border-top-color: #0f172a; }
+
+/* ---- Status-Zeile: Signalfarben je Zustand (data-state) ---- */
+.status[data-state="ok"]::before { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); animation: none; }
+.status[data-state="ok"] { border-color: var(--ok-border); }
+.status[data-state="wait"]::before { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); } /* Puls aus Basis bleibt = „aktiv wartend" */
+.status[data-state="wait"] { border-color: var(--ok-border); }
+.status[data-state="prompt"]::before { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.status[data-state="prompt"] { border-color: var(--accent-border); }
+.status[data-state="error"]::before { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); animation: none; }
+.status[data-state="error"] { border-color: var(--danger); color: var(--danger-strong); }
+
+/* ---- Verbinden-Button: grüne Signalfarbe + Warte-Zustand ---- */
+#confirm-btn { background: var(--ok-btn); box-shadow: 0 8px 18px -8px rgba(5, 150, 105, 0.5); }
+#confirm-btn:focus-visible { box-shadow: 0 0 0 3px var(--ok-soft), 0 0 0 1px var(--ok); }
+#confirm-btn.waiting, #confirm-btn.waiting:disabled {
+  background: var(--ok-soft); color: var(--ok-strong); box-shadow: none;
+  opacity: 1; cursor: default; animation: pulse 2s ease-in-out infinite;
+}
+
+/* Getrennt-Banner: die Statuszeile zeigt beim Verbindungsabriss weiter den letzten Stand,
+   ein eingefrorenes Fenster sieht also aus wie ein funktionierendes. Deshalb ein eigenes,
+   deutlich abgesetztes Element in Warnfarbe — mit Knopf, damit man nicht neu laden muss. */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
+  border-radius: var(--r);
+  padding: 12px 15px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+.offline-bar svg { width: 18px; height: 18px; flex: none; }
+.offline-bar span { flex: 1; }
+.offline-bar button { flex: none; }
+/* Solange getrennt: der Rest der Oberfläche ist ein Standbild und darf nicht so wirken,
+   als sei er aktuell. Zurückgenommen statt gesperrt — Lesen bleibt möglich. Bewusst eine
+   Aufzählung statt :not() — eine Opazität auf dem Banner-Elternteil ließe sich an dessen
+   Kindern nicht wieder aufheben. */
+body.link-down #status-bar,
+body.link-down #stepper,
+body.link-down .card,
+body.link-down .schedule-actions { opacity: 0.55; }
+
+/* Wartebildschirm für einen noch nicht offenen Termin. Bewusst ruhig: Der Countdown soll
+   belegen, dass etwas passieren wird — nicht drängen. */
+.invite-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px 15px;
+  margin-top: 12px;
+}
+.invite-countdown {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Netzwerk-Vorabprüfung. Zwei Stufen: gelb, wenn der Anruf über einen Umweg-Server läuft
+   (funktioniert, nur schwächer) — rot, wenn gar nichts hinausgeht. Bauform wie
+   .offline-bar, damit es sich nicht wie ein Fremdkörper anfühlt. */
+.netcheck-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
+  border-radius: var(--r);
+  padding: 12px 15px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+.netcheck-bar.is-blocked {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger-strong);
+}
+.netcheck-bar svg { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.netcheck-text { flex: 1; min-width: 0; }
+.netcheck-bar details { margin-top: 6px; }
+.netcheck-bar summary { cursor: pointer; opacity: 0.85; }
+.netcheck-bar .hint { margin: 6px 0 0; color: inherit; opacity: 0.9; }
+
+/* „Code erneuern" — unauffällig, aber auffindbar. Er wird nur gebraucht, wenn der QR-Code
+   ins Leere läuft, und soll den Normalfall nicht überlagern. */
+.auth-renew { margin-top: 12px; font-size: 0.85rem; }

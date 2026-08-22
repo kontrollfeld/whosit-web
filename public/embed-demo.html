@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrustCall — Embed-Demo</title>
+  <style>
+    body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #1b2433; }
+    h1 { font-size: 1.5rem; }
+    .card { border: 1px solid #e3e9f2; border-radius: 14px; padding: 20px; margin: 20px 0; }
+    pre { background: #f1f5f9; padding: 12px; border-radius: 9px; overflow-x: auto; font-size: 0.85rem; }
+    #events { font-family: ui-monospace, monospace; font-size: 0.85rem; background: #0f172a; color: #e2e8f0; border-radius: 9px; padding: 12px; min-height: 60px; white-space: pre-wrap; }
+    .muted { color: #5d6b85; }
+  </style>
+</head>
+<body>
+  <h1>TrustCall — Embed-Demo</h1>
+  <p class="muted">Diese Seite bindet die verifizierte Anruf-Widget per <code>embed.js</code> ein
+    und zeigt die empfangenen Lifecycle-Events. (Beispiel-Konfiguration: Video-Anruf, der
+    <strong>Nachname + Alter&nbsp;18+</strong> vom Gegenüber abfragt, Konfiguration gepinnt.)</p>
+
+  <div class="card">
+    <div id="trustcall"></div>
+  </div>
+
+  <div class="card">
+    <strong>Events vom Widget</strong>
+    <div id="events">— warte auf Events —</div>
+  </div>
+
+  <div class="card">
+    <strong>Einbinden auf deiner Seite:</strong>
+    <pre>&lt;div id="trustcall"&gt;&lt;/div&gt;
+&lt;script src="https://id-call.eu/embed.js"
+        data-target="#trustcall"
+        data-mode="video"
+        data-request="family_name,age_over_18"
+        data-lock="true"&gt;&lt;/script&gt;</pre>
+  </div>
+
+  <!-- Programmatic init so we can wire the event log. In production, the declarative
+       data-* variant above is enough. The origin is auto-detected from the script src. -->
+  <script src="/embed.js"></script>
+  <script>
+    var log = document.getElementById('events');
+    var lines = [];
+    function push(t) { lines.push(new Date().toLocaleTimeString() + '  ' + t); log.textContent = lines.join('\n'); }
+    TrustCall.embed('#trustcall', {
+      mode: 'video',
+      request: ['family_name', 'age_over_18'],
+      lock: true,
+      height: 640,
+      on: {
+        ready:     function (d) { push('ready · room ' + (d.room || '').slice(0, 8)); },
+        joined:    function (d) { push('joined · role ' + d.role); },
+        connected: function (d) { push('connected · mode ' + d.mode); },
+        verified:  function ()  { push('verified ✓'); },
+        ended:     function ()  { push('ended'); },
+      },
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# gitleaks configuration. The default rules misfire in two places here, and a scanner that cries
+# wolf gets switched off — so those places are excepted explicitly rather than loosening the check
+# as a whole.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known matches that are not secrets"
+paths = [
+  # Öffentliches Apple-Intermediate-Zertifikat, von Apple zur Verteilung veröffentlicht.
+  # The private key is NOT in the repository.
+  '''assets/pass/AppleWWDRCAG4\.pem''',
+  # Example configuration: contains nothing but placeholders such as __set_me__.
+  '''\.env\.example''',
+  '''\.env\.selfhost\.example''',
+  # Test scripts start servers with invented credentials ('test', 'mock-secret').
+  '''scripts/test-.*\.mjs''',
+  # Vendor bundles contain the libraries' own test vectors and example keys.
+  '''public/vendor/.*''',
+]
+regexes = [
+  # The value that sat in the source as a fallback until 2026-08-19. It is therefore publicly
+  # known and worthless; the affected instance has been shut down. src/core/startup-checks.ts
+  # lists it explicitly in order to REJECT it — it belongs there.
+  '''kontrollfeld-secret''',
+  # Placeholders from the templates
+  '''__set_me__''',
+  '''__openssl_rand_hex_32__''',
+  '''__long_random__''',
+]

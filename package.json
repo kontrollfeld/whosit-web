@@ -1,0 +1,61 @@
+{
+  "name": "id-call-web",
+  "version": "1.16.66",
+  "description": "EUDI Verified Call — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
+  "keywords": [
+    "eudi",
+    "eudi-wallet",
+    "eidas",
+    "openid4vp",
+    "webrtc",
+    "video-call",
+    "identity-verification",
+    "self-hosted",
+    "privacy"
+  ],
+  "homepage": "https://github.com/kontrollfeld/id-call-web#readme",
+  "bugs": {
+    "url": "https://github.com/kontrollfeld/id-call-web/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kontrollfeld/id-call-web.git"
+  },
+  "author": "Kontrollfeld GmbH",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "version:stamp": "node scripts/gen-version.mjs",
+    "test:qes": "node scripts/test-qes.mjs",
+    "mock:eudiplo": "node deploy/mock-eudiplo/server.mjs",
+    "test:invite": "node scripts/test-invite.mjs",
+    "test:netcheck": "node scripts/test-netcheck.mjs",
+    "test:wrp": "node scripts/test-wrp-policy.mjs",
+    "test:hostgate": "node scripts/test-host-gate.mjs",
+    "test:hostlogin": "node scripts/test-host-login.mjs",
+    "test:editions": "node scripts/test-editions.mjs",
+    "test": "npm run typecheck && npm run check:licence-boundary && npm run test:wrp && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:webhook && npm run test:invite && npm run test:hostlogin && npm run test:qes",
+    "test:startup": "node scripts/test-startup-guard.mjs",
+    "test:webhook": "node scripts/test-webhook.mjs",
+    "check:licence-boundary": "node scripts/check-licence-boundary.mjs",
+    "build:pro": "cd pro && npm run build"
+  },
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "node-forge": "^1.4.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "@types/node-forge": "^1.3.14",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

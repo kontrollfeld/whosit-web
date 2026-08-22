@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Checks for pull requests opened on the public mirror.
+#
+# THIS REPOSITORY IS A READ-ONLY MIRROR of a private GitLab project, which is where development and
+# the full pipeline (.gitlab-ci.yml) live. Two rules follow, and breaking either one costs you the
+# mirror:
+#
+#   1. This workflow runs ONLY on `pull_request` — never on `push`. A push-triggered job would fire
+#      on every mirror sync and burn minutes on code that was already verified upstream.
+#   2. It has `permissions: contents: read` and writes NOTHING back. Any commit created here is
+#      destroyed on the next sync (the mirror force-updates diverged refs), or — worse — leaves the
+#      mirror silently stuck showing stale code.
+#
+# Its only job is to tell a contributor whether their patch holds up, before a maintainer ports it
+# into GitLab by hand.
+name: PR checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Nothing under src/ may import from pro/ — otherwise the AGPL edition would depend on
+      # commercially licensed code and could no longer be shipped on its own.
+      - name: Licence boundary AGPL <-> pro/
+        run: npm run check:licence-boundary
+
+      - name: REUSE compliance
+        uses: fsfe/reuse-action@v5
+
+      - name: Build
+        run: npm run build
+
+      # The proof that the free part stands alone.
+      - name: Build stays complete without pro/
+        run: |
+          rm -rf pro
+          npm run build
+          test -f dist/server.js || { echo "::error::Build without pro/ is incomplete"; exit 1; }
+          git checkout -- pro
+
+      # Listed individually so the summary shows WHICH check failed.
+      - name: WRP policy (attribute allowlist, purpose limitation)
+        run: npm run test:wrp
+      - name: Host gate
+        run: npm run test:hostgate
+      - name: Network classification (ICE)
+        run: npm run test:netcheck
+      - name: Startup check (configuration, no values in the log)
+        run: npm run test:startup
+      - name: Edition split and off-switch
+        run: npm run test:editions
+      - name: Verification callback (auth, replay)
+        run: npm run test:webhook
+      - name: Scheduled calls / invitations
+        run: npm run test:invite
+      - name: Host sign-in
+        run: npm run test:hostlogin
+      - name: QES signing ceremony
+        run: npm run test:qes

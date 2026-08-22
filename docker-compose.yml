@@ -1,0 +1,122 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Self-hosting stack for EUDI Verified Call (Community Edition).
+#
+#   app     — the Node.js signaling/app server (built from ./Dockerfile)
+#   traefik — reverse proxy: HTTP→HTTPS, Let's Encrypt certs, WSS routing
+#   coturn  — TURN relay for NAT traversal (media stays DTLS-SRTP encrypted)
+#
+# Quick start:
+#   cp .env.selfhost.example .env    # then edit DOMAIN, ACME_EMAIL, TURN_SECRET, EUDIPLO_*
+#   docker compose up -d
+#
+# Optional EUDIPLO DUMMY for frontend work (no wallet, no cryptography, no substitute for a
+# verifier):  docker compose --profile mock up
+# See README.selfhost.md for the full walkthrough.
+
+name: id-call-web
+
+services:
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # force HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt (TLS-ALPN-01 challenge — only needs port 443 open)
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --certificatesresolvers.le.acme.tlschallenge=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/acme
+    networks: [web]
+
+  app:
+    build: .                      # reuses the existing multi-stage ./Dockerfile
+    restart: unless-stopped
+    expose:
+      - "3000"                    # internal only; Traefik terminates TLS and proxies
+    environment:
+      PUBLIC_URL: "https://${DOMAIN}"
+      PORT: "3000"
+      ALLOWED_ORIGINS: "https://${DOMAIN}"
+      # community (default) is the full 1:1 product; pro adds audit-trail, multi-party and
+      # qes-csc and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
+      EUDI_EDITION: "${EUDI_EDITION:-community}"
+      EUDIPLO_BASE_URL: "${EUDIPLO_BASE_URL}"
+      EUDIPLO_ROOT_ID: "${EUDIPLO_ROOT_ID}"
+      EUDIPLO_ROOT_SECRET: "${EUDIPLO_ROOT_SECRET}"
+      EUDIPLO_CLIENT_ID: "${EUDIPLO_CLIENT_ID}"
+      VERIFIER_REQUEST_ID: "${VERIFIER_REQUEST_ID}"
+      VERIFIER_CLIENT_ID: "${VERIFIER_CLIENT_ID}"
+      # Surfaced to the browser so the client can use YOUR TURN relay. Wiring the app to
+      # mint ephemeral TURN-REST credentials from TURN_SECRET is the one remaining
+      # integration step — see README.selfhost.md → "TURN".
+      TURN_URL: "turn:${DOMAIN}:3478"
+      TURN_SECRET: "${TURN_SECRET}"
+      TURN_REALM: "${DOMAIN}"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.app.entrypoints=websecure
+      - traefik.http.routers.app.tls.certresolver=le
+      - traefik.http.services.app.loadbalancer.server.port=3000
+    networks: [web]
+    depends_on: [traefik]
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    # TURN needs the host network so relayed media reaches the real public IP and
+    # the UDP relay port range is directly reachable.
+    network_mode: host
+    volumes:
+      - ./deploy/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    # Static tuning lives in the conf; secret/realm/IP are injected from .env here so
+    # no secret is committed. Open UDP 3478 + 49160-49200 (and TCP 3478) on the firewall.
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --realm=${DOMAIN}
+      --static-auth-secret=${TURN_SECRET}
+      --external-ip=${TURN_EXTERNAL_IP}
+
+  # --- optional: EUDIPLO DUMMY (`--profile mock`) ---
+  # For frontend work only. No signature verification, and it returns claims that were never
+  # requested — which keeps protocol errors invisible. Production needs your own EUDIPLO instance
+  # with an access certificate (see the README).
+  mock-eudiplo:
+    profiles: ["mock"]
+    image: node:22-slim
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    environment:
+      PORT: "8080"
+      SELF_URL: "https://${DOMAIN}/mock"
+    volumes:
+      - ./deploy/mock-eudiplo:/app:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mock.rule=Host(`${DOMAIN}`) && PathPrefix(`/mock`)
+      - traefik.http.routers.mock.entrypoints=websecure
+      - traefik.http.routers.mock.tls.certresolver=le
+      - traefik.http.middlewares.mock-strip.stripprefix.prefixes=/mock
+      - traefik.http.routers.mock.middlewares=mock-strip
+      - traefik.http.services.mock.loadbalancer.server.port=8080
+    networks: [web]
+
+volumes:
+  traefik-acme:
+
+networks:
+  web:
+    driver: bridge

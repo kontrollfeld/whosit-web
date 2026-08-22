@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+blank_issues_enabled: true
+contact_links:
+  - name: 🔒 Report a vulnerability
+    url: https://github.com/kontrollfeld/id-call-web/security/advisories/new
+    about: Please NOT as a public issue. Private reporting route, see the security policy.
+  - name: 💼 Commercial licence, Pro features or hosted operation
+    url: mailto:administration@kontrollfeld.de
+    about: Enquiries about the commercial licence, pro/ components, an SLA or hosted operation.
+  - name: ❓ Ask a question
+    url: https://github.com/kontrollfeld/id-call-web/discussions
+    about: Questions about usage, self-hosting or connecting EUDIPLO.

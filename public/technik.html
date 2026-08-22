@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Technik im Detail — EUDI Verified Call</title>
+  <meta name="description" content="Wie EUDI Verified Call funktioniert: EUDI-Wallet-Verifikation (PID, OpenID4VP), Privatsphäre-Gate, Ende-zu-Ende-verschlüsselte P2P-Verbindung, Sicherheitscode, Open Source und Selbst-Hosting — technisch und ehrlich erklärt." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 3.4l15.7 5.5A2.2 2.2 0 0 1 41.2 11v13c0 10.6-7.2 18-16.5 21.2a2.2 2.2 0 0 1-1.4 0C14 42 6.8 34.6 6.8 24V11a2.2 2.2 0 0 1 1.5-2.1L24 3.4z' fill='%23005bbb'/%3E%3Cpath d='M16.3 24.4l5.2 5.2 10.2-11.8' fill='none' stroke='%23fff' stroke-width='3.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M37.00 5.00 L38.35 9.15 L42.71 9.15 L39.18 11.71 L40.53 15.85 L37.00 13.29 L33.47 15.85 L34.82 11.71 L31.29 9.15 L35.65 9.15 Z' fill='%23FFCC00'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="landing.css" />
+  <script src="theme.js"></script>
+  <style>
+    .toc { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 8px; max-width: 820px; }
+    .toc a {
+      display: inline-flex; align-items: center;
+      background: var(--surface); border: 1px solid var(--border-strong);
+      color: var(--text-muted); text-decoration: none;
+      padding: 6px 14px; border-radius: var(--r-pill); font-size: 0.86rem; font-weight: 600;
+      transition: color var(--t), border-color var(--t), background var(--t);
+    }
+    .toc a:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+    .section-lead { max-width: 720px; margin: -18px auto 34px; text-align: center; color: var(--text-muted); }
+    .prose { max-width: 760px; margin: 0 auto; }
+    .prose .privacy-card { margin-bottom: 16px; }
+    .callout {
+      max-width: 760px; margin: 8px auto 0;
+      background: var(--ok-soft); border: 1px solid var(--ok-border);
+      border-radius: var(--r); padding: 16px 20px; color: var(--ok-strong); font-size: 0.94rem;
+    }
+    .lang-switch {
+      font: inherit; font-size: 0.85rem; color: var(--text-muted);
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: var(--r-pill); padding: 6px 12px; cursor: pointer;
+    }
+    code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em;
+      background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
+    /* Illustrative analogy box: visually set apart from the factual card text so it
+       reads as a simplified picture, not an additional technical claim. */
+    .analogy {
+      margin-top: 12px; padding: 12px 14px;
+      background: var(--accent-soft); border-left: 3px solid var(--accent);
+      border-radius: 0 var(--r-sm) var(--r-sm) 0;
+      font-size: 0.9rem; line-height: 1.55; color: var(--text);
+    }
+    .analogy-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.74rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+      color: var(--accent-strong); margin-bottom: 5px;
+    }
+    .analogy-label svg { width: 14px; height: 14px; flex: none; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n>Zum Inhalt springen</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" data-brand-lockup href="landing.html" aria-label="EUDI Verified Call — Startseite">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs><linearGradient id="lg" x1="0.12" y1="0" x2="0.85" y2="1"><stop stop-color="#1e7fd4"/><stop offset="1" stop-color="#003b8e"/></linearGradient></defs><g class="logo-ring"><path d="M24.00 1.15 L24.42 2.43 L25.76 2.43 L24.67 3.22 L25.09 4.50 L24.00 3.71 L22.91 4.50 L23.33 3.22 L22.24 2.43 L23.58 2.43 Z" fill="#FFCC00"/><path d="M34.50 3.96 L34.92 5.24 L36.26 5.24 L35.17 6.03 L35.59 7.31 L34.50 6.52 L33.41 7.31 L33.83 6.03 L32.74 5.24 L34.08 5.24 Z" fill="#FFCC00"/><path d="M42.19 11.65 L42.60 12.93 L43.95 12.93 L42.86 13.72 L43.27 15.00 L42.19 14.21 L41.10 15.00 L41.51 13.72 L40.43 12.93 L41.77 12.93 Z" fill="#FFCC00"/><path d="M45.00 22.15 L45.42 23.43 L46.76 23.43 L45.67 24.22 L46.09 25.50 L45.00 24.71 L43.91 25.50 L44.33 24.22 L43.24 23.43 L44.58 23.43 Z" fill="#FFCC00"/><path d="M42.19 32.65 L42.60 33.93 L43.95 33.93 L42.86 34.72 L43.27 36.00 L42.19 35.21 L41.10 36.00 L41.51 34.72 L40.43 33.93 L41.77 33.93 Z" fill="#FFCC00"/><path d="M34.50 40.34 L34.92 41.61 L36.26 41.61 L35.17 42.40 L35.59 43.68 L34.50 42.89 L33.41 43.68 L33.83 42.40 L32.74 41.61 L34.08 41.61 Z" fill="#FFCC00"/><path d="M24.00 43.15 L24.42 44.43 L25.76 44.43 L24.67 45.22 L25.09 46.50 L24.00 45.71 L22.91 46.50 L23.33 45.22 L22.24 44.43 L23.58 44.43 Z" fill="#FFCC00"/><path d="M13.50 40.34 L13.92 41.61 L15.26 41.61 L14.17 42.40 L14.59 43.68 L13.50 42.89 L12.41 43.68 L12.83 42.40 L11.74 41.61 L13.08 41.61 Z" fill="#FFCC00"/><path d="M5.81 32.65 L6.23 33.93 L7.57 33.93 L6.49 34.72 L6.90 36.00 L5.81 35.21 L4.73 36.00 L5.14 34.72 L4.05 33.93 L5.40 33.93 Z" fill="#FFCC00"/><path d="M3.00 22.15 L3.42 23.43 L4.76 23.43 L3.67 24.22 L4.09 25.50 L3.00 24.71 L1.91 25.50 L2.33 24.22 L1.24 23.43 L2.58 23.43 Z" fill="#FFCC00"/><path d="M5.81 11.65 L6.23 12.93 L7.57 12.93 L6.49 13.72 L6.90 15.00 L5.81 14.21 L4.73 15.00 L5.14 13.72 L4.05 12.93 L5.40 12.93 Z" fill="#FFCC00"/><path d="M13.50 3.96 L13.92 5.24 L15.26 5.24 L14.17 6.03 L14.59 7.31 L13.50 6.52 L12.41 7.31 L12.83 6.03 L11.74 5.24 L13.08 5.24 Z" fill="#FFCC00"/></g><g transform="translate(24,24) scale(0.68) translate(-24,-24)"><path d="M24 3.4l15.7 5.5A2.2 2.2 0 0 1 41.2 11v13c0 10.6-7.2 18-16.5 21.2a2.2 2.2 0 0 1-1.4 0C14 42 6.8 34.6 6.8 24V11a2.2 2.2 0 0 1 1.5-2.1L24 3.4z" fill="url(#lg)"/><path d="M16.3 24.4l5.2 5.2 10.2-11.8" stroke="#fff" stroke-width="3.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+        </svg>
+        <strong>EUDI&nbsp;Verified&nbsp;Call</strong>
+      </a>
+      <a class="btn btn-primary header-cta" href="./?new=1" data-i18n>Anruf starten</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      <div class="wrap">
+        <span class="eyebrow">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span data-i18n>Technik im Detail</span>
+        </span>
+        <h1><span data-i18n>Wie EUDI Verified Call funktioniert</span></h1>
+        <p class="sub" data-i18n>Vertrauen entsteht durch Architektur, nicht durch Versprechen. Diese Seite erklärt für technisch interessierte Nutzer, wie Identitätsnachweis, Verschlüsselung, Datenschutz und Betrieb zusammenspielen — inklusive der bewussten Grenzen.</p>
+        <nav class="toc" aria-label="Inhalt">
+          <a href="#architektur" data-i18n>Verbindung & Verschlüsselung</a>
+          <a href="#identitaet" data-i18n>Identität & Datenschutz</a>
+          <a href="#dokumente" data-i18n>Dokumente & Signaturen</a>
+          <a href="#betrieb" data-i18n>Offenheit & Betrieb</a>
+          <a href="#grenzen" data-i18n>Ehrliche Grenzen</a>
+        </nav>
+      </div>
+    </section>
+
+    <!-- ===== Verbindung & Verschlüsselung ===== -->
+    <section class="section" id="architektur" aria-labelledby="architektur-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="architektur-title" data-i18n>Verbindung & Verschlüsselung</h2>
+          <p data-i18n>Der Anruf läuft direkt zwischen den Browsern. Der Server hilft nur beim Verbindungsaufbau — die Inhalte sieht er nie.</p>
+        </div>
+        <div class="privacy">
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>
+            <div>
+              <h3 data-i18n>Peer-to-Peer statt Server-Relay</h3>
+              <p data-i18n>Video, Audio und Chat fließen per WebRTC direkt zwischen den Teilnehmern. Der Server vermittelt nur die technischen Verbindungsdaten (Signaling) und leitet keine Medien weiter.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <div>
+              <h3 data-i18n>Ende-zu-Ende verschlüsselt</h3>
+              <p data-i18n>Jede Verbindung ist mit DTLS-SRTP verschlüsselt — den Standard-Verfahren von WebRTC. Die Schlüssel werden direkt zwischen den Browsern ausgehandelt; der Server kennt sie nicht.</p>
+              <div class="analogy">
+                <span class="analogy-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.21 1.55 1.41 2.5"/></svg><span data-i18n>Anschaulich erklärt</span></span>
+                <span data-i18n>Stellt euch vor, ihr wollt gemeinsam einen Tresor bauen, ohne dass jemand am Telefon den Code mithören kann: Jeder bringt eine öffentlich sichtbare Hälfte eines mathematischen Schlosses mit. Kombiniert man beide Hälften, entsteht ein gemeinsames Geheimnis — aber nur für die beiden, die je ihre eigene Hälfte kennen. Genau so handeln eure Browser den Sitzungsschlüssel aus, mit dem die Verbindung verschlüsselt wird.</span>
+              </div>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+            <div>
+              <h3 data-i18n>Verbindungsaufbau über STUN/TURN</h3>
+              <p data-i18n>Um durch Router und Firewalls zu finden, nutzt WebRTC STUN- und (bei restriktiven Netzen) TURN-Relays. Ein TURN-Relay leitet nur die verschlüsselten Pakete weiter und kann sie nicht entschlüsseln.</p>
+              <p data-i18n>Strenge Firmen- und Behördennetze sperren oft alles außer Web-Verkehr. Für diesen Fall ist das Relay zusätzlich über Port 443 erreichbar — denselben Port, über den auch Webseiten geladen werden. So kommt ein Anruf auch dort zustande, wo die üblichen Wege verschlossen sind.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M1.4 9.4a15 15 0 0 1 21.2 0"/></svg></span>
+            <div>
+              <h3 data-i18n>Prüfung, bevor es losgeht</h3>
+              <p data-i18n>Beim Öffnen der Seite prüft der Browser im Hintergrund, ob das eigene Netz einen Anruf überhaupt zulässt. Das dauert den Bruchteil einer Sekunde und meldet sich nur, wenn etwas im Weg steht — dann aber, bevor der Termin beginnt, statt mittendrin.</p>
+              <p data-i18n>Der Hinweis nennt die Lage in klaren Worten und schlägt einen Ausweg vor, etwa das Mobilfunknetz des Telefons. Für die IT-Abteilung lässt sich eine Zeile aufklappen, die genau benennt, welche Adressen freigegeben sein müssen.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <div>
+              <h3 data-i18n>Mehrparteien per Full Mesh</h3>
+              <p data-i18n>Bei mehreren Teilnehmern hält jeder eine eigene Direktverbindung zu jedem anderen (Full Mesh). Auch hier bleibt der Server außen vor — er verteilt keine Medienströme.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Identität & Datenschutz ===== -->
+    <section class="section" id="identitaet" aria-labelledby="identitaet-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="identitaet-title" data-i18n>Identität & Datenschutz</h2>
+          <p data-i18n>Ausweisen mit dem digitalen Personalausweis (PID) aus der EUDI-Wallet — kryptografisch geprüft, datensparsam und erst nach beidseitiger Zustimmung sichtbar.</p>
+        </div>
+        <div class="privacy">
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M15 10h3"/><path d="M15 14h3"/></svg></span>
+            <div>
+              <h3 data-i18n>Identität aus der EUDI-Wallet (PID)</h3>
+              <p data-i18n>Namen und Attribute stammen aus dem Personal-Identitätsnachweis (PID) der EUDI-Wallet — amtlich bestätigt statt selbst eingetippt. Es werden ausschließlich echte PID-Nachweise akzeptiert.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div>
+              <h3 data-i18n>Geprüft über OpenID4VP (eIDAS 2.0)</h3>
+              <p data-i18n>Der Nachweis läuft über das Standard-Protokoll OpenID4VP im europäischen eIDAS-2.0-Rahmen. Die kryptografische Prüfung übernimmt ein spezialisierter Verifier-Dienst (EUDIPLO); die App verarbeitet nur das geprüfte Ergebnis.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+            <div>
+              <h3 data-i18n>Nur PID + geprüfte Vertrauensanker</h3>
+              <p data-i18n>Die Sicherheit hängt am Aussteller, nicht am Dateiformat: Akzeptiert wird nur der offizielle PID-Typ eines qualifizierten Ausstellers. „PID-ähnliche" selbst ausgestellte Nachweise werden über die Vertrauensanker-Liste des Verifiers abgewiesen.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <div>
+              <h3 data-i18n>Privatsphäre-Gate: erst Felder, dann Werte</h3>
+              <p data-i18n>Vor dem Verbinden seht ihr nur, welche Felder geteilt werden — nicht deren Inhalte. Die tatsächlichen Werte und Namen werden erst sichtbar, wenn beide Seiten ausdrücklich zugestimmt haben.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg></span>
+            <div>
+              <h3 data-i18n>Datensparsamkeit & selektive Offenlegung</h3>
+              <p data-i18n>Pro Anruf wird nur ausgewählt, was nötig ist — zum Beispiel „über 18" statt des vollständigen Geburtsdatums. Jede Seite kann auch anonym bleiben.</p>
+              <div class="analogy">
+                <span class="analogy-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.21 1.55 1.41 2.5"/></svg><span data-i18n>Anschaulich erklärt</span></span>
+                <span data-i18n>Die Wallet erhält vom Ausweisamt nicht einen Zettel mit allen Daten, sondern viele einzeln verschlossene Umschläge — je einer pro Angabe wie Name oder Geburtsdatum, mit einer zufälligen Geheimzahl darin. Über alle Umschläge zusammen gibt es eine amtlich unterschriebene Liste von Fingerabdrücken. Wird nur „über 18" abgefragt, öffnet die Wallet ausschließlich diesen einen Umschlag — der Rest bleibt verschlossen, bleibt aber durch die Liste nachweislich Teil desselben echten Ausweises.</span>
+              </div>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg></span>
+            <div>
+              <h3 data-i18n>Weitere Nachweise im Gespräch (Pro)</h3>
+              <p data-i18n>Im laufenden Anruf kann die Gastgeberseite zusätzliche Nachweise aus der Wallet anfragen — zum Beispiel eine Wohnraum-ID. Das Gegenüber sieht vorab die genaue Feldliste und kann jederzeit ablehnen; die Werte gehen ausschließlich an die anfragende Person, nie an den ganzen Raum und nie in Protokolle. Eine unbeantwortete Anfrage verfällt automatisch.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><path d="M12 3c-1.7 1.5-3.9 2.4-6.2 2.5C5.3 9 6.5 15 12 21c5.5-6 6.7-12 6.2-15.5C15.9 5.4 13.7 4.5 12 3z"/></svg></span>
+            <div>
+              <h3 data-i18n>Sicherheitscode gegen Man-in-the-Middle</h3>
+              <p data-i18n>Beide Seiten sehen einen kurzen Sicherheitscode, der aus den Zertifikaten beider Browser berechnet wird. Stimmt er mündlich überein, hört niemand heimlich in der Mitte mit.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></span>
+            <div>
+              <h3 data-i18n>Was der Server speichert — und was nicht</h3>
+              <p data-i18n>Es gibt keine Konten und keine Ausweis-Datenbank. Der Server hält den Raum nur im Arbeitsspeicher; in Protokollen erscheinen höchstens die Namen der geteilten Felder, niemals deren Werte.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Dokumente & Signaturen ===== -->
+    <section class="section" id="dokumente" aria-labelledby="dokumente-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="dokumente-title" data-i18n>Dokumente & Signaturen</h2>
+          <p data-i18n>Im verifizierten Anruf lassen sich PDFs teilen, gemeinsam durchgehen und gemeinsam signieren — komplett Peer-to-Peer. Der Server sieht das Dokument nie, nicht einmal seine Prüfsumme.</p>
+        </div>
+        <div class="privacy">
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+            <div>
+              <h3 data-i18n>Dokumente teilen — ohne Server</h3>
+              <p data-i18n>PDFs wandern in kleinen Blöcken direkt über den verschlüsselten Datenkanal zwischen den Browsern, mit Fortsetzung nach Verbindungsabbrüchen. Beide Seiten berechnen unabhängig eine SHA-256-Prüfsumme; erst wenn sie übereinstimmt, gilt das Dokument als Bit für Bit identisch.</p>
+              <div class="analogy">
+                <span class="analogy-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.21 1.55 1.41 2.5"/></svg><span data-i18n>Anschaulich erklärt</span></span>
+                <span data-i18n>Eine Prüfsumme funktioniert wie ein Mixer: Aus der Datei wird ein „Smoothie" berechnet, aus dem sich die Datei nicht zurückgewinnen lässt. Zwei identische Dateien ergeben immer denselben Smoothie — ändert sich auch nur ein einziges Byte, kommt ein komplett anderer heraus. Stimmen die Smoothies beider Seiten überein, ist das Dokument nachweislich unverändert übertragen worden.</span>
+              </div>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <div>
+              <h3 data-i18n>Gemeinsames Durchblättern</h3>
+              <p data-i18n>Beide sehen dieselbe Seite: Auf Wunsch werden Seitenwechsel live synchronisiert. Der PDF-Viewer läuft vollständig im Browser — es entsteht keine Kopie auf dem Server.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span>
+            <div>
+              <h3 data-i18n>Gemeinsam signieren (Demo)</h3>
+              <p data-i18n>Beide Parteien signieren das Dokument nacheinander im PDF-Standardformat PAdES. Jede Signatur wird als inkrementelles Update angehängt — spätere Unterschriften können frühere nachweislich nicht verändern, das prüft die Gegenseite Byte für Byte. Aktuell als deutlich gekennzeichnete Demo-Signatur, rechtlich nicht bindend.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M15 10h3"/><path d="M15 14h3"/></svg></span>
+            <div>
+              <h3 data-i18n>Identitätsbindung: Unterschrift = Gesprächspartner</h3>
+              <p data-i18n>Nach jedem Signaturschritt liest der Browser das Zertifikat direkt aus dem empfangenen Dokument und vergleicht den Namen mit den im Call verifizierten Ausweisdaten. Das Ergebnis steht sichtbar an jeder Signatur: stimmt überein, weicht ab — oder kein Abgleich möglich. Bei Abweichung entscheidet der Mensch, ob es weitergeht.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div>
+              <h3 data-i18n>Prüfansicht für alle Signaturen</h3>
+              <p data-i18n>Ein Klick prüft jede im Dokument enthaltene Signatur: kryptografische Gültigkeit, Zertifikatsdetails, Signaturzeitpunkt und welcher Teil der Datei abgedeckt ist. Für rechtsverbindliche Prüfungen verweist die App auf ETSI-konforme Prüfdienste wie die EU-DSS-Demonstration.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Offenheit & Betrieb ===== -->
+    <section class="section" id="betrieb" aria-labelledby="betrieb-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="betrieb-title" data-i18n>Offenheit & Betrieb</h2>
+          <p data-i18n>Selbst hostbar, einbettbar — und zur Veröffentlichung als Open Source bestimmt.</p>
+        </div>
+        <div class="privacy">
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+            <div>
+              <h3 data-i18n>Offenlegung & Editionen</h3>
+              <p data-i18n>Die Community Edition wird unter der AGPL-3.0 veröffentlicht, sobald die Testphase abgeschlossen ist — dann ist jede Aussage dieser Seite am Quellcode nachprüfbar. Eine Pro Edition ergänzt Zusatzfunktionen wie Mehrparteien-Anrufe, Bildschirmfreigabe oder einen Prüf-Audit-Trail.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg></span>
+            <div>
+              <h3 data-i18n>Selbst hosten</h3>
+              <p data-i18n>Mit Docker Compose ist die Anwendung in Minuten selbst betrieben — inklusive eigenem TURN-Relay. So bleiben Betrieb und Daten vollständig unter eigener Kontrolle.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>
+            <div>
+              <h3 data-i18n>Einbetten auf Drittseiten</h3>
+              <p data-i18n>Der verifizierte Anruf lässt sich als Widget in andere Websites einbetten. Optional bindet ein signiertes Token die erlaubten Domains und abfragbaren Felder fest — gegen missbräuchliche Einbettung.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg></span>
+            <div>
+              <h3 data-i18n>Browser-Unterstützung</h3>
+              <p data-i18n>Läuft in allen modernen Browsern (Chrome, Edge, Firefox, Safari — Desktop und mobil) über HTTPS. Auf dem iPhone fehlt systembedingt die Bildschirmfreigabe; die App blendet nicht verfügbare Funktionen aus und weist darauf hin.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Ehrliche Grenzen ===== -->
+    <section class="section" id="grenzen" aria-labelledby="grenzen-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="grenzen-title" data-i18n>Ehrliche Grenzen</h2>
+          <p data-i18n>Sicherheit heißt auch, die eigenen Annahmen offenzulegen. Diese Punkte solltet ihr kennen.</p>
+        </div>
+        <div class="prose">
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span>
+            <div>
+              <h3 data-i18n>Vertrauensanker Verifier-Dienst</h3>
+              <p data-i18n>Die kryptografische PID-Prüfung geschieht im Verifier-Dienst (EUDIPLO). Wer die Anwendung betreibt, muss dessen Vertrauensanker korrekt konfigurieren — die App vertraut dem geprüften Ergebnis dieses Dienstes.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+            <div>
+              <h3 data-i18n>Metadaten, nicht Inhalte</h3>
+              <p data-i18n>Der Server sieht keine Gesprächsinhalte, aber technische Verbindungs-Metadaten (wer wann einen Raum betritt). Bei restriktiven Netzen können Medien über ein TURN-Relay laufen — verschlüsselt, aber über den Server geleitet.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg></span>
+            <div>
+              <h3 data-i18n>Sicherheitscode aktuell für zwei Seiten</h3>
+              <p data-i18n>Der mündliche Sicherheitscode ist derzeit auf Eins-zu-eins-Gespräche ausgelegt. Bei mehr als zwei Teilnehmern wird er ausgeblendet; ein Gruppen-Sicherheitscode ist als spätere Erweiterung vorgesehen.</p>
+            </div>
+          </article>
+          <article class="privacy-card">
+            <span class="p-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span>
+            <div>
+              <h3 data-i18n>Demo-Signatur statt qualifizierter Signatur</h3>
+              <p data-i18n>Die heutige Dokument-Signatur nutzt selbstsignierte Demo-Zertifikate: technisch vollwertiges PAdES, aber ohne Vertrauenskette und ohne Rechtswirkung — die App sagt das an jeder Stelle deutlich. Die qualifizierte elektronische Signatur (QES) über einen Vertrauensdiensteanbieter, perspektivisch direkt aus der EUDI-Wallet, ist als nächste Ausbaustufe vorgesehen.</p>
+              <p data-i18n>Rechtlich ist der Weg dahin bereits vorgezeichnet: eIDAS 2.0 verpflichtet die Wallets, für Privatpersonen bei nicht-beruflicher Nutzung kostenlos qualifiziert signieren zu können. Der Signaturschlüssel bleibt dabei auf einem zertifizierten, „remote" verwalteten Hardware-Modul beim Vertrauensdiensteanbieter; die Wallet spricht es in eurem Auftrag an. Erste Pilotprojekte testen zwei Modelle — wallet-gesteuert (die Wallet zeigt das Dokument und löst die Signatur aus) und anbieter-gesteuert (der Vertrauensdiensteanbieter führt den Vorgang, die Wallet dient nur der starken Authentifizierung). Ein produktiver Rollout wird ab 2027 erwartet, mit unterschiedlichem Tempo je Mitgliedstaat.</p>
+              <div class="analogy">
+                <span class="analogy-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.21 1.55 1.41 2.5"/></svg><span data-i18n>Anschaulich erklärt</span></span>
+                <span data-i18n>Wallet und Signaturdienst müssen sich auf ein gemeinsames Geheimnis einigen, ohne dass der Signaturschlüssel je das gesicherte Hardware-Modul verlässt — wie beim Farbenmischen: Beide starten mit demselben, öffentlich bekannten Farbeimer. Jede Seite kippt eine eigene, geheime Farbe hinein — die Mischung lässt sich praktisch nicht mehr in ihre Zutaten zurückrechnen. Beide tauschen nur die fertigen Mischfarben aus, kippen dann noch einmal ihre eigene Geheimfarbe hinzu — und landen unabhängig voneinander bei exakt derselben Endfarbe. Wer nur die ausgetauschten Mischungen sieht, kann diese Endfarbe nicht nachbilden.</span>
+              </div>
+            </div>
+          </article>
+        </div>
+        <p class="callout" data-i18n>Der vollständige Quellcode wird veröffentlicht, sobald die Testphase abgeschlossen ist — dann lässt sich jede hier beschriebene Aussage daran nachprüfen. Bis dahin sind die Zusagen zur Datenabfrage unter /wrp-policy maschinenlesbar abrufbar.</p>
+      </div>
+    </section>
+
+    <!-- ===== Final CTA ===== -->
+    <section class="section" aria-labelledby="cta-title">
+      <div class="wrap">
+        <div class="cta-final">
+          <h2 id="cta-title" data-i18n>Am besten selbst ausprobieren</h2>
+          <p data-i18n>Raum erstellen, Link teilen, ausweisen — ohne Konto, direkt im Browser.</p>
+          <a class="btn btn-primary" href="./?new=1" data-i18n>Jetzt Anruf starten</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© 2026 EUDI Verified Call · Community Edition (AGPL-3.0)</span>
+      <nav aria-label="Footer">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Design: automatisch (Systemeinstellung)"></button>
+        <select id="lang-switch" class="lang-switch" aria-label="Sprache" data-i18n-attr="aria-label" hidden></select>
+        <a href="landing.html" data-i18n>Startseite</a>
+        <a href="./?new=1" data-i18n>App</a>
+        <a href="impressum.html" data-i18n>Impressum</a>
+        <a href="datenschutz.html" data-i18n>Datenschutz</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="i18n.js"></script>
+</body>
+</html>

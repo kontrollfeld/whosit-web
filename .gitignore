@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+node_modules/
+dist/
+
+# Das Capacitor-App-Projekt gehört zum Branch `spike/capacitor`, nicht zu `main` —
+# und seine Ignore-Regeln stehen in `app/.gitignore`, das main folglich nicht hat.
+# Ohne diese Zeile listet git auf main jede Xcode-/Gradle-Build-Datei einzeln auf
+# (~6650 Einträge), was echte Änderungen unsichtbar macht.
+# Hinweis für `spike/capacitor`: dort sind die App-Dateien GETRACKT, und getrackt
+# schlägt ignoriert — Bestehendes bleibt sichtbar. Nur NEU hinzukommende Dateien
+# unter app/ brauchen dort `git add -f`.
+app/
+.env
+*.log
+.DS_Store
+.playwright-mcp/
+/*.png
+secrets/
+
+# Arbeitswerkzeuge dieser Entwicklungsumgebung (Skills/Prompts). Bleiben lokal:
+# es sind interne Arbeitsanweisungen, und ein Teil davon ist Fremdmaterial mit
+# eigener Lizenz, das wir nicht mitverteilen wollen.
+.claude/
+# Nicht versionierte Arbeitsunterlagen im Wurzelverzeichnis. Bewusst aufgeführt: bei einem
+# `git add -A` wären sie sonst mitgekommen — und mit dem öffentlichen Repository dann
+# veröffentlicht. Debug-Screenshots deckt bereits `/*.png` ab.
+*.pdf

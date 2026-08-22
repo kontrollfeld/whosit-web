@@ -1,0 +1,71 @@
+EUDI Verified Call
+Copyright (c) 2026 Kontrollfeld GmbH and contributors
+
+This product is licensed under the GNU Affero General Public License v3.0 or later
+(see LICENSE) — with ONE exception: the `pro/` directory carries its own, commercial
+licence (see pro/LICENSE). Nothing under src/ depends on it; the AGPL part builds and
+runs without it (enforced by `npm run check:licence-boundary`).
+
+A commercial licence for `pro/`, and for use without the AGPL's network-copyleft
+obligations, is available separately — see LICENSE-COMMERCIAL.md.
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+Bundled third-party software remains under its own licence, which is NOT superseded
+by the AGPL. Licence texts are included alongside each component.
+
+--- Browser client (public/vendor/) ---
+
+pdf.js — rendering shared PDFs in the in-call document viewer
+  Copyright: Mozilla Foundation and contributors
+  Licence:   Apache License 2.0  ·  Text: public/vendor/pdfjs/LICENSE
+  Upstream:  https://github.com/mozilla/pdf.js
+
+PKI.js — CMS/PAdES signature creation and verification in the signing ceremony
+  Copyright: (c) 2014 GlobalSign; (c) 2015-2019 Peculiar Ventures
+             Author 2014-2019, Yury Strozhevsky
+  Licence:   BSD 3-Clause  ·  Text: public/vendor/pkijs/LICENSE
+  Upstream:  https://github.com/PeculiarVentures/PKI.js
+
+node-signpdf — incremental PDF signature updates (PAdES)
+  Copyright: (c) 2019 The Authors
+  Licence:   MIT  ·  Text: public/vendor/signpdf/LICENSE-signpdf
+  Upstream:  https://github.com/vbuch/node-signpdf
+
+pdf-lib — PDF manipulation, bundled with node-signpdf
+  Copyright: (c) 2019 Andrew Dillon
+  Licence:   MIT  ·  Text: public/vendor/signpdf/LICENSE-pdf-lib.md
+  Upstream:  https://github.com/Hopding/pdf-lib
+
+--- Fonts (public/fonts/) ---
+
+IBM Plex Sans — the entire user interface. Self-hosted on purpose: no request leaves
+  the instance for a font CDN, which is a privacy property rather than a preference.
+  Copyright: (c) 2017 IBM Corp.
+  Licence:   SIL Open Font License 1.1
+  Upstream:  https://github.com/IBM/plex
+
+  Licence text: public/fonts/LICENSE-OFL-1.1.txt (the OFL requires it to accompany the
+  font files) and LICENSES/OFL-1.1.txt. Reserved Font Name: "Plex".
+
+--- Runtime dependencies (npm, not vendored) ---
+
+Installed via `npm ci`; licence texts land in node_modules/.
+  express     MIT           — HTTP server for static files, webhook and API endpoints
+  ws          MIT           — WebSocket signalling
+  node-forge  BSD-3-Clause / GPL-2.0 (dual) — X.509/PKCS handling for Wallet passes
+  dotenv      BSD-2-Clause  — loading .env in development
+Development only: typescript (Apache-2.0), tsx (MIT), @types/* (MIT).
+
+--- Public certificate ---
+
+assets/pass/AppleWWDRCAG4.pem is the PUBLIC Apple Worldwide Developer Relations G4
+intermediate certificate, required to build Apple Wallet passes. It is public by
+design and contains no secret. The matching private key is NOT in this repository.
+
+================================================================================
+
+Nothing in this NOTICE modifies the terms of the AGPL, of pro/LICENSE, or of any
+third-party licence listed above.

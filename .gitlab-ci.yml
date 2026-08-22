@@ -1,0 +1,188 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Typecheck, licence boundary and the full integration test suite.
+#
+# This private GitLab project is where development happens; the public GitHub and openCode copies
+# are read-only push mirrors. That is why the full pipeline lives here and ONLY here: a mirror is
+# force-updated on every sync, so a job writing to it (see `stamp`) would lose its commit or leave
+# the mirror silently diverged.
+#
+# GitHub carries a deliberately reduced counterpart (.github/workflows/pr-checks.yml): the same
+# checks, `pull_request` only, no write permissions — so a contributor sees whether their patch
+# holds up before a maintainer ports it here.
+#
+# Why a verifying pipeline at all: until 2026-08-19 there was none. The only automation bumped the
+# version and triggered the deploy — so every push to the default branch went to production
+# untested. In a public repository that takes merge requests from strangers, that is not an option.
+
+default:
+  image: node:22
+  # `npm ci` on a cold runner is the slowest part of the pipeline; the cache makes repeat runs cheap.
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+stages:
+  - test
+  - image
+  - stamp
+
+# Without this, every push to a branch with an open merge request produces TWO pipelines (one for
+# the branch, one for the MR) — the same work twice, and two sets of results to interpret.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+test:
+  stage: test
+  # The suite starts real server processes and waits for WebSocket messages; on a cold runner that
+  # is slower than locally. The limit stops a hung run from burning an hour of runner time.
+  timeout: 20 minutes
+  script:
+    - npm run typecheck
+
+    # The licence boundary is the core of the two-licence model: nothing under src/ may import from
+    # pro/, otherwise the AGPL edition would depend on commercially licensed code and could no
+    # longer be shipped on its own.
+    - npm run check:licence-boundary
+
+    - npm run build
+
+    # The actual proof: the free part must build COMPLETELY without pro/. Remove the directory and
+    # the result must not change.
+    - rm -rf pro
+    - npm run build
+    - test -f dist/server.js || { echo "Build without pro/ is incomplete"; exit 1; }
+    - git checkout -- pro
+
+    # Listed individually rather than via `npm test`, so the job log shows immediately WHICH check
+    # failed — a chained command line only says that something did.
+    - npm run test:wrp
+    - npm run test:hostgate
+    - npm run test:netcheck
+    - npm run test:startup
+    - npm run test:editions
+    - npm run test:webhook
+    - npm run test:invite
+    - npm run test:hostlogin
+    - npm run test:qes
+
+# Secret scanning: the mistake that happens most often when open-sourcing, and the most expensive
+# one. Runs over the WHOLE history, not just the diff — a secret in an old commit is just as public
+# after going public as one in the current tree.
+#
+# GIT_DEPTH must be 0: GitLab clones shallow by default, and a shallow clone would scan only the
+# most recent commits while reporting success. That is the worst possible outcome for this check —
+# green, and blind.
+secrets:
+  stage: test
+  before_script: []
+  variables:
+    GIT_DEPTH: 0
+    GITLEAKS_VERSION: "8.28.0"
+  script:
+    - >
+      curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+      | tar -xz gitleaks
+    - ./gitleaks git --config .gitleaks.toml --redact --verbose --exit-code 1
+
+# REUSE/SPDX: every file carries a copyright line and a licence ID, and every ID in use has its
+# text in LICENSES/. That makes the licensing situation machine-readable — exactly what public
+# bodies check during procurement — and it proves the boundary between AGPL and pro/ file by file
+# instead of merely asserting it.
+reuse:
+  stage: test
+  image:
+    name: fsfe/reuse:latest
+    entrypoint: [""]
+  before_script: []
+  script:
+    - reuse lint
+
+# SBOM — the bill of materials for our dependencies. Two reasons: the Cyber Resilience Act requires
+# it in the technical documentation from 2027-12-11 (CycloneDX or SPDX, at least the direct
+# dependencies), and public-sector procurement asks for it. It does not have to be public — kept
+# here as a job artefact, available on request.
+sbom:
+  stage: test
+  script:
+    - npm sbom --sbom-format cyclonedx --sbom-type application > sbom.cdx.json
+  artifacts:
+    paths:
+      - sbom.cdx.json
+    expire_in: 90 days
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# The AGPL image must be free of commercially licensed code so that it may be redistributed
+# (pro/LICENSE forbids distribution). This checks that, rather than asserting it.
+#
+# NOTE: the job cannot be called `image` — that is a reserved GitLab CI keyword.
+container:
+  stage: image
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script: []
+  script:
+    - docker build -t evc:agpl .
+    - COUNT=$(docker run --rm evc:agpl sh -c 'ls -A /app/pro 2>/dev/null | wc -l')
+    - echo "Files in /app/pro: $COUNT"
+    - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Version stamp — ONLY on the default branch and ONLY after green tests. Previously the bump ran
+# before all checks, so every version carried the promise of being tested without keeping it.
+#
+# TWO THINGS THIS JOB NEEDS, and both are easy to get wrong:
+#
+#  1. A push token. CI_JOB_TOKEN cannot write to the repository. Create a Project Access Token with
+#     the `write_repository` scope and store it as the masked CI/CD variable CI_PUSH_TOKEN. Without
+#     it the job fails at the push — deliberately loudly rather than skipping silently.
+#  2. `[skip ci]` in the commit message. Unlike GitHub, GitLab does NOT exempt token-authenticated
+#     pushes from triggering pipelines: without the marker this job would trigger itself, forever.
+#     `[skip version]` is kept as a second safeguard in case that behaviour ever changes.
+#
+# The deploy trigger is gone: it existed only because the Pro image lived in a second repository
+# and pulled the core in via `git clone` — with a read token, an API token and a forced no-cache
+# rebuild (otherwise stale code went live). Now that `pro/` sits in the main repository, the
+# deployment platform watches this repository directly. The Pro image is produced there with
+# `--build-arg WITH_PRO=1`.
+stamp:
+  stage: stamp
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE !~ /\[skip version\]/
+  variables:
+    GIT_DEPTH: 0
+  before_script: []
+  script:
+    # Without this step public/version.json only changes when someone remembers to change it — and
+    # then drifts silently. The stamp carries the commit SHA, so the footer of a running instance
+    # proves which revision is actually live.
+    - |
+      NEWVER=$(node -e "
+        const fs = require('fs');
+        const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        const parts = p.version.split('.').map(Number);
+        parts[2] = (parts[2] || 0) + 1;
+        p.version = parts.join('.');
+        fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+        console.log(p.version);
+      ")
+      node scripts/gen-version.mjs
+      git config user.name "gitlab-ci"
+      git config user.email "gitlab-ci@${CI_SERVER_HOST}"
+      git remote set-url origin "https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      git add package.json public/version.json
+      git commit -m "chore: bump version to ${NEWVER} [skip ci] [skip version]"
+      git push origin "HEAD:${CI_DEFAULT_BRANCH}"

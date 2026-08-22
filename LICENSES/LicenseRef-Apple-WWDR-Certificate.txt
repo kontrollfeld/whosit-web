@@ -1,0 +1,12 @@
+Apple Worldwide Developer Relations Intermediate Certificate (G4)
+
+This is not a software licence. `assets/pass/AppleWWDRCAG4.pem` is the PUBLIC
+intermediate CA certificate published by Apple Inc. It is required to build and
+verify Apple Wallet passes (.pkpass) and is distributed by Apple for exactly that
+purpose.
+
+It contains no secret. The matching private key is NOT part of this repository;
+it belongs to the operator's own Apple Developer account.
+
+Source: https://www.apple.com/certificateauthority/
+Copyright: Apple Inc. — used under Apple's terms for developer certificates.

@@ -1,0 +1,121 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# coturn as its OWN Coolify resource — the TURN relay
+#
+# Why at all: without TURN every call fails where no direct connection can be established —
+# typically on mobile networks (5G/LTE), because carrier NAT is usually symmetric. The symptom:
+# both sides see their own picture, neither sees the other. The security code still appears,
+# because it is computed from the DTLS fingerprints in the SDP and proves nothing about media
+# actually flowing.
+#
+# Difference from ../../docker-compose.yml: the self-host stack mounts
+# `deploy/coturn/turnserver.conf`. Here EVERYTHING is a CLI flag, so this file works as a Coolify
+# resource without a volume mount (copy and paste, no file to place). The two are equivalent in
+# substance.
+#
+# ---------------------------------------------------------------------------------------
+# SETUP
+#
+# 1. DNS: an A record `turn.<your-domain>` -> the public IP of the Coolify host.
+#    (Alternatively use the IP directly in TURN_URL and skip DNS.)
+#
+# 2. Generate a secret — do NOT copy one out of a guide:
+#       openssl rand -hex 32
+#    The same value has to be set as TURN_SECRET in the application later.
+#
+# 3. Firewall — at the hosting provider (security group) AND on the host:
+#       UDP 3478              STUN/TURN
+#       TCP 3478              TURN over TCP (for networks that block UDP)
+#       UDP 49160-49300       relay ports for the media
+#
+# 4. In the application -> Environment Variables:
+#       TURN_URL=turn:turn.<your-domain>:3478
+#       TURN_SECRET=<the same value as below>
+#    Then restart. With both set, /ice serves ephemeral TURN REST credentials and the (by now
+#    defunct) openrelay fallback is no longer used.
+#
+# 5. Verify — a relay candidate MUST appear:
+#       gather the ICE candidates in the browser (see the TURN section of the README)
+#       or: docker logs <coturn> shows allocation requests
+# ---------------------------------------------------------------------------------------
+
+name: eudi-turn
+
+services:
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+
+    # TURN needs the host network. Two reasons, both compelling:
+    #  - the relay port range must be directly reachable (Docker mapping of >100 UDP ports is
+    #    agonisingly slow and partly unreliable),
+    #  - coturn must see the REAL public IP, otherwise it writes the container IP into the
+    #    candidates and nobody can reach the relay.
+    network_mode: host
+
+    environment:
+      # Must match the application's TURN_SECRET. Set it as a secret in Coolify.
+      TURN_SECRET: ${TURN_SECRET:?TURN_SECRET is missing - generate one with openssl rand -hex 32}
+      TURN_REALM: ${TURN_REALM:-id-call.eu}
+      # Public IP of the host. Without it coturn advertises unusable candidates; "it works that
+      # out itself" is exactly what does not hold behind NAT or a cloud load balancer.
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:?TURN_EXTERNAL_IP is missing - the public IP of the host}
+
+    # Everything inline, no conf mount. The order follows deploy/coturn/turnserver.conf.
+    #
+    # Only flags already in use in this repository (deploy/coturn/turnserver.conf and the
+    # command: in ../../docker-compose.yml). Two convenience flags (server name, log format) are
+    # omitted because --realm and the default cover them.
+    #
+    # VERIFIED locally on 2026-08-06: `docker run coturn/coturn:4.6 turnserver <these flags>`
+    # starts cleanly — "Default realm: …", listener and relay discovery run, no unknown-option
+    # error. The only messages are harmless (no conf file, no pid file in the container). A wrong
+    # flag name would terminate coturn immediately, which is why the test was worth doing.
+    command: >
+      turnserver
+      --listening-port=3478
+      --realm=${TURN_REALM:-id-call.eu}
+      --external-ip=${TURN_EXTERNAL_IP}
+      --use-auth-secret
+      --static-auth-secret=${TURN_SECRET}
+      --min-port=49160
+      --max-port=49300
+      --fingerprint
+      --no-tls
+      --no-dtls
+      --no-multicast-peers
+      --no-cli
+      --no-software-attribute
+      --denied-peer-ip=10.0.0.0-10.255.255.255
+      --denied-peer-ip=172.16.0.0-172.31.255.255
+      --denied-peer-ip=192.168.0.0-192.168.255.255
+      --denied-peer-ip=169.254.0.0-169.254.255.255
+      --denied-peer-ip=127.0.0.0-127.255.255.255
+      --log-file=stdout
+
+# ---------------------------------------------------------------------------------------
+# DELIBERATE DECISIONS
+#
+# --no-tls / --no-dtls: TURNS is OFF. The media is already end-to-end encrypted with DTLS-SRTP —
+#   the relay sees ciphertext either way, so TLS on top adds nothing for confidentiality. TURNS
+#   (5349) only helps traverse TLS-only firewalls.
+#   THE LIMIT, and how it is resolved: restrictive corporate and government networks often permit
+#   TCP 443 only — port 3478 then fails, whether UDP or TCP. On this host Traefik occupies 443,
+#   so coturn cannot bind it itself.
+#   SOLVED on 2026-08-12: a Traefik TCP router on 443 with HostSNI(turn.<your-domain>), TLS
+#   termination through the existing resolver, forwarding to the TCP 3478 listener here. The
+#   browser speaks turns:turn.<your-domain>:443?transport=tcp; coturn needs no certificate of its
+#   own, which is why --no-tls stays. In the application: TURN_TLS_URL. Proven end to end (a TURN
+#   allocation, not just a certificate) — the concrete setup is in the TURN section of the README.
+#
+# --denied-peer-ip: otherwise an open TURN relay is an SSRF tool — someone could reach the host's
+#   internal services through it. These ranges block private and loopback destinations.
+#
+# --min/max-port 49160-49300: 140 ports, so roughly 140 simultaneously relayed streams. Enough for
+#   a demo and early operation; to scale, raise it AND adjust the firewall rule, otherwise calls
+#   above the limit break with no visible reason.
+#
+# use-auth-secret: no static username or password. The application derives short-lived
+#   credentials from the same secret (username = <unix+TTL>:eudi, credential =
+#   base64(HMAC-SHA1(secret, username))) — see /ice in src/server.ts.
+# ---------------------------------------------------------------------------------------

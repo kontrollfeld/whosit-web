@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: 💡 Suggest a feature
+description: An idea for an extension.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything touching more than one file: please open this **first** rather than a pull
+        request. It is a shame to throw away work that two sentences up front would have settled.
+
+        For orientation: **Pro is what we provide something in return for** (retention with
+        liability, group calls over our infrastructure, provider contracts). Everything else is
+        Community — see the registry in `src/core/features.ts`. Not accepted: telemetry, and
+        extensions to the attribute allowlist without a legal basis.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which problem does it solve?
+      description: >
+        The problem, please, not the solution. Who has it, how often, and what do they do
+        instead today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Where would it belong?
+      options:
+        - Community
+        - Pro
+        - Not sure — please classify
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Data minimisation
+      options:
+        - label: >
+            The proposal requires **no** additional identity data and no storage of personal
+            data. (If it does: please explain below — the allowlist in `src/wrp-policy.ts` is
+            deliberately narrow and cannot be extended via the environment.)
+  - type: textarea
+    id: context
+    attributes:
+      label: Further context

@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: 🐛 Report a bug
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **No security vulnerabilities here** — use the private reporting route
+        described in the [security policy](https://github.com/kontrollfeld/id-call-web/security/policy).
+
+        **Please do not paste real identity data.** The software deliberately records attribute
+        *names* only, never values. If a value did end up in your log, that is itself a bug —
+        please report it through the private route.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a room with …
+        2. Join as a guest via …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the footer badge on the page, or from `GET /version.json`.
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: How are you running it?
+      options:
+        - Self-hosted (Community)
+        - Self-hosted with pro/ (commercial licence)
+        - id-call.eu (operated by us)
+        - iOS or Android app
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Browser or device, operating system, and whether over mobile data or Wi-Fi.
+      placeholder: "Safari 26 on iOS 26, 5G"
+  - type: textarea
+    id: verifier
+    attributes:
+      label: Verifier and credential format
+      description: >
+        Only for verification problems. Which EUDIPLO version, which wallet, and did it run over
+        mdoc or SD-JWT VC (`EUDI_CREDENTIAL_PROFILES`)? The two paths behave measurably
+        differently — this is often the decisive detail.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Server log and/or browser console.
+      render: shell

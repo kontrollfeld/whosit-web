@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+node_modules
+**/node_modules
+dist
+**/dist
+.env
+.git
+.gitignore
+*.log
+.DS_Store
+README.md
+.env.example

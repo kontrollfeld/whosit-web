@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>EUDI Verified Call</title>
+  <meta name="description" content="Video-, Audio- oder Chat-Anruf mit gegenseitiger Identitätsprüfung per EUDI-Wallet (digitaler Personalausweis) — beide sehen vor dem Verbinden, was geteilt wird." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 3.4l15.7 5.5A2.2 2.2 0 0 1 41.2 11v13c0 10.6-7.2 18-16.5 21.2a2.2 2.2 0 0 1-1.4 0C14 42 6.8 34.6 6.8 24V11a2.2 2.2 0 0 1 1.5-2.1L24 3.4z' fill='%23005bbb'/%3E%3Cpath d='M16.3 24.4l5.2 5.2 10.2-11.8' fill='none' stroke='%23fff' stroke-width='3.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M37.00 5.00 L38.35 9.15 L42.71 9.15 L39.18 11.71 L40.53 15.85 L37.00 13.29 L33.47 15.85 L34.82 11.71 L31.29 9.15 L35.65 9.15 Z' fill='%23FFCC00'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="theme.js"></script>
+  <script>if (window.EUDI_APP_CONFIG && window.EUDI_APP_CONFIG.native) document.documentElement.classList.add('native-app');</script>
+  <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+</head>
+<body>
+  <main>
+    <!-- Setup-Phase auf breiten Screens zweispaltig: Erklärtext links (sticky), die
+         eigentlichen Formulare/Anzeigen rechts. Bricht unter setup-columns-Breakpoint
+         zur gewohnten Einspalte zusammen (siehe CSS). -->
+    <div id="setup-columns" class="setup-columns">
+    <div class="setup-columns-left">
+    <header>
+      <div class="logo">
+        <svg class="logo-mark" data-brand-logo viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="EUDI Verified Call">
+          <defs><linearGradient id="logoGrad" x1="0.12" y1="0" x2="0.85" y2="1"><stop stop-color="#1e7fd4"/><stop offset="1" stop-color="#003b8e"/></linearGradient></defs><g class="logo-ring"><path d="M24.00 1.15 L24.42 2.43 L25.76 2.43 L24.67 3.22 L25.09 4.50 L24.00 3.71 L22.91 4.50 L23.33 3.22 L22.24 2.43 L23.58 2.43 Z" fill="#FFCC00"/><path d="M34.50 3.96 L34.92 5.24 L36.26 5.24 L35.17 6.03 L35.59 7.31 L34.50 6.52 L33.41 7.31 L33.83 6.03 L32.74 5.24 L34.08 5.24 Z" fill="#FFCC00"/><path d="M42.19 11.65 L42.60 12.93 L43.95 12.93 L42.86 13.72 L43.27 15.00 L42.19 14.21 L41.10 15.00 L41.51 13.72 L40.43 12.93 L41.77 12.93 Z" fill="#FFCC00"/><path d="M45.00 22.15 L45.42 23.43 L46.76 23.43 L45.67 24.22 L46.09 25.50 L45.00 24.71 L43.91 25.50 L44.33 24.22 L43.24 23.43 L44.58 23.43 Z" fill="#FFCC00"/><path d="M42.19 32.65 L42.60 33.93 L43.95 33.93 L42.86 34.72 L43.27 36.00 L42.19 35.21 L41.10 36.00 L41.51 34.72 L40.43 33.93 L41.77 33.93 Z" fill="#FFCC00"/><path d="M34.50 40.34 L34.92 41.61 L36.26 41.61 L35.17 42.40 L35.59 43.68 L34.50 42.89 L33.41 43.68 L33.83 42.40 L32.74 41.61 L34.08 41.61 Z" fill="#FFCC00"/><path d="M24.00 43.15 L24.42 44.43 L25.76 44.43 L24.67 45.22 L25.09 46.50 L24.00 45.71 L22.91 46.50 L23.33 45.22 L22.24 44.43 L23.58 44.43 Z" fill="#FFCC00"/><path d="M13.50 40.34 L13.92 41.61 L15.26 41.61 L14.17 42.40 L14.59 43.68 L13.50 42.89 L12.41 43.68 L12.83 42.40 L11.74 41.61 L13.08 41.61 Z" fill="#FFCC00"/><path d="M5.81 32.65 L6.23 33.93 L7.57 33.93 L6.49 34.72 L6.90 36.00 L5.81 35.21 L4.73 36.00 L5.14 34.72 L4.05 33.93 L5.40 33.93 Z" fill="#FFCC00"/><path d="M3.00 22.15 L3.42 23.43 L4.76 23.43 L3.67 24.22 L4.09 25.50 L3.00 24.71 L1.91 25.50 L2.33 24.22 L1.24 23.43 L2.58 23.43 Z" fill="#FFCC00"/><path d="M5.81 11.65 L6.23 12.93 L7.57 12.93 L6.49 13.72 L6.90 15.00 L5.81 14.21 L4.73 15.00 L5.14 13.72 L4.05 12.93 L5.40 12.93 Z" fill="#FFCC00"/><path d="M13.50 3.96 L13.92 5.24 L15.26 5.24 L14.17 6.03 L14.59 7.31 L13.50 6.52 L12.41 7.31 L12.83 6.03 L11.74 5.24 L13.08 5.24 Z" fill="#FFCC00"/></g><g transform="translate(24,24) scale(0.68) translate(-24,-24)"><path d="M24 3.4l15.7 5.5A2.2 2.2 0 0 1 41.2 11v13c0 10.6-7.2 18-16.5 21.2a2.2 2.2 0 0 1-1.4 0C14 42 6.8 34.6 6.8 24V11a2.2 2.2 0 0 1 1.5-2.1L24 3.4z" fill="url(#logoGrad)"/><path d="M16.3 24.4l5.2 5.2 10.2-11.8" stroke="#fff" stroke-width="3.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+        </svg>
+        <h1 data-brand-name>EUDI&nbsp;Verified&nbsp;Call</h1>
+      </div>
+      <p class="sub" data-i18n-html>Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.</p>
+      <ul id="benefits" class="benefits">
+        <li><span class="check" aria-hidden="true">✓</span><span data-i18n-html><strong>Amtlich geprüfte Namen</strong> — nicht selbst eingetippt, sondern per Personalausweis bestätigt.</span></li>
+        <li><span class="check" aria-hidden="true">✓</span><span data-i18n-html><strong>Beidseitig &amp; flexibel</strong> — jede Seite kann anonym bleiben oder ausgewählte Daten teilen.</span></li>
+        <li><span class="check" aria-hidden="true">✓</span><span data-i18n-html><strong>Inhalte erst nach Zustimmung</strong> — vorab seht ihr nur, <em>welche</em> Felder geteilt werden, nicht die Werte.</span></li>
+        <li><span class="check" aria-hidden="true">✓</span><span data-i18n-html><strong>Datensparsam</strong> — nur die gewählten Angaben, sonst nichts.</span></li>
+      </ul>
+    </header>
+    </div><!-- /setup-columns-left -->
+
+    <div class="setup-columns-right">
+    <!-- Fortschritt (rollen-abhängig von app.js befüllt) -->
+    <ol id="stepper" class="stepper" hidden></ol>
+
+    <!-- Getrennt-Banner. Bewusst NICHT nur die Statuszeile: die zeigt beim Abriss sonst
+         weiter den letzten Stand von vorher, und ein eingefrorenes Fenster sieht aus wie
+         ein funktionierendes. Genau daran ist ein geplanter Anruf gescheitert. -->
+    <div id="offline-bar" class="offline-bar" role="status" aria-live="polite" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="m2 2 20 20"/></svg>
+      <span data-i18n>Keine Verbindung zum Server — was du hier siehst, ist möglicherweise veraltet. Es wird automatisch weiter versucht.</span>
+      <button type="button" id="offline-retry-btn" class="ghost" data-i18n>Jetzt neu verbinden</button>
+    </div>
+
+    <!-- Netzwerk-Vorabprüfung. Erscheint NUR, wenn das Netz den Anruf behindert — im
+         Normalfall sieht hier niemand etwas. Die Detailzeile ist für die IT-Abteilung
+         gedacht und bleibt eingeklappt, damit die Meldung selbst ohne Fachbegriffe
+         auskommt. -->
+    <div id="netcheck-bar" class="netcheck-bar" role="status" aria-live="polite" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+      <div class="netcheck-text">
+        <span id="netcheck-msg"></span>
+        <details id="netcheck-details">
+          <summary data-i18n>Technische Angaben für die IT</summary>
+          <p id="netcheck-tech" class="hint"></p>
+        </details>
+      </div>
+    </div>
+
+    <div id="status-bar" class="status" data-i18n>Verbindung wird hergestellt …</div>
+
+    <!-- Wartebildschirm für einen Termin, der noch nicht offen ist. Der Countdown ist
+         nicht Zierde: er belegt, dass hier etwas passieren WIRD — vorher stand da eine
+         Aufforderung zum erneuten Öffnen, und nichts geschah von allein. -->
+    <div id="invite-wait" class="invite-wait" hidden>
+      <div id="invite-countdown" class="invite-countdown" role="timer" aria-live="off"></div>
+      <button type="button" id="invite-retry-btn" class="ghost" data-i18n>Jetzt versuchen</button>
+    </div>
+
+    <!-- Teilnehmer (kompakt, immer im Blick) -->
+    <section id="identities" class="card identities">
+      <div class="ids">
+        <div class="id-chip you" id="self-chip"><span class="dot"></span><span id="self-label" data-i18n>Du</span></div>
+        <div id="peer-chips"></div>
+      </div>
+    </section>
+
+    <button id="restart-btn" class="restart" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v6h6" /><path d="M3 13a9 9 0 1 0 3-7.7L3 8" /></svg>
+      <span id="restart-label" data-i18n>Neuen Anruf starten</span>
+    </button>
+
+    <!-- Einrichten + Ausweisen: auf breiten Screens nebeneinander (Ursache → Wirkung) -->
+    <div id="setup-zone" class="setup-zone">
+    <section id="setup" class="card" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span data-i18n>Anruf einrichten</span></h2>
+
+      <div id="mode-block">
+      <span class="field-label" data-i18n>Verbindungsart</span>
+      <div class="seg" id="mode-seg" role="group" aria-label="Verbindungsart">
+        <button type="button" data-mode="video" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>Video</button>
+        <button type="button" data-mode="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>Audio</button>
+        <button type="button" data-mode="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button>
+      </div>
+      </div><!-- /mode-block -->
+
+      <div class="party you">
+        <span class="field-label"><span data-i18n>Ich teile</span> <span class="field-note" data-i18n>— deine eigenen Ausweis-Daten</span></span>
+        <div class="seg" id="disclose-seg" role="group" aria-label="Was du teilst" data-i18n-attr="aria-label">
+          <button type="button" data-disclose="anon" data-i18n>Anonym bleiben</button>
+          <button type="button" data-disclose="data" class="active" data-i18n>Daten teilen</button>
+        </div>
+        <div class="attr-list" id="disclose-list" hidden></div>
+        <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      </div>
+
+      <div class="party guest">
+        <span class="field-label"><span data-i18n>Der Gast teilt</span> <span class="field-note" data-i18n>— was du vom Gast abfragst</span></span>
+        <div class="seg" id="request-seg" role="group" aria-label="Was der Gast teilt" data-i18n-attr="aria-label">
+          <button type="button" data-request="anon" data-i18n>Anonym — nichts</button>
+          <button type="button" data-request="data" class="active" data-i18n>Daten abfragen</button>
+        </div>
+        <div id="request-extra">
+          <div class="presets" id="presets">
+            <button type="button" class="chip-btn" data-preset="age" data-i18n>Altersnachweis 18+</button>
+            <button type="button" class="chip-btn" data-preset="name" data-i18n>Name</button>
+            <button type="button" class="chip-btn" data-preset="full" data-i18n>Voll</button>
+          </div>
+          <div class="attr-list" id="request-list"></div>
+          <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        </div>
+      </div>
+
+      <label id="openroom-row" class="openroom" hidden>
+        <input type="checkbox" id="openroom-toggle" />
+        <span><span data-i18n>Weitere Gäste später zulassen</span> <span class="field-note" data-i18n>— Anruf startet ab 2 Personen, weitere kommen später dazu</span></span>
+      </label>
+
+      <p class="preview"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong><br /><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></p>
+
+      <!-- Schritt-Navigation des Setup-Assistenten (mobil/App; app.js aktiviert). -->
+      <div id="wiz-nav" class="wiz-nav">
+        <button type="button" id="wiz-back" class="ghost" data-i18n>Zurück</button>
+        <span id="wiz-dots" class="wiz-dots" aria-live="polite"></span>
+        <button type="button" id="wiz-next" data-i18n>Weiter</button>
+      </div>
+    </section>
+
+    <!-- Ausweisen (Host-Disclosure ODER Gast-Anfrage) — sitzt neben dem Setup -->
+    <!-- App-Staerken: nur auf Wizard-Schritt 1 (mobil/App), unter "Anruf einrichten" -->
+    <section id="app-strengths" class="app-strengths" aria-label="Vorteile">
+      <h2 data-i18n>Warum id-call.eu?</h2>
+      <div class="strength">
+        <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div><h3 data-i18n>Du weißt, mit wem du sprichst</h3><p data-i18n>Beide weisen sich per EUDI-Wallet aus — echte, amtlich geprüfte Namen statt Fantasie.</p></div>
+      </div>
+      <div class="strength">
+        <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <div><h3 data-i18n>Niemand hört mit</h3><p data-i18n>Bild, Ton und Chat laufen direkt zwischen euch — Ende-zu-Ende verschlüsselt, nicht über einen Server.</p></div>
+      </div>
+      <div class="strength">
+        <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></span>
+        <div><h3 data-i18n>Du bestimmst, was du zeigst</h3><p data-i18n>Nur die Angaben, die du auswählst. Sichtbar werden sie erst, wenn beide zustimmen.</p></div>
+      </div>
+      <div class="strength">
+        <span class="s-ic gold"><svg viewBox="0 0 24 24" fill="#FFCC00" stroke="none" aria-hidden="true"><path d="M12 2.5l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14.9l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2.5z"/></svg></span>
+        <div><h3 data-i18n>Europäischer Standard</h3><p data-i18n>Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto, keine Installation nötig.</p></div>
+      </div>
+    </section>
+
+    <section id="auth" class="card" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg><span id="auth-title" data-i18n>Identität bestätigen</span></h2>
+      <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:</p>
+      <ul class="consent" id="consent-list"></ul>
+      <div class="auth-cta">
+        <a id="auth-link" class="same-device" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+          <span data-i18n>Wallet auf diesem Gerät öffnen</span>
+        </a>
+        <p class="hint qr-hint qr-hint--desktop" data-i18n-html>Scanne dazu den Code mit deiner <strong>EUDI-Wallet</strong>:</p>
+        <p class="hint qr-hint qr-hint--mobile" data-i18n-html>Oder scanne den Code mit der <strong>EUDI-Wallet</strong> auf einem anderen Gerät:</p>
+        <div id="qrcode" class="qr"></div>
+        <!-- Ein Angebot ist nach EINEM Versuch verbraucht; EUDIPLO weist die Wallet dann ab,
+             ohne dass der Server davon erfährt. Ohne diesen Knopf bliebe nur ein Neuladen. -->
+        <button type="button" id="auth-renew" class="ghost auth-renew" data-i18n>Code erneuern</button>
+      </div>
+    </section>
+    </div><!-- /setup-zone -->
+
+    <!-- Einladung -->
+    <section id="share" class="card" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg><span data-i18n>Jemanden einladen</span></h2>
+      <!-- Eine Handlung, zwei Varianten: sofort einladen oder mit Termin (Pro calendar-invite;
+           Segment bleibt ohne die Capability versteckt). Link-Zeile gilt fuer beide. -->
+      <div class="seg invite-when" id="invite-when-seg" role="group" aria-label="Wann" data-i18n-attr="aria-label" hidden>
+        <button type="button" data-when="now" class="active" data-i18n>Direkt jetzt</button>
+        <button type="button" data-when="later" data-i18n>Mit Termin</button>
+      </div>
+      <p class="hint" id="share-hint" data-i18n>Teile diesen Link mit der Person, die du anrufen möchtest.</p>
+      <div id="schedule-block" hidden>
+      <input id="cal-title" type="text" value="EUDI Verified Call" aria-label="Titel des Termins" maxlength="120" data-i18n-attr="aria-label" />
+      <div class="schedule-fields">
+        <input id="cal-date" type="date" aria-label="Datum" data-i18n-attr="aria-label" />
+        <input id="cal-time" type="time" aria-label="Uhrzeit" data-i18n-attr="aria-label" />
+        <select id="cal-duration" aria-label="Dauer" data-i18n-attr="aria-label">
+          <option value="15" data-i18n>15&nbsp;Min.</option>
+          <option value="30" selected data-i18n>30&nbsp;Min.</option>
+          <option value="45" data-i18n>45&nbsp;Min.</option>
+          <option value="60" data-i18n>1&nbsp;Std.</option>
+          <option value="90" data-i18n>1,5&nbsp;Std.</option>
+        </select>
+      </div>
+      </div><!-- /#schedule-block -->
+      <div class="row">
+        <input id="share-url" type="text" readonly aria-label="Einladungs-Link" data-i18n-attr="aria-label" />
+        <button id="copy-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+          <span id="copy-label" data-i18n>Link kopieren</span>
+        </button>
+        <button type="button" id="share-btn" class="ghost" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
+          <span data-i18n>Teilen…</span>
+        </button>
+      </div>
+
+      <!-- Geplanter Anruf: der eigene Zugang. Zwei Links, weil der Termin-Link die Rolle
+           festlegt — wer den Host-Link oeffnet, tritt als Gastgeber ein. Er gehoert in die
+           Wallet-Karte und an den Schluss des Kalendereintrags, nicht ins Teilen.
+           Siehe src/invite-token.ts. -->
+      <div class="row" id="host-link-row" hidden>
+        <input id="host-url" type="text" readonly aria-label="Mein eigener Zugang zum Termin" data-i18n-attr="aria-label" />
+        <button type="button" id="copy-host-btn" class="ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+          <span id="copy-host-label" data-i18n>Meinen Zugang kopieren</span>
+        </button>
+      </div>
+      <p class="hint" id="host-link-hint" hidden data-i18n>Der zweite Link ist dein eigener Zugang — gib ihn nicht weiter: wer ihn öffnet, tritt als Gastgeber ein. Der Kalendereintrag enthält beide Links; willst du ihn an Gäste weiterleiten, lösche vorher den kurzen Block am Ende der Beschreibung.</p>
+
+      <div class="row schedule-actions" id="schedule-share" hidden>
+        <button type="button" id="ics-btn" class="ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          <span data-i18n>Kalendereintrag (.ics)</span>
+        </button>
+        <button type="button" id="gcal-btn" class="ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg>
+          <span>Google&nbsp;Kalender</span>
+        </button>
+        <button type="button" id="wallet-pass-btn" class="ghost" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+          <span data-i18n>Apple&nbsp;Wallet</span>
+        </button>
+      </div>
+
+
+    </section>
+
+    <!-- Host: Mehrparteien-Call explizit starten (erst dann sperrt der Raum) -->
+    <section id="start-bar" class="card" hidden>
+      <p class="hint"><span id="start-hint" data-i18n>Warte, bis alle beigetreten sind — dann starte den Anruf.</span></p>
+      <button id="start-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 9-14 9V3z"/></svg>
+        <span id="start-btn-label" data-i18n>Anruf starten</span>
+      </button>
+    </section>
+
+    <!-- Review vor dem Verbinden: nur Felder, keine Werte -->
+    <section id="review" class="card" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n>Vor dem Verbinden</span></h2>
+      <p class="hint" data-i18n-html>Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>.</p>
+
+      <!-- Zweckbindung: derselbe Text, den der Server in die DCQL-Anfrage schreibt und den
+           die Wallet anzeigt (src/wrp-policy.ts → WRP_PURPOSE_TEXT, geliefert über
+           /capabilities). Eine Quelle, damit Consent-Screen und Wallet nicht auseinanderlaufen. -->
+      <p class="purpose-binding">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span><span class="pb-label" data-i18n>Zweckbindung:</span> <span data-policy-purpose data-i18n>Identitätsverifikation für sichere P2P-Kommunikation</span></span>
+      </p>
+
+      <div class="review-grid">
+        <div class="review-col you"><span class="field-label" data-i18n>Du teilst</span><div class="result-list" id="review-self"></div></div>
+        <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="review-peer"></div></div>
+      </div>
+      <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
+      <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      <div class="row">
+        <button id="decline-btn" class="ghost" data-i18n>Ablehnen</button>
+        <button id="confirm-btn" data-i18n>Verbinden ✓</button>
+      </div>
+      <p class="hint review-wait" id="review-wait" hidden data-i18n>✓ Du hast bestätigt — wartet auf das Gegenüber …</p>
+    </section>
+    <!-- Geprüfte Angaben und Sicherheitscode gehören IN die rechte Spalte: außerhalb
+         liefen sie in der schmaleren Hauptspalte und standen sichtbar versetzt zu
+         Statuszeile und Teilnehmer-Chips darüber. -->
+    <!-- Geprüfte Angaben: Werte, erst sichtbar nach beidseitiger Zustimmung -->
+    <section id="result" class="card" hidden>
+      <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n>Geprüfte Angaben</span>
+        <button id="result-toggle" class="collapse-btn" type="button" aria-expanded="true" hidden><span id="result-toggle-label" data-i18n>Ausblenden</span></button>
+      </h2>
+      <p class="hint" data-i18n-html>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
+      <div class="review-grid">
+        <div class="review-col you"><span class="field-label" data-i18n>Du teilst</span><div class="result-list" id="result-self"></div></div>
+        <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="result-peer"></div></div>
+      </div>
+    </section>
+
+    <!-- SAS-Sicherheitscode: MITM-Erkennung durch mündlichen Vergleich -->
+    <section id="sas-card" class="card sas" hidden>
+      <div class="sas-row">
+        <svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+        <div class="sas-text">
+          <span class="field-label"><span data-i18n>Sicherheitscode</span>
+            <span class="info-wrap">
+              <button type="button" class="info-btn" aria-label="Wie funktioniert der Sicherheitscode?" data-i18n-attr="aria-label" aria-describedby="sas-tip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </button>
+              <span class="tooltip" id="sas-tip" role="tooltip" data-i18n>Euer beider Browser verschlüsseln die Verbindung mit je einem eigenen Zertifikat. Aus den Fingerabdrücken beider Zertifikate berechnen beide Seiten denselben Code. Würde jemand heimlich in der Mitte mithören, gäbe es zwei getrennte Verbindungen — und eure Codes wären verschieden.</span>
+            </span>
+          </span>
+          <p class="hint" data-i18n>Vergleicht diesen Code — er wird auch klein in eurem Videobild eingeblendet und muss bei beiden gleich sein.</p>
+        </div>
+        <span id="sas-code" class="sas-code" aria-live="polite"></span>
+      </div>
+    </section>
+
+    </div><!-- /setup-columns-right -->
+    </div><!-- /setup-columns -->
+
+    <!-- Call-Banner (Audio/Chat) -->
+    <section id="call-banner" class="card" hidden>
+      <div class="banner"><span class="banner-dot"></span><span id="banner-text" data-i18n>Verbindung steht</span></div>
+    </section>
+
+    <!-- Video -->
+    <!-- Native App im Call: eingeklappte Trust-Leiste — buendelt Status/Chips/
+         Gepruefte Angaben/Sicherheitscode; Tippen klappt die Original-Karten auf.
+         Website: bleibt hidden (app.js initAppShell aktiviert sie nur nativ). -->
+    <button id="trust-bar" class="trust-bar" type="button" hidden aria-expanded="false" aria-controls="identities result sas-card">
+      <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span id="trust-names" class="trust-names" data-i18n>Verifizierter Anruf</span>
+      <span id="trust-sas" class="trust-sas" aria-hidden="true"></span>
+      <svg class="trust-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+
+    <section id="peers" class="card" hidden>
+      <div class="videos" id="videos">
+        <div class="tile" data-peer="self">
+          <video id="local-video" autoplay playsinline muted></video>
+          <div class="name" id="local-name" data-i18n>Du</div>
+        </div>
+        <!-- remote tiles are added dynamically per peer (full mesh) -->
+      </div>
+    </section>
+
+    <!-- Chat + Dokument im Call: nebeneinander auf breiten Screens, wenn beide offen sind -->
+    <div id="call-panels" class="call-panels">
+    <!-- Chat -->
+    <section id="chat" class="card" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat <span class="hint" data-i18n>· Ende-zu-Ende, direkt P2P</span></h2>
+      <div id="chat-log" class="chat-log"></div>
+      <div id="emoji-palette" class="emoji-palette" hidden></div>
+      <div class="row chat-row">
+        <button id="emoji-btn" class="icon-btn" type="button" disabled aria-label="Emoji" data-i18n-attr="aria-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
+        </button>
+        <button id="file-btn" class="icon-btn" type="button" disabled aria-label="Datei senden" data-i18n-attr="aria-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <input id="file-input" type="file" hidden />
+        <input id="chat-input" type="text" placeholder="Nachricht schreiben …" disabled aria-label="Chat-Nachricht" data-i18n-attr="placeholder,aria-label" />
+        <button id="chat-send" disabled data-i18n>Senden</button>
+      </div>
+    </section>
+
+    <!-- QES im Call (Phase 1): Dokument teilen & gemeinsam durchgehen — P2P über den
+         'qes'-DataChannel, Hash-verifiziert; UI-Logik in qes/doc-share.js (lazy). -->
+    <section id="qes-box" class="card qes" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span data-i18n>Dokument im Call</span>
+        <button id="qes-close" class="collapse-btn" type="button" hidden><span data-i18n>Beenden</span></button>
+      </h2>
+      <p class="hint" id="qes-status"></p>
+      <div id="qes-offer" hidden>
+        <p class="hint" id="qes-offer-text"></p>
+        <div class="row">
+          <button id="qes-decline" class="ghost" data-i18n>Ablehnen</button>
+          <button id="qes-accept" data-i18n>Dokument annehmen</button>
+        </div>
+      </div>
+      <div class="qes-progress" id="qes-progress" hidden>
+        <div class="file-label" id="qes-progress-label"></div>
+        <div class="file-bar"><span id="qes-progress-fill"></span></div>
+      </div>
+      <div id="qes-verify" class="qes-verify" hidden>
+        <span class="field-label"><span data-i18n>SHA-256-Prüfsumme</span>
+          <span class="info-wrap">
+            <button type="button" class="info-btn" aria-label="Was bedeutet die Prüfsumme?" data-i18n-attr="aria-label" aria-describedby="qes-hash-tip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </button>
+            <span class="tooltip" id="qes-hash-tip" role="tooltip" data-i18n>Die Prüfsumme ist der digitale Fingerabdruck der Datei: Euer beider Browser berechnen sie unabhängig voneinander aus den übertragenen Daten. Ist sie auf beiden Seiten gleich, ist das Dokument Bit für Bit exakt dasselbe („byte-identisch") — niemand sieht eine andere oder unterwegs veränderte Version. Schon ein einziges geändertes Zeichen ergäbe eine komplett andere Prüfsumme.</span>
+          </span>
+        </span>
+        <code id="qes-hash" class="qes-hash"></code>
+        <p class="hint" id="qes-hash-status"></p>
+      </div>
+      <!-- Signieren (Phase 2): Provider-Auswahl + permanenter Demo-Hinweis. Der Banner
+           bleibt sichtbar, solange ein nicht-qualifizierter Provider gewählt ist. -->
+      <div id="qes-sign" class="qes-sign" hidden>
+        <div class="qes-demo-banner" id="qes-demo-banner" role="note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          <span data-i18n-html><strong>Demo — keine qualifizierte Signatur.</strong> Diese Unterschrift ist rechtlich <strong>nicht bindend</strong>. Die rechtssichere qualifizierte elektronische Signatur (QES) über einen Vertrauensdiensteanbieter folgt in einer späteren Ausbaustufe.</span>
+        </div>
+        <!-- Zustimmung der Gegenseite zur Zeremonie (Starter signiert zuerst) -->
+        <div id="qes-cer-confirm" hidden>
+          <p class="hint" id="qes-cer-confirm-text"></p>
+          <div class="row">
+            <button id="qes-cer-decline" class="ghost" data-i18n>Ablehnen</button>
+            <button id="qes-cer-accept" data-i18n>Signieren zustimmen ✓</button>
+          </div>
+        </div>
+        <!-- Identitätsbindung fehlgeschlagen (§6): Zertifikat ≠ PID — der Mensch entscheidet -->
+        <div id="qes-mismatch" class="qes-mismatch" hidden>
+          <p id="qes-mismatch-text"></p>
+          <div class="row">
+            <button id="qes-mismatch-abort" data-i18n>Zeremonie abbrechen</button>
+            <button id="qes-mismatch-proceed" class="ghost" data-i18n>Trotzdem fortfahren</button>
+          </div>
+        </div>
+        <div class="row qes-sign-row">
+          <select id="qes-provider" aria-label="Signatur-Verfahren" data-i18n-attr="aria-label" hidden></select>
+          <button id="qes-sign-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+            <span data-i18n>Gemeinsam signieren (Demo)</span>
+          </button>
+        </div>
+        <div id="qes-signatures" class="qes-signatures"></div>
+      </div>
+      <div id="qes-viewer" hidden>
+        <div class="qes-pager">
+          <button id="qes-prev" class="ghost qes-pgbtn" type="button" aria-label="Vorherige Seite" data-i18n-attr="aria-label">‹</button>
+          <span id="qes-page-info" class="qes-page-info">–</span>
+          <button id="qes-next" class="ghost qes-pgbtn" type="button" aria-label="Nächste Seite" data-i18n-attr="aria-label">›</button>
+          <label class="qes-follow"><input type="checkbox" id="qes-follow" checked /> <span data-i18n>Seiten gemeinsam blättern</span></label>
+          <a id="qes-download" class="file-dl" hidden></a>
+          <a id="qes-protocol" class="file-dl" hidden></a>
+        </div>
+        <div class="qes-canvas-wrap"><canvas id="qes-canvas"></canvas></div>
+      </div>
+      <!-- Prüfansicht (Phase 5): alle Signaturen im aktuellen Dokument -->
+      <div id="qes-validate" class="qes-validate" hidden>
+        <button id="qes-validate-btn" class="ghost" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span data-i18n>Signaturen prüfen</span>
+        </button>
+        <div id="qes-validate-list" class="qes-validate-list"></div>
+        <p class="hint" id="qes-validate-hint" hidden data-i18n-html>Browser-Prüfung für die Demo (Signatur-Mathematik, Abdeckung, Ausweis-Abgleich). Für die <strong>rechtsverbindliche</strong> Validierung qualifizierter Signaturen sind ETSI-konforme Prüfdienste zuständig — z.&nbsp;B. die <a href="https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/" target="_blank" rel="noopener">EU-DSS-Demonstration</a> der EU-Kommission.</p>
+      </div>
+    </section>
+    </div><!-- /call-panels -->
+
+    <!-- Kompatibilitäts-Hinweis (z. B. Bildschirm teilen auf iOS nicht verfügbar) -->
+    <p id="compat-note" class="hint compat-note" hidden></p>
+
+    <!-- In-Call-Nachforderung (Pro): Auswahl-Panel des Hosts -->
+    <div id="credreq-panel" class="credreq-panel card" hidden></div>
+
+    <!-- Call-Steuerung (alle Modi) -->
+    <div id="call-controls" class="call-controls" hidden>
+      <button id="credreq-btn" class="ghost" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+        <span id="credreq-label" data-i18n>Nachweis anfordern</span>
+      </button>
+      <button id="mic-btn" class="ghost" hidden aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        <span id="mic-label" data-i18n>Mikrofon</span>
+      </button>
+      <button id="cam-btn" class="ghost" hidden aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+        <span id="cam-label" data-i18n>Kamera</span>
+      </button>
+      <button id="hand-btn" class="ghost" hidden aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+        <span id="hand-label" data-i18n>Hand heben</span>
+      </button>
+      <button id="doc-btn" class="ghost" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+        <span id="doc-label" data-i18n>Dokument teilen</span>
+      </button>
+      <input id="doc-input" type="file" accept="application/pdf,.pdf" hidden />
+      <button id="screen-btn" class="ghost" hidden aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+        <span id="screen-label" data-i18n>Bildschirm teilen</span>
+      </button>
+      <button id="hangup-btn" class="danger" aria-label="Anruf beenden" data-i18n-attr="aria-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+        <span data-i18n>Auflegen</span>
+      </button>
+    </div>
+    <!-- In-Call-Nachforderung (Pro): Consent-Modal des Gegenübers -->
+    <div id="cred-modal" class="cred-modal" hidden>
+      <div class="cred-dialog card">
+        <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg><span id="cred-title">Nachweis</span></h2>
+        <p class="hint" id="cred-hint"></p>
+        <ul class="consent" id="cred-claims"></ul>
+        <div class="auth-cta" id="cred-auth-area" hidden>
+          <a id="cred-auth-link" class="same-device" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+            <span data-i18n>Wallet auf diesem Gerät öffnen</span>
+          </a>
+          <p class="hint qr-hint qr-hint--desktop" data-i18n-html>Scanne dazu den Code mit deiner <strong>EUDI-Wallet</strong>:</p>
+          <p class="hint qr-hint qr-hint--mobile" data-i18n-html>Oder scanne den Code mit der <strong>EUDI-Wallet</strong> auf einem anderen Gerät:</p>
+          <div id="cred-qrcode" class="qr"></div>
+        </div>
+        <div class="row cred-actions" id="cred-actions">
+          <button id="cred-accept" data-i18n>Teilen</button>
+          <button id="cred-decline" class="ghost" data-i18n>Ablehnen</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Native App: Einstellungen-Tab (Website: bleibt hidden). Die Controls
+       (Sprache/Design/Version) werden von app.js aus dem Footer hierher verschoben. -->
+  <section id="app-settings" class="card app-settings" hidden>
+    <h2 class="settings-title" data-i18n>Einstellungen</h2>
+    <button type="button" id="new-call-btn" class="new-call-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      <span data-i18n>Neuen Anruf starten</span>
+    </button>
+    <div class="settings-row"><span class="settings-label" data-i18n>Sprache</span><span id="settings-lang-slot"></span></div>
+    <div class="settings-row"><span class="settings-label" data-i18n>Design</span><span id="settings-theme-slot"></span></div>
+    <div class="settings-row"><span class="settings-label" data-i18n>Version</span><span id="settings-version-slot"></span></div>
+    <div class="settings-row"><span class="settings-label" data-i18n>Rechtliches</span><a class="settings-link" href="impressum.html" data-i18n>Impressum</a> · <a class="settings-link" href="datenschutz.html" data-i18n>Datenschutz</a></div>
+    <p class="settings-about muted" data-i18n>EUDI Verified Call — verifizierte Anrufe per EUDI-Wallet.</p>
+  </section>
+
+  <footer class="app-footer">
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Design: automatisch (Systemeinstellung)"></button>
+    <select id="lang-switch" class="lang-switch" aria-label="Sprache" data-i18n-attr="aria-label" hidden></select>
+    <span class="version-badge" id="app-version" title="Version">v…</span>
+    <a class="footer-link" href="impressum.html" data-i18n>Impressum</a>
+    <a class="footer-link" href="datenschutz.html" data-i18n>Datenschutz</a>
+  </footer>
+
+  <!-- Native App: Bottom-Tab-Bar (Anruf / Einstellungen). Website: bleibt hidden. -->
+  <nav id="app-tabbar" class="app-tabbar" hidden aria-label="App-Navigation">
+    <button type="button" class="tab active" data-tab="call" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+      <span data-i18n>Anruf</span>
+    </button>
+    <button type="button" class="tab" data-tab="settings" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span data-i18n>Einstellungen</span>
+    </button>
+  </nav>
+
+  <script src="i18n.js"></script>
+  <!-- Vor app.js: die Netzprüfung stellt nur eine Funktion bereit, app.js ruft sie
+       nach refreshIce() mit genau den ICE-Servern auf, die auch der Anruf nutzt. -->
+  <script src="netcheck.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
