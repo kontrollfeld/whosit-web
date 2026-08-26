@@ -26,3 +26,7 @@ secrets/
 # `git add -A` wären sie sonst mitgekommen — und mit dem öffentlichen Repository dann
 # veröffentlicht. Debug-Screenshots deckt bereits `/*.png` ab.
 *.pdf
+
+# npm cache directory used by CI (`npm ci --cache .npm`). Never belongs in a commit, and listing it
+# here also keeps local tooling that walks the working tree from tripping over it.
+.npm/

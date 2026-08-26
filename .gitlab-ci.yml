@@ -85,6 +85,7 @@ test:
 secrets:
   stage: test
   before_script: []
+  cache: []
   variables:
     GIT_DEPTH: 0
     GITLEAKS_VERSION: "8.28.0"
@@ -104,6 +105,11 @@ reuse:
     name: fsfe/reuse:latest
     entrypoint: [""]
   before_script: []
+  # No npm cache here. The default cache unpacks .npm/_cacache into the working directory, and
+  # `reuse lint` walks the working directory — every cached tarball then counts as a file without
+  # a licence header (115 of 304 files, and a red job for a repository that is in fact compliant).
+  # The same applies to the jobs below that never call npm.
+  cache: []
   script:
     - reuse lint
 
@@ -133,6 +139,7 @@ container:
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
   before_script: []
+  cache: []
   script:
     - docker build -t evc:agpl .
     - COUNT=$(docker run --rm evc:agpl sh -c 'ls -A /app/pro 2>/dev/null | wc -l')
@@ -161,6 +168,7 @@ container:
 version:
   stage: test
   before_script: []
+  cache: []
   script:
     - |
       node -e "
