@@ -3,9 +3,9 @@
 # Typecheck, licence boundary and the full integration test suite.
 #
 # This private GitLab project is where development happens; the public GitHub and openCode copies
-# are read-only push mirrors. That is why the full pipeline lives here and ONLY here: a mirror is
-# force-updated on every sync, so a job writing to it (see `stamp`) would lose its commit or leave
-# the mirror silently diverged.
+# are read-only push mirrors. That is why the full pipeline lives here and ONLY here — and why no
+# job in it writes to the repository: a mirror is force-updated on every sync, so a commit created
+# by CI would be lost, or would leave the mirror silently diverged.
 #
 # GitHub carries a deliberately reduced counterpart (.github/workflows/pr-checks.yml): the same
 # checks, `pull_request` only, no write permissions — so a contributor sees whether their patch
@@ -30,7 +30,6 @@ default:
 stages:
   - test
   - image
-  - stamp
 
 # Without this, every push to a branch with an open merge request produces TWO pipelines (one for
 # the branch, one for the MR) — the same work twice, and two sets of results to interpret.
@@ -143,48 +142,36 @@ container:
     - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
-# Version stamp — ONLY on the default branch and ONLY after green tests. Previously the bump ran
-# before all checks, so every version carried the promise of being tested without keeping it.
+# The version stamp is NOT written by CI — it is committed, and this job only checks that nobody
+# forgot to: public/version.json must carry the version from package.json.
 #
-# TWO THINGS THIS JOB NEEDS, and both are easy to get wrong:
+# It used to be a job that bumped the version and pushed the result back. That needs a token with
+# write access to the repository, and on GitLab.com that means a Project Access Token — a paid
+# feature. A personal token would work but is account-wide and expires within a year, and an
+# expired token means the stamp stops silently. That failure mode has already cost this project
+# two weeks of a deployment quietly serving stale code. A check cannot rot.
 #
-#  1. A push token. CI_JOB_TOKEN cannot write to the repository. Create a Project Access Token with
-#     the `write_repository` scope and store it as the masked CI/CD variable CI_PUSH_TOKEN. Without
-#     it the job fails at the push — deliberately loudly rather than skipping silently.
-#  2. `[skip ci]` in the commit message. Unlike GitHub, GitLab does NOT exempt token-authenticated
-#     pushes from triggering pipelines: without the marker this job would trigger itself, forever.
-#     `[skip version]` is kept as a second safeguard in case that behaviour ever changes.
+# The commit SHA is a separate matter: it cannot be known before the commit exists, so no committed
+# file can carry it. The Dockerfile re-stamps it at build time from SOURCE_COMMIT (see there) — the
+# footer of a running instance therefore shows the revision that was actually deployed.
 #
-# The deploy trigger is gone: it existed only because the Pro image lived in a second repository
-# and pulled the core in via `git clone` — with a read token, an API token and a forced no-cache
-# rebuild (otherwise stale code went live). Now that `pro/` sits in the main repository, the
-# deployment platform watches this repository directly. The Pro image is produced there with
-# `--build-arg WITH_PRO=1`.
-stamp:
-  stage: stamp
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE !~ /\[skip version\]/
-  variables:
-    GIT_DEPTH: 0
+# Releasing is manual and takes two commands:
+#   npm version <patch|minor|major> --no-git-tag-version
+#   npm run version:stamp
+version:
+  stage: test
   before_script: []
   script:
-    # Without this step public/version.json only changes when someone remembers to change it — and
-    # then drifts silently. The stamp carries the commit SHA, so the footer of a running instance
-    # proves which revision is actually live.
     - |
-      NEWVER=$(node -e "
+      node -e "
         const fs = require('fs');
-        const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-        const parts = p.version.split('.').map(Number);
-        parts[2] = (parts[2] || 0) + 1;
-        p.version = parts.join('.');
-        fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-        console.log(p.version);
-      ")
-      node scripts/gen-version.mjs
-      git config user.name "gitlab-ci"
-      git config user.email "gitlab-ci@${CI_SERVER_HOST}"
-      git remote set-url origin "https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-      git add package.json public/version.json
-      git commit -m "chore: bump version to ${NEWVER} [skip ci] [skip version]"
-      git push origin "HEAD:${CI_DEFAULT_BRANCH}"
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        const stamp = JSON.parse(fs.readFileSync('public/version.json', 'utf8'));
+        if (stamp.version === pkg.version) {
+          console.log('version.json matches package.json:', pkg.version);
+          process.exit(0);
+        }
+        console.error('package.json says ' + pkg.version + ', public/version.json says ' + stamp.version);
+        console.error('Fix: npm run version:stamp, then commit public/version.json');
+        process.exit(1);
+      "

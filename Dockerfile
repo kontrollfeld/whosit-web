@@ -48,6 +48,17 @@ COPY public ./public
 COPY assets ./assets
 # Catalogue for in-call credentials: the default path is <app root>/credential-catalog.json
 COPY credential-catalog.json ./
+
+# Version stamp. `public/version.json` is committed and carries the version from package.json —
+# but the commit SHA in it is only as fresh as the last manual stamp. Deployment platforms hand the
+# revision they are building to the build (Coolify sets SOURCE_COMMIT), so when it is present,
+# re-stamp: then the footer of the running instance proves which revision is actually live.
+#
+# Without the argument the committed file is left untouched, which is what a plain `docker build .`
+# should do — a reproducible build must not invent a SHA it cannot know.
+ARG SOURCE_COMMIT=""
+COPY scripts/gen-version.mjs ./scripts/gen-version.mjs
+RUN if [ -n "$SOURCE_COMMIT" ]; then node scripts/gen-version.mjs; fi
 EXPOSE 3000
 # The verification trail is NOT loaded automatically — EUDI_PRO_MODULE=./pro has to be set. If
 # the module is missing despite the variable being set, startup aborts in production rather than
