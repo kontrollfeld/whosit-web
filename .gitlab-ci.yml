@@ -137,7 +137,9 @@ container:
   script:
     - docker build -t evc:agpl .
     - COUNT=$(docker run --rm evc:agpl sh -c 'ls -A /app/pro 2>/dev/null | wc -l')
-    - echo "Files in /app/pro: $COUNT"
+    # Single-quoted as ONE YAML scalar: an unquoted ": " inside a plain scalar makes YAML read the
+    # item as a mapping, and the whole pipeline fails as "yaml invalid" with 0 jobs.
+    - 'echo "Files in /app/pro: $COUNT"'
     - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
