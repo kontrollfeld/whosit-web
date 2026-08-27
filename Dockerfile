@@ -60,6 +60,18 @@ ARG SOURCE_COMMIT=""
 COPY scripts/gen-version.mjs ./scripts/gen-version.mjs
 RUN if [ -n "$SOURCE_COMMIT" ]; then node scripts/gen-version.mjs; fi
 EXPOSE 3000
+
+# The image says for itself whether it is healthy. Node asks its own endpoint — deliberately
+# without curl or wget: adding a HTTP client to a production image just so the image can poll
+# itself widens the attack surface for nothing, and it is exactly the kind of tool an attacker
+# looks for after a break-in.
+#
+# This matters beyond convenience: deployment platforms run their check INSIDE the container
+# (Coolify does), and their default command assumes curl. Without this instruction the container
+# is reported unhealthy while the application answers perfectly well, and a rolling update rolls
+# back a deployment that was fine.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 # The verification trail is NOT loaded automatically — EUDI_PRO_MODULE=./pro has to be set. If
 # the module is missing despite the variable being set, startup aborts in production rather than
 # quietly carrying on without retention (see src/pro-loader.ts).
