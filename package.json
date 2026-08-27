@@ -1,7 +1,7 @@
 {
   "name": "id-call-web",
   "version": "1.16.66",
-  "description": "EUDI Verified Call — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
+  "description": "EUDI Verified Call \u2014 identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
   "keywords": [
     "eudi",
     "eudi-wallet",
@@ -37,11 +37,13 @@
     "test:hostgate": "node scripts/test-host-gate.mjs",
     "test:hostlogin": "node scripts/test-host-login.mjs",
     "test:editions": "node scripts/test-editions.mjs",
-    "test": "npm run typecheck && npm run check:licence-boundary && npm run test:wrp && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:webhook && npm run test:invite && npm run test:hostlogin && npm run test:qes",
+    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run test:wrp && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:webhook && npm run test:invite && npm run test:hostlogin && npm run test:qes",
     "test:startup": "node scripts/test-startup-guard.mjs",
     "test:webhook": "node scripts/test-webhook.mjs",
     "check:licence-boundary": "node scripts/check-licence-boundary.mjs",
-    "build:pro": "cd pro && npm run build"
+    "build:pro": "cd pro && npm run build",
+    "env:features": "node scripts/gen-env-features.mjs",
+    "check:env-features": "node scripts/gen-env-features.mjs --check"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {

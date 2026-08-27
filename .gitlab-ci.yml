@@ -54,6 +54,11 @@ test:
     # longer be shipped on its own.
     - npm run check:licence-boundary
 
+    # The capability list in .env.selfhost.example is generated from the registry. Checked
+    # rather than trusted: a stale list tells a self-hoster to switch off a capability that is
+    # no longer called that — and an unknown id is ignored, so they would never find out.
+    - npm run check:env-features
+
     - npm run build
 
     # The actual proof: the free part must build COMPLETELY without pro/. Remove the directory and
