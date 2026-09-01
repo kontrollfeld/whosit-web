@@ -35,8 +35,8 @@ function check(name, ok, detail) {
 
 const dir = mkdtempSync(join(tmpdir(), 'operator-pages-'));
 mkdirSync(join(dir, 'downloads'), { recursive: true });
-writeFileSync(join(dir, 'impressum.html'), '<!doctype html><title>x</title>OPERATOR IMPRINT');
-writeFileSync(join(dir, 'presse.html'), '<!doctype html><title>x</title>OPERATOR PRESS');
+writeFileSync(join(dir, 'impressum.html'), '<!doctype html><title>x</title>PROVIDED-BY-OPERATOR-IMPRINT');
+writeFileSync(join(dir, 'presse.html'), '<!doctype html><title>x</title>PROVIDED-BY-OPERATOR-PRESS');
 writeFileSync(join(dir, 'downloads', 'logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
 // datenschutz.html deliberately absent — that is case 2.
 
@@ -85,19 +85,19 @@ try {
   console.log('\nWith a directory configured');
   {
     const imprint = await body(PORT_WITH, '/impressum.html');
-    check('the operator imprint is served', imprint.text.includes('OPERATOR IMPRINT'),
+    check('the operator imprint is served', imprint.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'),
       `got: ${imprint.text.slice(0, 80)}`);
     const short = await body(PORT_WITH, '/impressum');
-    check('the extensionless path works too', short.text.includes('OPERATOR IMPRINT'),
+    check('the extensionless path works too', short.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'),
       `HTTP ${short.status}`);
     const press = await body(PORT_WITH, '/presse.html');
-    check('the press page is served', press.text.includes('OPERATOR PRESS'), `HTTP ${press.status}`);
+    check('the press page is served', press.text.includes('PROVIDED-BY-OPERATOR-PRESS'), `HTTP ${press.status}`);
     const asset = await body(PORT_WITH, '/operator/downloads/logo.svg');
     check('downloads are served below /operator', asset.status === 200 && asset.text.includes('<svg'),
       `HTTP ${asset.status}`);
     const missing = await body(PORT_WITH, '/datenschutz.html');
     check('a page NOT provided falls back to the placeholder, not a 404',
-      missing.status === 200 && !missing.text.includes('OPERATOR'), `HTTP ${missing.status}`);
+      missing.status === 200 && !missing.text.includes('PROVIDED-BY-OPERATOR'), `HTTP ${missing.status}`);
     check('startup names the pages it found',
       withPages.log.join('').includes('Operator pages: impressum, presse'),
       withPages.log.join('').split('\n').filter((l) => l.includes('Operator')).join(' | ') || 'no such line');
@@ -118,12 +118,15 @@ try {
   console.log('\nWithout the variable — nothing may change');
   {
     const imprint = await body(PORT_WITHOUT, '/impressum.html');
-    check('the placeholder is served', imprint.status === 200 && !imprint.text.includes('OPERATOR'),
+    check('the placeholder is served', imprint.status === 200 && !imprint.text.includes('PROVIDED-BY-OPERATOR'),
       `HTTP ${imprint.status}`);
-    // The counterpart — that the shipped page carries no operator data of ours — is asserted
-    // once the placeholders replace it. Doing that here first would leave id-call.eu without an
-    // imprint between deployment and the pages landing in the volume, and an operating service
-    // does not get put into that state. See the issue "Stop shipping our imprint".
+    // The point of the whole exercise: what ships must not name an operator. The pattern covers
+    // the provider details, not the SPDX copyright line — the author of the software and the
+    // provider of a service are different roles, and only the second one is wrong here.
+    check('the shipped page names no service provider',
+      !/Gartenstra|HRB\s*(&nbsp;)?155693|22908|Markus Bruns/.test(imprint.text)
+      && !/Diensteanbieter[\s\S]{0,200}Kontrollfeld GmbH/.test(imprint.text),
+      'operator data of id-call.eu is still in the shipped page');
     const press = await body(PORT_WITHOUT, '/presse.html');
     check('no press page in a plain instance', press.status === 404, `HTTP ${press.status}`);
     const asset = await body(PORT_WITHOUT, '/operator/downloads/logo.svg');
