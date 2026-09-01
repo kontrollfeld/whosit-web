@@ -1453,7 +1453,12 @@ function renderStatus(msg) {
   // (self.confirmed && !allConfirmed) — otherwise the button would spring back after the click.
   const wantReview = isOpenRoom ? (msg.self.verified && !msg.self.confirmed) : (reviewOpen && allVerified && !msg.self.confirmed);
   if (wantReview) {
-    setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true; startBar.hidden = true;
+    setupBox.hidden = true; authBox.hidden = true; startBar.hidden = true;
+    // In an OPEN room the host keeps the invitation link — that is the whole point of the room:
+    // people join over time. Hiding it here left the host with no way to invite anyone else the
+    // moment they had verified themselves, and the link is not recoverable from the review
+    // screen. Same rule as the waiting branch a few lines below.
+    shareBox.hidden = !(isOpenRoom && isHost());
     renderReview(msg);
     reviewBox.hidden = false;
     reviewWait.hidden = true; setConfirmWaiting(false);
