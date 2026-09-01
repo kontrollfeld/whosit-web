@@ -1325,7 +1325,8 @@ function renderReview(msg) {
   if (peers.length <= 1) {
     renderFieldList(reviewPeer, peers[0] ? attrsForPeer(msg, peers[0]) : [], 'Dein Gegenüber bleibt anonym.');
   } else {
-    renderPeerBlocks(reviewPeer, peers, (el, peer) => renderFieldList(el, attrsForPeer(msg, peer), 'bleibt anonym.'));
+    // No names here: before consent only WHICH fields will be shared is shown, never a value.
+    renderPeerBlocks(reviewPeer, peers, (el, peer) => renderFieldList(el, attrsForPeer(msg, peer), 'bleibt anonym.'), false);
   }
   reviewModeEl.textContent = modeLabel(msg.mode);
 }
@@ -1356,16 +1357,22 @@ function renderResult(msg) {
     renderPeerBlocks(resultPeer, peers, (el, peer) => {
       renderResultInto(el, peer.claims, attrsForPeer(msg, peer), 'bleibt anonym.');
       appendCredentialRows(el, peer.credentials);
-    });
+    }, true);
   }
 }
 
 // For >1 peer: a labelled sub-block per peer inside the given column.
-function renderPeerBlocks(container, peers, renderInto) {
+//
+// `withNames` is a safety catch, not a style option: the PRE-CONNECT review must never put a
+// name in the heading, whatever the server happens to send. It once did — in an open room the
+// server disclosed names and claims to someone who had not yet confirmed, and the heading was
+// where that became visible. The server gate is fixed (see showValues in src/server.ts); this
+// makes the review screen incapable of showing a value even if a future gate leaks again.
+function renderPeerBlocks(container, peers, renderInto, withNames) {
   container.innerHTML = '';
   for (const peer of peers) {
     const head = document.createElement('div'); head.className = 'peer-block-head';
-    head.textContent = (peer.name ? titleCase(peer.name) : roleLabelFor(peer.role));
+    head.textContent = (withNames && peer.name ? titleCase(peer.name) : roleLabelFor(peer.role));
     const inner = document.createElement('div');
     container.append(head, inner);
     renderInto(inner, peer);

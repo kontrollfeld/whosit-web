@@ -73,6 +73,8 @@ jobs:
         run: npm run test:editions
       - name: Verification callback (auth, replay)
         run: npm run test:webhook
+      - name: Open room — no values before your own consent
+        run: npm run test:openroom
       - name: Scheduled calls / invitations
         run: npm run test:invite
       - name: Host sign-in

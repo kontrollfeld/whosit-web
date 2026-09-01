@@ -76,6 +76,8 @@ test:
     - npm run test:startup
     - npm run test:editions
     - npm run test:webhook
+    # Reciprocity in an open room: nobody receives values before they have agreed themselves.
+    - npm run test:openroom
     - npm run test:invite
     - npm run test:hostlogin
     - npm run test:qes

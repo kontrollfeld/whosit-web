@@ -983,7 +983,22 @@ function broadcastStatus(room: Room): void {
   // waiting for an explicit "start" would just be friction for the common 1:1 case.
   const gatheredMultiParty = multiParty && room.participants.length > 2;
   const reviewOpen = openRoom ? true : (gatheredMultiParty ? room.starting : room.participants.length >= 2);
-  const showValues = (x: Participant) => revealed && (!openRoom || (x.verified && x.confirmed));
+  // Values flow only between people who have BOTH verified and confirmed. This used to check
+  // the SUBJECT alone: in an open room, anyone who had merely joined then received the names and
+  // claims of everyone already confirmed — reciprocity, the one thing the review screen promises
+  // ("the contents only become visible once both agree"), did not hold. Found in a live
+  // three-party call, where the third person saw the others' names before consenting.
+  //
+  // Both terms are needed and they are not the same: the SUBJECT gate stops us handing out the
+  // data of someone who has not agreed to share it, the RECIPIENT gate stops us handing data to
+  // someone who has not agreed to the exchange at all.
+  //
+  // For 1:1 and gathered multi-party rooms nothing changes — there `revealed` already requires
+  // every participant present to be verified and confirmed, so both terms are always true.
+  const showValues = (recipient: Participant, subject: Participant) =>
+    revealed
+    && (!openRoom || (recipient.verified && recipient.confirmed))
+    && (!openRoom || (subject.verified && subject.confirmed));
   for (const p of room.participants) {
     const peers = ext.roomStore.peersOf(room, p).map((peer) => ({
       peerId: peer.peerId,
@@ -995,11 +1010,11 @@ function broadcastStatus(room: Room): void {
       // actually received. Only sent along when the binding is in fact evidenced.
       channelBound: peer.channelBound === true,
       dtlsFingerprint: peer.channelBound ? peer.dtlsFingerprint : undefined,
-      name: showValues(peer) ? fullName(peer) : undefined,
-      claims: showValues(peer) ? peer.claims : undefined,
+      name: showValues(p, peer) ? fullName(peer) : undefined,
+      claims: showValues(p, peer) ? peer.claims : undefined,
       // In-call catalog credentials the peer presented TO ME (requester-only values;
       // driven from status so a reconnect/resume re-renders the badges).
-      credentials: showValues(peer)
+      credentials: showValues(p, peer)
         ? peer.presentedCredentials?.filter((c) => c.forPeerId === p.peerId)
         : undefined,
     }));
@@ -1017,7 +1032,7 @@ function broadcastStatus(room: Room): void {
       self: {
         peerId: p.peerId, role: p.role, verified: p.verified, confirmed: p.confirmed,
         channelBound: p.channelBound === true,
-        name: showValues(p) ? fullName(p) : undefined, claims: showValues(p) ? p.claims : undefined,
+        name: showValues(p, p) ? fullName(p) : undefined, claims: showValues(p, p) ? p.claims : undefined,
         // What I shared in-call (labels only — I know my own values).
         sharedCredentials: p.presentedCredentials?.map((c) => ({ credentialId: c.credentialId, label: c.label, at: c.at })),
       },
