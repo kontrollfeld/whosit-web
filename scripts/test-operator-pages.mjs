@@ -103,6 +103,18 @@ try {
       withPages.log.join('').split('\n').filter((l) => l.includes('Operator')).join(' | ') || 'no such line');
   }
 
+  console.log('\nA page added while the service is running');
+  {
+    // The failure this prevents actually happened in production: the available pages were
+    // determined once at startup, the operator copied their imprint into the directory
+    // afterwards, and the route kept answering 404 — with the variable set and the file in
+    // place. Resolution therefore happens per request, and this is where that is held.
+    writeFileSync(join(dir, 'datenschutz.html'), '<!doctype html><title>x</title>LATE PRIVACY');
+    const late = await body(PORT_WITH, '/datenschutz.html');
+    check('is served without a restart', late.text.includes('LATE PRIVACY'),
+      `got: ${late.text.slice(0, 80)}`);
+  }
+
   console.log('\nWithout the variable — nothing may change');
   {
     const imprint = await body(PORT_WITHOUT, '/impressum.html');

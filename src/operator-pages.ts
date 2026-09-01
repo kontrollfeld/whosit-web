@@ -31,7 +31,8 @@ export type OperatorPage = (typeof OPERATOR_PAGES)[number];
 export interface OperatorPagesConfig {
   /** Absolute path of the directory. */
   dir: string;
-  /** Which of the known pages actually exist right now. */
+  /** Which pages existed AT STARTUP. For the log line only — resolution happens per
+   *  request, so a page added later is served without a restart. */
   available: OperatorPage[];
 }
 
@@ -66,6 +67,11 @@ export function readOperatorPages(env: NodeJS.ProcessEnv = process.env): Operato
 export function resolveOperatorPage(cfg: OperatorPagesConfig, urlPath: string): string | null {
   const name = urlPath.replace(/^\/+/, '').replace(/\.html$/, '');
   if (!(OPERATOR_PAGES as readonly string[]).includes(name)) return null;
-  if (!cfg.available.includes(name as OperatorPage)) return null;
-  return path.join(cfg.dir, `${name}.html`);
+  // Checked per request, NOT against the list from startup. An operator who drops an imprint into
+  // the directory must not have to restart the service for it — and if they did, they would first
+  // see a 404 and go looking for the mistake somewhere else entirely. Exactly that happened when
+  // this was first put into operation. A stat() per request is nothing next to reading the file.
+  const full = path.join(cfg.dir, `${name}.html`);
+  try { if (!fs.statSync(full).isFile()) return null; } catch { return null; }
+  return full;
 }
