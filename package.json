@@ -37,14 +37,15 @@
     "test:hostgate": "node scripts/test-host-gate.mjs",
     "test:hostlogin": "node scripts/test-host-login.mjs",
     "test:editions": "node scripts/test-editions.mjs",
-    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run test:wrp && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:webhook && npm run test:openroom && npm run test:invite && npm run test:hostlogin && npm run test:qes",
+    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run test:wrp && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:webhook && npm run test:openroom && npm run test:operatorpages && npm run test:invite && npm run test:hostlogin && npm run test:qes",
     "test:startup": "node scripts/test-startup-guard.mjs",
     "test:webhook": "node scripts/test-webhook.mjs",
     "check:licence-boundary": "node scripts/check-licence-boundary.mjs",
     "build:pro": "cd pro && npm run build",
     "env:features": "node scripts/gen-env-features.mjs",
     "check:env-features": "node scripts/gen-env-features.mjs --check",
-    "test:openroom": "node scripts/test-open-room-privacy.mjs"
+    "test:openroom": "node scripts/test-open-room-privacy.mjs",
+    "test:operatorpages": "node scripts/test-operator-pages.mjs"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {

@@ -20,10 +20,12 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
+import { readOperatorPages, resolveOperatorPage, OPERATOR_PAGES } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 /** This instance's brand — null when unbranded, in which case all branding is a no-op. */
 const BRANDING = readBranding();
+const OPERATOR = readOperatorPages();
 import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, type SemanticAttr, type CredentialProfile } from './credential-profiles';
 import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFingerprint, fingerprintFromSdp, type TransactionDataEntry } from './channel-binding';
 import {
@@ -539,6 +541,23 @@ if (BRANDING) {
     fs.access(full, fs.constants.R_OK, (e) => (e ? next() : sendBranded(res, rel)));
   });
 }
+// Operator pages (imprint, privacy notice, press) take precedence over the neutral placeholders
+// in public/. Registered before express.static, which would otherwise ship the placeholder.
+// Without EUDI_OPERATOR_PAGES nothing is registered here and the behaviour is unchanged.
+if (OPERATOR) {
+  app.get(/^\/(impressum|datenschutz|presse)(\.html)?$/, (req, res, next) => {
+    const file = resolveOperatorPage(OPERATOR, req.path);
+    if (!file) return next();                       // not provided → placeholder from public/
+    res.set('Cache-Control', 'no-cache').sendFile(file);
+  });
+  // Everything else in the directory: images, the logo package, downloads. Read-only, and only
+  // below /operator/ so it can never collide with a route of the application.
+  app.use('/operator', express.static(OPERATOR.dir, {
+    index: false,
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+  }));
+}
+
 // no-cache so browsers always pick up the latest frontend (avoids stale app.js).
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
@@ -1595,6 +1614,15 @@ loadExtensions().then((resolved) => {
     console.log(hostGateActive()
       ? `Host gate: ACTIVE, ${hostGateSize()} person(s) admitted`
       : 'Host gate: off — anyone can host on this instance');
+
+    // Operator pages: report what was actually found. A mistyped path would otherwise only
+    // surface when a visitor clicks the imprint — and an instance without an imprint is a legal
+    // problem, not a cosmetic one.
+    if (OPERATOR) {
+      const missing = OPERATOR_PAGES.filter((x) => !OPERATOR.available.includes(x));
+      console.log(`Operator pages: ${OPERATOR.available.join(', ') || 'NONE FOUND'} in ${OPERATOR.dir}`
+        + (missing.length ? ` — not provided: ${missing.join(', ')}` : ''));
+    }
     console.log(staffGateActive()
       ? 'Staff token: ACTIVE — appointments only with a valid link'
       : 'Staff token: off — any visitor can issue appointments');

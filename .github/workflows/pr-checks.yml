@@ -75,6 +75,8 @@ jobs:
         run: npm run test:webhook
       - name: Open room — no values before your own consent
         run: npm run test:openroom
+      - name: Operator pages (imprint, privacy notice, press)
+        run: npm run test:operatorpages
       - name: Scheduled calls / invitations
         run: npm run test:invite
       - name: Host sign-in
