@@ -76,6 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
  * link is not worth an error message, and the page must not depend on the request succeeding.
  */
 (function operatorFooterLinks() {
+  // This file is loaded SYNCHRONOUSLY in <head> (see the top of the file), so the footer does not
+  // exist yet at this point. The first version looked up the nav right here, got null, and gave up
+  // silently — the link never appeared, and the silence hid it. Wait for the parsed document.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', operatorFooterLinks);
+    return;
+  }
   var nav = document.querySelector('.site-footer nav');
   if (!nav || !window.fetch) return;
   var LABEL = { presse: { de: 'Presse', en: 'Press', fr: 'Presse' } };
