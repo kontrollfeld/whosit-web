@@ -657,6 +657,13 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // share" choice that does not exist — the attributes are enforced, and anyone unticking
     // them is refused without learning why.
     hostLogin: hostGateActive(),
+    // Which operator pages this instance actually has (see ./operator-pages). The footer links
+    // them only when they exist: a "Presse" link that 404s is worse than no link, and a
+    // self-hoster who has not written a press page must not appear to have one. Resolved live,
+    // so a page dropped into the directory shows up without a restart.
+    operatorPages: OPERATOR
+      ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null)
+      : [],
     policy: policyDescriptor(),
   });
 });

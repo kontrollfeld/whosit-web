@@ -103,6 +103,25 @@ try {
       withPages.log.join('').split('\n').filter((l) => l.includes('Operator')).join(' | ') || 'no such line');
   }
 
+  console.log('\nWhat /capabilities announces');
+  {
+    // The footer links a press page only when one exists (see the tail of public/theme.js).
+    // A "Presse" link that 404s is worse than no link, and an instance without a press page
+    // must not look as though it had one.
+    const withCaps = await (await fetch(`http://127.0.0.1:${PORT_WITH}/capabilities`)).json();
+    const withoutCaps = await (await fetch(`http://127.0.0.1:${PORT_WITHOUT}/capabilities`)).json();
+    check('announces the pages that exist',
+      Array.isArray(withCaps.operatorPages) && withCaps.operatorPages.includes('presse')
+      && withCaps.operatorPages.includes('impressum'),
+      JSON.stringify(withCaps.operatorPages));
+    check('does not announce a page that was not provided',
+      !withCaps.operatorPages.includes('datenschutz'),
+      'datenschutz.html does not exist yet and is announced anyway');
+    check('announces nothing without the variable',
+      Array.isArray(withoutCaps.operatorPages) && withoutCaps.operatorPages.length === 0,
+      JSON.stringify(withoutCaps.operatorPages));
+  }
+
   console.log('\nA page added while the service is running');
   {
     // The failure this prevents actually happened in production: the available pages were

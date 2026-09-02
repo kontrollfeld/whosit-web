@@ -64,3 +64,34 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   render();
 });
+
+/* Footer link for operator pages that actually exist.
+ *
+ * Imprint and privacy notice are linked statically — every instance needs them, and the shipped
+ * placeholders make sure the link never dead-ends. A press page is different: most instances will
+ * not have one. So the link is added from `/capabilities` (`operatorPages`), and an instance
+ * without a press page shows no press link at all.
+ *
+ * Deliberately in theme.js: it is the one script every page loads. Failure is silent — a footer
+ * link is not worth an error message, and the page must not depend on the request succeeding.
+ */
+(function operatorFooterLinks() {
+  var nav = document.querySelector('.site-footer nav');
+  if (!nav || !window.fetch) return;
+  var LABEL = { presse: { de: 'Presse', en: 'Press', fr: 'Presse' } };
+  var lang = (document.documentElement.lang || 'de').slice(0, 2);
+  fetch('/capabilities', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (caps) {
+      if (!caps || !caps.operatorPages) return;
+      caps.operatorPages.forEach(function (page) {
+        if (!LABEL[page]) return;                                  // imprint/privacy: already linked
+        if (nav.querySelector('a[href^="' + page + '"]')) return;  // do not duplicate
+        var a = document.createElement('a');
+        a.href = page + '.html';
+        a.textContent = LABEL[page][lang] || LABEL[page].de;
+        nav.appendChild(a);
+      });
+    })
+    .catch(function () {});
+})();
