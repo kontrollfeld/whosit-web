@@ -45,6 +45,8 @@ jobs:
       # The capability list in .env.selfhost.example is generated from src/core/features.ts.
       - name: Capability list in .env.selfhost.example is current
         run: npm run check:env-features
+      - name: No executable code from third-party hosts
+        run: npm run check:no-external-scripts
 
       - name: REUSE compliance
         uses: fsfe/reuse-action@v5

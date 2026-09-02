@@ -59,6 +59,9 @@ test:
     # no longer called that — and an unknown id is ignored, so they would never find out.
     - npm run check:env-features
 
+    # No executable code from anyone else's server — see the script's header for what that cost.
+    - npm run check:no-external-scripts
+
     - npm run build
 
     # The actual proof: the free part must build COMPLETELY without pro/. Remove the directory and

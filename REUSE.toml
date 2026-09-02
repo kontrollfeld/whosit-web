@@ -47,6 +47,11 @@ SPDX-FileCopyrightText = "2014 GlobalSign, 2015-2019 Peculiar Ventures"
 SPDX-License-Identifier = "BSD-3-Clause"
 
 [[annotations]]
+path = "public/vendor/qrcodejs/**"
+SPDX-FileCopyrightText = "2012 davidshimjs"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
 path = "public/vendor/signpdf/**"
 SPDX-FileCopyrightText = "2019 The Authors, 2019 Andrew Dillon"
 SPDX-License-Identifier = "MIT"
