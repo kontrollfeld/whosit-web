@@ -407,9 +407,6 @@ p { margin: 0 0 1em; }
 
 /* Logo: der Gold-Sternkranz dreht sich sehr langsam (nur transform, GPU). Das Schild
  * bleibt statisch. Respektiert prefers-reduced-motion (dann steht der Kranz still). */
-.logo-ring { transform-box: view-box; transform-origin: 24px 24px; animation: logo-ring-spin 72s linear infinite; }
-@keyframes logo-ring-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .logo-ring { animation: none; } }
 
 /* ---- Testphase-Hinweis ---- */
 .notice-section { padding: 0 0 8px; }

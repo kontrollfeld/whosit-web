@@ -1351,9 +1351,6 @@ html.native-app .stepper { margin-bottom: 14px; }
 
 /* Logo: der Gold-Sternkranz dreht sich sehr langsam (nur transform, GPU). Das Schild
  * bleibt statisch. Respektiert prefers-reduced-motion (dann steht der Kranz still). */
-.logo-ring { transform-box: view-box; transform-origin: 24px 24px; animation: logo-ring-spin 72s linear infinite; }
-@keyframes logo-ring-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .logo-ring { animation: none; } }
 
 /* Impressum-Verweise: Settings-Tab-Link + Web-Footer-Link */
 .settings-row .settings-link { color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600; }
