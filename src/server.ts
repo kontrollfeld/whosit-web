@@ -532,15 +532,12 @@ function sendBranded(res: express.Response, file: string): void {
     res.type('html').set('Cache-Control', 'no-cache').send(brandHtml(html, BRANDING));
   });
 }
-if (BRANDING) {
-  app.get(/\.html$/, (req, res, next) => {
-    // Only real files inside the public directory, no path tricks.
-    const rel = path.normalize(req.path).replace(/^(\.\.[/\\])+/, '').replace(/^\/+/, '');
-    const full = path.join(__dirname, '..', 'public', rel);
-    if (!full.startsWith(path.join(__dirname, '..', 'public'))) return next();
-    fs.access(full, fs.constants.R_OK, (e) => (e ? next() : sendBranded(res, rel)));
-  });
-}
+// MUST be registered BEFORE the branding interceptor below. Express takes the first matching
+// route, and that one matches every *.html — so with branding switched on it served the
+// placeholder from public/ and the operator's real imprint became unreachable under
+// /impressum.html, while /impressum still worked. That is how it reached production on
+// 2026-09-03: the interceptor only exists when branding is configured, so the ordering was
+// harmless until EUDI_BRAND_LOGO was set.
 // Operator pages (imprint, privacy notice, press) take precedence over the neutral placeholders
 // in public/. Registered before express.static, which would otherwise ship the placeholder.
 // Without EUDI_OPERATOR_PAGES nothing is registered here and the behaviour is unchanged.
@@ -558,6 +555,15 @@ if (OPERATOR) {
   }));
 }
 
+if (BRANDING) {
+  app.get(/\.html$/, (req, res, next) => {
+    // Only real files inside the public directory, no path tricks.
+    const rel = path.normalize(req.path).replace(/^(\.\.[/\\])+/, '').replace(/^\/+/, '');
+    const full = path.join(__dirname, '..', 'public', rel);
+    if (!full.startsWith(path.join(__dirname, '..', 'public'))) return next();
+    fs.access(full, fs.constants.R_OK, (e) => (e ? next() : sendBranded(res, rel)));
+  });
+}
 // no-cache so browsers always pick up the latest frontend (avoids stale app.js).
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),

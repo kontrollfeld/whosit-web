@@ -26,6 +26,7 @@ import { join } from 'node:path';
 
 const PORT_WITH = 3991;
 const PORT_WITHOUT = 3992;
+const PORT_BRANDED = 3993;
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -79,8 +80,12 @@ const body = async (port, path) => {
 try {
   const withPages = start(PORT_WITH, { EUDI_OPERATOR_PAGES: dir });
   const without = start(PORT_WITHOUT, {});
+  // Third instance: operator pages AND branding. This combination broke production on
+  // 2026-09-03 — see the check further down.
+  const branded = start(PORT_BRANDED, { EUDI_OPERATOR_PAGES: dir, EUDI_BRAND_LOGO: '/operator/logo/x.svg' });
   await waitFor(PORT_WITH);
   await waitFor(PORT_WITHOUT);
+  await waitFor(PORT_BRANDED);
 
   console.log('\nWith a directory configured');
   {
@@ -120,6 +125,21 @@ try {
     check('announces nothing without the variable',
       Array.isArray(withoutCaps.operatorPages) && withoutCaps.operatorPages.length === 0,
       JSON.stringify(withoutCaps.operatorPages));
+  }
+
+  console.log('\nWith branding switched on as well');
+  {
+    // The regression this prevents reached production. Branding registers an interceptor for
+    // every *.html path in order to inject the operator's logo and colour. It was registered
+    // BEFORE the operator pages, and Express takes the first matching route — so /impressum.html
+    // served the placeholder from public/ while /impressum still served the real page. The
+    // ordering was harmless until EUDI_BRAND_LOGO was set, which is why it slipped through.
+    const withExt = await body(PORT_BRANDED, '/impressum.html');
+    const noExt = await body(PORT_BRANDED, '/impressum');
+    check('/impressum.html serves the operator page, not the placeholder',
+      withExt.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'), `got: ${withExt.text.slice(0, 90)}`);
+    check('/impressum does too', noExt.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'),
+      `got: ${noExt.text.slice(0, 90)}`);
   }
 
   console.log('\nA page added while the service is running');
