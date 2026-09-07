@@ -20,7 +20,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
-import { readOperatorPages, resolveOperatorPage, OPERATOR_PAGES } from './operator-pages';
+import { readOperatorPages, resolveOperatorPage, availableMedia, OPERATOR_PAGES } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 /** This instance's brand — null when unbranded, in which case all branding is a no-op. */
@@ -670,6 +670,10 @@ app.get('/capabilities', publicCors, (_req, res) => {
     operatorPages: OPERATOR
       ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null)
       : [],
+    // Media the operator provides (see ./operator-pages). The landing page shows the app demo
+    // only where it exists — a self-hoster must not end up advertising our app, and a <video>
+    // pointing at a missing file would show a broken player rather than nothing.
+    operatorMedia: OPERATOR ? availableMedia(OPERATOR) : [],
     policy: policyDescriptor(),
   });
 });

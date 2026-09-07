@@ -75,3 +75,22 @@ export function resolveOperatorPage(cfg: OperatorPagesConfig, urlPath: string): 
   try { if (!fs.statSync(full).isFile()) return null; } catch { return null; }
   return full;
 }
+
+/**
+ * Media an operator may provide, same idea as the pages: it belongs to whoever runs the
+ * instance. The app demo film shows OUR app, so it must not ship with the software — a
+ * self-hoster would otherwise advertise a product that is not theirs.
+ *
+ * Files live in `<dir>/media/` and are already reachable through the /operator/ mount; this list
+ * exists so the client can ask whether they are there instead of probing with a request that
+ * would 404 on most instances.
+ */
+export const OPERATOR_MEDIA = ['appdemo'] as const;
+export type OperatorMedia = (typeof OPERATOR_MEDIA)[number];
+
+/** Which media files exist right now. Checked per request, like the pages. */
+export function availableMedia(cfg: OperatorPagesConfig): OperatorMedia[] {
+  return OPERATOR_MEDIA.filter((m) => {
+    try { return fs.statSync(path.join(cfg.dir, 'media', `${m}.mp4`)).isFile(); } catch { return false; }
+  });
+}

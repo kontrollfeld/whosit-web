@@ -438,6 +438,18 @@ p { margin: 0 0 1em; }
 }
 @media (min-width: 768px) { .app-panel { grid-template-columns: 200px 1fr; gap: 36px; } }
 .app-visual { display: flex; justify-content: center; }
+/* App-Demo: wird nur eingesetzt, wenn die Instanz sie bereitstellt (siehe theme.js). Hochkant
+   9:16 wie aufgenommen; die Höhe begrenzt, damit der Abschnitt auf dem Laptop nicht auseinander-
+   fällt. */
+.app-demo { position: relative; display: block; width: 100%; max-width: 264px; aspect-ratio: 9 / 16;
+  border: 0; padding: 0; background: #0b1220; border-radius: 26px; overflow: hidden; cursor: pointer;
+  box-shadow: 0 18px 40px rgba(0, 59, 142, 0.22); }
+.app-demo video, .app-demo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.app-demo .app-demo-play { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; background: rgba(6, 17, 29, 0.32); transition: background .15s ease; }
+.app-demo:hover .app-demo-play { background: rgba(6, 17, 29, 0.18); }
+.app-demo .app-demo-play svg { width: 64px; height: 64px; filter: drop-shadow(0 4px 12px rgba(0,0,0,.4)); }
+.app-demo[data-playing] .app-demo-play { display: none; }
 .app-visual .app-logo { width: 140px; height: 140px; filter: drop-shadow(0 16px 32px rgba(0, 59, 142, 0.22)); }
 .app-text h2 { font-size: clamp(1.3rem, 2.6vw, 1.7rem); margin-top: 6px; }
 .app-perks { list-style: none; margin: 4px 0 22px; padding: 0; display: grid; gap: 10px; }

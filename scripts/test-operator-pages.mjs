@@ -125,6 +125,15 @@ try {
     check('announces nothing without the variable',
       Array.isArray(withoutCaps.operatorPages) && withoutCaps.operatorPages.length === 0,
       JSON.stringify(withoutCaps.operatorPages));
+    // The same rule for the app demo film (see the tail of public/theme.js): the landing page
+    // replaces its illustration with the film only where the operator put one. An instance
+    // without the file must keep the illustration, not a video element with a dead source.
+    check('no media announced before the file exists',
+      Array.isArray(withCaps.operatorMedia) && withCaps.operatorMedia.length === 0,
+      JSON.stringify(withCaps.operatorMedia));
+    check('no media announced without the variable',
+      Array.isArray(withoutCaps.operatorMedia) && withoutCaps.operatorMedia.length === 0,
+      JSON.stringify(withoutCaps.operatorMedia));
   }
 
   console.log('\nWith branding switched on as well');
@@ -152,6 +161,14 @@ try {
     const late = await body(PORT_WITH, '/datenschutz.html');
     check('is served without a restart', late.text.includes('LATE PRIVACY'),
       `got: ${late.text.slice(0, 80)}`);
+
+    mkdirSync(join(dir, 'media'), { recursive: true });
+    writeFileSync(join(dir, 'media', 'appdemo.mp4'), 'not really an mp4, but a file');
+    const caps = await (await fetch(`http://127.0.0.1:${PORT_WITH}/capabilities`)).json();
+    check('a media file added later is announced', caps.operatorMedia.includes('appdemo'),
+      JSON.stringify(caps.operatorMedia));
+    const film = await body(PORT_WITH, '/operator/media/appdemo.mp4');
+    check('and served below /operator', film.status === 200, `HTTP ${film.status}`);
   }
 
   console.log('\nWithout the variable — nothing may change');

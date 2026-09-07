@@ -90,7 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('/capabilities', { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (caps) {
-      if (!caps || !caps.operatorPages) return;
+      if (!caps) return;
+      appDemo(caps);
+      if (!caps.operatorPages) return;
       caps.operatorPages.forEach(function (page) {
         if (!LABEL[page]) return;                                  // imprint/privacy: already linked
         if (nav.querySelector('a[href^="' + page + '"]')) return;  // do not duplicate
@@ -102,3 +104,40 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .catch(function () {});
 })();
+
+/* The app demo film, where the instance has one.
+ *
+ * Deliberately NOT autoplay: the file is 3.5 MB, and on a day with press attention that is paid
+ * for every visitor who never looks at it. A poster frame costs 90 KB, and whoever wants to see
+ * the film clicks. `preload="none"` keeps it at that until then.
+ *
+ * The film shows OUR app, so it lives in the operator directory, not in this repository — a
+ * self-hosted instance keeps the plain logo instead (see operator-pages.ts).
+ */
+function appDemo(caps) {
+  var box = document.querySelector('[data-app-demo]');
+  if (!box || !caps.operatorMedia || caps.operatorMedia.indexOf('appdemo') < 0) return;
+  var label = (document.documentElement.lang || 'de').slice(0, 2) === 'en'
+    ? 'Play the app demo film' : 'Demo-Film der App abspielen';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'app-demo';
+  btn.setAttribute('aria-label', label);
+  btn.innerHTML =
+    '<video preload="none" playsinline poster="/operator/media/appdemo.jpg" muted></video>'
+    + '<span class="app-demo-play" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none">'
+    + '<circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.92)"/>'
+    + '<path d="M26 21l18 11-18 11z" fill="#0f172a"/></svg></span>';
+  var video = btn.querySelector('video');
+  btn.addEventListener('click', function () {
+    if (btn.hasAttribute('data-playing')) { video.pause(); btn.removeAttribute('data-playing'); return; }
+    // Source only on the first click — that is what keeps the 3.5 MB off every page view.
+    if (!video.getAttribute('src')) video.setAttribute('src', '/operator/media/appdemo.mp4');
+    // The film carries no audio track, so it stays muted — that also spares us the autoplay
+    // rules browsers apply to sound. A second click pauses it again.
+    video.play().then(function () { btn.setAttribute('data-playing', ''); }).catch(function () {});
+  });
+  video.addEventListener('ended', function () { btn.removeAttribute('data-playing'); });
+  box.innerHTML = '';
+  box.appendChild(btn);
+}
