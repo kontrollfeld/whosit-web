@@ -25,6 +25,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 - [Self-hosting in 5 steps](#self-hosting-in-5-steps)
 - [The compose services](#the-compose-services)
 - [EUDIPLO: the verifier you run yourself](#eudiplo-the-verifier-you-run-yourself)
+  - [Trust lists expire after 30 days](#trust-lists-expire-after-30-days)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
 - [Wiring up TURN properly](#wiring-up-turn-properly)
 - [Configuration (ENV)](#configuration-env)
@@ -136,6 +137,36 @@ the mistake only surfaced when a citizen opened their wallet.
 > `POST /api/verifier/config`, `POST /api/verifier/offer` → returns an offer URI; after that
 > **EUDIPLO POSTs the result to the application's webhook URL**
 > (`…/webhook/:sessionId?t=<token>` — the token is verified server-side).
+
+### Trust lists expire after 30 days
+
+If you configure a trust list in EUDIPLO — the list that says which issuer certificates you
+accept — set yourself a reminder, or better, a cron job. EUDIPLO stamps every list with
+`NextUpdate = issued + 30 days`, and once that moment passes it **fails closed**: certificate
+chain validation refuses every presentation.
+
+The failure is hard to read from the outside, which is the reason this section exists:
+
+* The wallet does everything right and still shows a generic error.
+* `POST /presentations/<id>/oid4vp` returns a bare **HTTP 400** with no explanation.
+* Only the EUDIPLO log names the cause:
+  `Configured trust list is stale (NextUpdate in the past: …)`.
+
+Failing closed is the correct behaviour — the alternative would be accepting credentials whose
+issuer you can no longer vouch for. But it means a working instance stops working on a schedule,
+and nothing warns you first.
+
+Re-issuing the list resets the clock. **Do not do that by reading the list back and writing it
+straight out again:** the management API returns `entities: []` for externally supplied
+certificates, because they live in the published list rather than in the stored configuration.
+A round-trip therefore publishes an *empty* trust list — which fails exactly like an expired one,
+except the certificates are gone as well. Rebuild the entries from the published list instead
+(`GET /issuers/<tenant>/trust-list/<id>` returns a signed JWT containing them), and verify
+against that public URL afterwards that the entry count and the new `NextUpdate` are what you
+expect.
+
+The renewal needs a client with the `presentation:manage` or `issuance:manage` role. A root
+client will not do — it only carries `tenants:manage`.
 
 ## Local development with the EUDIPLO mock
 
@@ -349,6 +380,7 @@ works with no further effort.
 |---|---|
 | No certificate / "acme" error | DNS does not point at the host, or port 443 is closed. Check `dig +short $DOMAIN` and the firewall. |
 | The call only connects on the same Wi-Fi | TURN unreachable or not wired up. Open UDP 3478 + 49160–49200; is `TURN_EXTERNAL_IP` correct? See [TURN](#wiring-up-turn-properly). |
+| Every sign-in fails with a bare HTTP 400 | A trust list configured in EUDIPLO has expired. See [Trust lists expire](#trust-lists-expire-after-30-days). |
 | The mock verifies but the app does not react | `PUBLIC_URL` is wrong → the webhook URL is unreachable. It must be the URL at which the app is reachable *for the mock*. |
 | WebSocket 403 | `ALLOWED_ORIGINS` does not match the domain being used. |
 | Camera/microphone blocked | Only over HTTPS or `localhost` (secure context). |
