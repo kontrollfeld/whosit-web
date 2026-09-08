@@ -107,9 +107,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* The app demo film, where the instance has one.
  *
- * Deliberately NOT autoplay: the file is 3.5 MB, and on a day with press attention that is paid
- * for every visitor who never looks at it. A poster frame costs 90 KB, and whoever wants to see
- * the film clicks. `preload="none"` keeps it at that until then.
+ * It plays by itself and repeats — the section is about how the app feels, and a still frame
+ * does not show that. Three things keep the cost of that honest:
+ *
+ *   - Nothing is loaded until the section is actually scrolled to. Most visitors never reach
+ *     the bottom of the page, and on a day with press attention that difference is the whole
+ *     bandwidth bill.
+ *   - Playback pauses when the film scrolls out of view again, so a tab parked on the page does
+ *     not keep a decoder busy.
+ *   - Whoever asked their system not to animate things (prefers-reduced-motion) gets the poster
+ *     frame with a play button instead. Autoplay is exactly what that setting is about.
+ *
+ * Muted throughout: the film has no audio track, and without `muted` no browser would autoplay
+ * it anyway. A click pauses and resumes.
  *
  * The film shows OUR app, so it lives in the operator directory, not in this repository — a
  * self-hosted instance keeps the plain logo instead (see operator-pages.ts).
@@ -117,27 +127,44 @@ document.addEventListener('DOMContentLoaded', () => {
 function appDemo(caps) {
   var box = document.querySelector('[data-app-demo]');
   if (!box || !caps.operatorMedia || caps.operatorMedia.indexOf('appdemo') < 0) return;
-  var label = (document.documentElement.lang || 'de').slice(0, 2) === 'en'
-    ? 'Play the app demo film' : 'Demo-Film der App abspielen';
+  var en = (document.documentElement.lang || 'de').slice(0, 2) === 'en';
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'app-demo';
-  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-label', en ? 'App demo film — click to pause or play'
+                                    : 'Demo-Film der App — Klick pausiert oder startet');
   btn.innerHTML =
-    '<video preload="none" playsinline poster="/operator/media/appdemo.jpg" muted></video>'
+    '<video loop muted playsinline preload="none" poster="/operator/media/appdemo.jpg"></video>'
     + '<span class="app-demo-play" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none">'
     + '<circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.92)"/>'
     + '<path d="M26 21l18 11-18 11z" fill="#0f172a"/></svg></span>';
   var video = btn.querySelector('video');
-  btn.addEventListener('click', function () {
-    if (btn.hasAttribute('data-playing')) { video.pause(); btn.removeAttribute('data-playing'); return; }
-    // Source only on the first click — that is what keeps the 3.5 MB off every page view.
+  video.muted = true;   // the attribute alone is not enough for autoplay in every browser
+
+  function play() {
     if (!video.getAttribute('src')) video.setAttribute('src', '/operator/media/appdemo.mp4');
-    // The film carries no audio track, so it stays muted — that also spares us the autoplay
-    // rules browsers apply to sound. A second click pauses it again.
-    video.play().then(function () { btn.setAttribute('data-playing', ''); }).catch(function () {});
+    return video.play().then(function () { btn.setAttribute('data-playing', ''); })
+      .catch(function () { btn.removeAttribute('data-playing'); });  // then the play button stays
+  }
+  function pause() { video.pause(); btn.removeAttribute('data-playing'); }
+
+  btn.addEventListener('click', function () {
+    if (btn.hasAttribute('data-playing')) { pause(); btn.setAttribute('data-paused', ''); }
+    else { btn.removeAttribute('data-paused'); play(); }
   });
-  video.addEventListener('ended', function () { btn.removeAttribute('data-playing'); });
+
   box.innerHTML = '';
   box.appendChild(btn);
+
+  if (calm) return;  // poster and play button — the visitor decides
+
+  if (!window.IntersectionObserver) { play(); return; }
+  new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (btn.hasAttribute('data-paused')) return;   // a deliberate pause outranks scrolling
+      if (e.isIntersecting) play(); else pause();
+    });
+  }, { threshold: 0.35 }).observe(btn);
 }
