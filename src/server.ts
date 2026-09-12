@@ -20,7 +20,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
-import { readOperatorPages, resolveOperatorPage, availableMedia, OPERATOR_PAGES } from './operator-pages';
+import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 /** This instance's brand — null when unbranded, in which case all branding is a no-op. */
@@ -514,6 +514,11 @@ app.get('/', (req, res, next) => {
   if ('room' in req.query || 'inv' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
     return BRANDING ? sendBranded(res, 'index.html') : next();
   }
+  // Where the operator supplies a start page, it owns "/" — see ./operator-pages. Without one
+  // the bare URL opens the tool itself: this is a calling application, not a website, and an
+  // instance someone else runs should not greet visitors with our marketing.
+  const home = OPERATOR ? resolveOperatorHome(OPERATOR) : null;
+  if (home) { res.set('Cache-Control', 'no-cache').sendFile(home); return; }
   sendBranded(res, 'landing.html');
 });
 
@@ -674,6 +679,9 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // only where it exists — a self-hoster must not end up advertising our app, and a <video>
     // pointing at a missing file would show a broken player rather than nothing.
     operatorMedia: OPERATOR ? availableMedia(OPERATOR) : [],
+    // Whether "/" is the operator's own page rather than the application. Announced for the
+    // same reason as the pages: so a client can tell without probing.
+    operatorHome: OPERATOR ? resolveOperatorHome(OPERATOR) !== null : false,
     policy: policyDescriptor(),
   });
 });

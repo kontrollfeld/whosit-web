@@ -94,3 +94,22 @@ export function availableMedia(cfg: OperatorPagesConfig): OperatorMedia[] {
     try { return fs.statSync(path.join(cfg.dir, 'media', `${m}.mp4`)).isFile(); } catch { return false; }
   });
 }
+
+/**
+ * The operator's start page, where there is one.
+ *
+ * Different in kind from the pages above, which override a placeholder we ship: this one
+ * REPLACES the application at "/". An instance without it opens the call screen directly, and
+ * that is the honest default — this software is a tool for making verified calls, not a website,
+ * and a self-hoster should not find someone else's marketing on their own front page.
+ *
+ * The operator of id-call.eu keeps its start page here for the same reason the imprint lives
+ * here: it describes one particular service, and it would be wrong on any other instance.
+ *
+ * Resolved per request like everything else in this module — see the note above
+ * `resolveOperatorPage` for what happens when that is done once at startup instead.
+ */
+export function resolveOperatorHome(cfg: OperatorPagesConfig): string | null {
+  const full = path.join(cfg.dir, 'start.html');
+  try { return fs.statSync(full).isFile() ? full : null; } catch { return null; }
+}

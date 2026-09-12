@@ -108,6 +108,35 @@ try {
       withPages.log.join('').split('\n').filter((l) => l.includes('Operator')).join(' | ') || 'no such line');
   }
 
+  console.log('\nThe fork at "/" — start page versus application');
+  {
+    // Nothing covered this until 2026-09-12, and it is the one place where a mistake breaks
+    // every invitation link that was ever sent. `?room=` must reach the application even when
+    // the operator has put a start page in front of it.
+    const withoutHome = await body(PORT_WITH, '/');
+    check('without start.html the bare URL is not the operator page',
+      !withoutHome.text.includes('PROVIDED-BY-OPERATOR-START'), 'a start page appeared from nowhere');
+
+    writeFileSync(join(dir, 'start.html'), '<!doctype html><title>x</title>PROVIDED-BY-OPERATOR-START');
+    const home = await body(PORT_WITH, '/');
+    check('with start.html "/" serves it — without a restart',
+      home.text.includes('PROVIDED-BY-OPERATOR-START'), `got: ${home.text.slice(0, 90)}`);
+
+    for (const q of ['?room=abc123', '?inv=xyz', '?new=1', '?solo=1']) {
+      const app = await body(PORT_WITH, `/${q}`);
+      check(`"${q}" still opens the application, not the start page`,
+        !app.text.includes('PROVIDED-BY-OPERATOR-START'), 'an invitation link landed on the start page');
+    }
+
+    const plain = await body(PORT_WITHOUT, '/');
+    check('an instance without the variable is untouched',
+      !plain.text.includes('PROVIDED-BY-OPERATOR-START'), 'start page leaked into a plain instance');
+
+    const branded = await body(PORT_BRANDED, '/');
+    check('with branding as well the start page wins',
+      branded.text.includes('PROVIDED-BY-OPERATOR-START'), `got: ${branded.text.slice(0, 90)}`);
+  }
+
   console.log('\nWhat /capabilities announces');
   {
     // The footer links a press page only when one exists (see the tail of public/theme.js).
@@ -134,6 +163,10 @@ try {
     check('no media announced without the variable',
       Array.isArray(withoutCaps.operatorMedia) && withoutCaps.operatorMedia.length === 0,
       JSON.stringify(withoutCaps.operatorMedia));
+    check('announces the start page where there is one', withCaps.operatorHome === true,
+      JSON.stringify(withCaps.operatorHome));
+    check('and not where there is none', withoutCaps.operatorHome === false,
+      JSON.stringify(withoutCaps.operatorHome));
   }
 
   console.log('\nWith branding switched on as well');
