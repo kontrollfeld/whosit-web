@@ -25,6 +25,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 - [Self-hosting in 5 steps](#self-hosting-in-5-steps)
 - [The compose services](#the-compose-services)
 - [EUDIPLO: the verifier you run yourself](#eudiplo-the-verifier-you-run-yourself)
+  - ["/" is the application, not a website](#-is-the-application-not-a-website)
   - [Trust lists expire after 30 days](#trust-lists-expire-after-30-days)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
 - [Wiring up TURN properly](#wiring-up-turn-properly)
@@ -137,6 +138,20 @@ the mistake only surfaced when a citizen opened their wallet.
 > `POST /api/verifier/config`, `POST /api/verifier/offer` → returns an offer URI; after that
 > **EUDIPLO POSTs the result to the application's webhook URL**
 > (`…/webhook/:sessionId?t=<token>` — the token is verified server-side).
+
+### "/" is the application, not a website
+
+A fresh instance answers the bare URL with the call screen — set up, invite, identify. There is
+no front page in this repository, deliberately: this is a tool for making verified calls, and an
+instance you run should not greet visitors with marketing for a service that is not yours. Until
+2026-09-13 it did exactly that.
+
+If you want your own front page, put a `start.html` into `EUDI_OPERATOR_PAGES`. It then owns "/",
+and anything beside it — stylesheet, images, a film — is served from `/operator/…`.
+
+**Invitation links always reach the application**, start page or not: `/?room=…`, `?inv=`, `?new=`
+and `?solo=` bypass it. That fork is covered by `npm run test:operatorpages`, because breaking it
+would break every link ever sent, every QR code and the mobile app's universal links.
 
 ### Trust lists expire after 30 days
 

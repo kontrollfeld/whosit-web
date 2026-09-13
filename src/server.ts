@@ -493,7 +493,8 @@ app.get('/wallet-pass', (req, res) => {
   }
 });
 
-// Must be registered BEFORE express.static, which would otherwise serve index.html for "/".
+// Must be registered BEFORE express.static: the query fork below decides what "/" means, and
+// the static handler would answer with index.html before it ever runs.
 app.get('/', (req, res, next) => {
   const isEmbed = 'embed' in req.query;
   // Hardened embedding: a valid signed token gates BOTH the allowed ancestor origins and
@@ -510,7 +511,7 @@ app.get('/', (req, res, next) => {
     return next(); // serve the app (index.html)
   }
   // `inv` marks a scheduled call: the room id sits inside the signed invitation, not in the
-  // URL — so this parameter must open the app too, not the landing page.
+  // URL — so this parameter must open the app, not an operator's start page.
   if ('room' in req.query || 'inv' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
     return BRANDING ? sendBranded(res, 'index.html') : next();
   }
@@ -519,7 +520,7 @@ app.get('/', (req, res, next) => {
   // instance someone else runs should not greet visitors with our marketing.
   const home = OPERATOR ? resolveOperatorHome(OPERATOR) : null;
   if (home) { res.set('Cache-Control', 'no-cache').sendFile(home); return; }
-  sendBranded(res, 'landing.html');
+  return BRANDING ? sendBranded(res, 'index.html') : next();
 });
 
 /**
@@ -675,9 +676,9 @@ app.get('/capabilities', publicCors, (_req, res) => {
     operatorPages: OPERATOR
       ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null)
       : [],
-    // Media the operator provides (see ./operator-pages). The landing page shows the app demo
-    // only where it exists — a self-hoster must not end up advertising our app, and a <video>
-    // pointing at a missing file would show a broken player rather than nothing.
+    // Media the operator provides (see ./operator-pages). An operator's own pages can use
+    // this to tell whether a file is there before pointing a <video> at it — otherwise a
+    // missing file shows a broken player rather than nothing.
     operatorMedia: OPERATOR ? availableMedia(OPERATOR) : [],
     // Whether "/" is the operator's own page rather than the application. Announced for the
     // same reason as the pages: so a client can tell without probing.

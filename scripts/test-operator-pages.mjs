@@ -113,8 +113,14 @@ try {
     // Nothing covered this until 2026-09-12, and it is the one place where a mistake breaks
     // every invitation link that was ever sent. `?room=` must reach the application even when
     // the operator has put a start page in front of it.
+    // Since 2026-09-13 the software ships no front page at all: "/" IS the tool. That is the
+    // honest default — an instance someone else runs should not greet visitors with marketing
+    // for id-call.eu, which is what it did until the pages moved to their own repository.
     const withoutHome = await body(PORT_WITH, '/');
-    check('without start.html the bare URL is not the operator page',
+    check('without start.html the bare URL opens the application',
+      withoutHome.text.includes('id="setup"') || withoutHome.text.includes('data-i18n'),
+      `got: ${withoutHome.text.slice(0, 90)}`);
+    check('and it is not the operator page',
       !withoutHome.text.includes('PROVIDED-BY-OPERATOR-START'), 'a start page appeared from nowhere');
 
     writeFileSync(join(dir, 'start.html'), '<!doctype html><title>x</title>PROVIDED-BY-OPERATOR-START');
@@ -129,8 +135,9 @@ try {
     }
 
     const plain = await body(PORT_WITHOUT, '/');
-    check('an instance without the variable is untouched',
-      !plain.text.includes('PROVIDED-BY-OPERATOR-START'), 'start page leaked into a plain instance');
+    check('an instance without the variable opens the application too',
+      plain.status === 200 && !plain.text.includes('PROVIDED-BY-OPERATOR-START'),
+      `HTTP ${plain.status}`);
 
     const branded = await body(PORT_BRANDED, '/');
     check('with branding as well the start page wins',
@@ -154,9 +161,8 @@ try {
     check('announces nothing without the variable',
       Array.isArray(withoutCaps.operatorPages) && withoutCaps.operatorPages.length === 0,
       JSON.stringify(withoutCaps.operatorPages));
-    // The same rule for the app demo film (see the tail of public/theme.js): the landing page
-    // replaces its illustration with the film only where the operator put one. An instance
-    // without the file must keep the illustration, not a video element with a dead source.
+    // The same rule for media an operator supplies: announced only where the file is actually
+    // there, so a page never points a <video> at a dead source.
     check('no media announced before the file exists',
       Array.isArray(withCaps.operatorMedia) && withCaps.operatorMedia.length === 0,
       JSON.stringify(withCaps.operatorMedia));

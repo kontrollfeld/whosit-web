@@ -1,0 +1,186 @@
+/* SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Stylesheet der mitgelieferten Rechtsseiten.
+ *
+ * Bis zum 13.09.2026 luden impressum.html und datenschutz.html `landing.css` — das Stylesheet
+ * der Startseite. Mit deren Auszug wären sie ohne Gestaltung dagestanden. Hier steht nur noch,
+ * was diese beiden Seiten brauchen: Schriften, Design-Tokens, Kopf, Fuß, Fließtext. Die
+ * Marketing-Bausteine (.hero, .steps, .trust-badges …) sind mit ausgezogen.
+ *
+ * Die Design-Tokens stehen damit weiterhin auch in style.css — so war es schon vorher. Das
+ * aufzulösen ist eine eigene Aufgabe.
+ */
+/* Self-hosted IBM Plex Sans (OFL) — keine Google-Fonts-Uebertragung (Datenschutz) */
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-400.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-ext-400.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-sans-500.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-sans-ext-500.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-sans-600.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ibm-plex-sans-ext-600.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-700.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-ext-700.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+
+/* Landing page — EUDI Verified Call.
+ * Tokens & Regeln: die Design-Tokens stehen in :root von public/style.css — dort ist die Quelle.
+ * Mobile-first, Flexbox/Grid, keine Frameworks. */
+
+:root {
+  color-scheme: light;
+  --bg: #f5f8fc;
+  --bg-tint: #eef3fa;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e3e9f2;
+  --border-strong: #cfd8e6;
+  --navy: #0f172a;
+  --text: #1b2433;
+  --text-muted: #5d6b85;
+  --text-faint: #94a3b8;
+  --accent: #0369a1;
+  --accent-strong: #075e8c;
+  --accent-soft: #e3f0f9;
+  --on-accent: #ffffff;
+  --ok: #059669;
+  --ok-strong: #047857;
+  --ok-soft: #e2f5ee;
+  --ok-border: rgba(5, 150, 105, 0.25);
+  --glow-a: rgba(3, 105, 161, 0.1);
+  --glow-b: rgba(0, 68, 148, 0.08);
+  --eu-gold: #FFCC00;
+  --r-sm: 9px;
+  --r: 13px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+  --shadow: 0 18px 40px -22px rgba(15, 23, 42, 0.28);
+  --shadow-sm: 0 4px 14px -8px rgba(15, 23, 42, 0.22);
+  --shadow-btn: 0 8px 18px -8px rgba(3, 105, 161, 0.5);
+  --t: 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark theme — same values as the dark block in public/style.css. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg-tint: #0d1626;
+  --surface: #121d32;
+  --surface-2: #1b2942;
+  --border: #243450;
+  --border-strong: #37496c;
+  --navy: #ecf2fb;
+  --text: #d7e1f0;
+  --text-muted: #9db0cc;
+  --text-faint: #66779a;
+  --accent: #4aabe0;
+  --accent-strong: #7cc4ec;
+  --accent-soft: #14283f;
+  --on-accent: #06111d;
+  --ok: #34d399;
+  --ok-strong: #7fe7c3;
+  --ok-soft: #0d2b23;
+  --ok-border: rgba(52, 211, 153, 0.4);
+  --glow-a: rgba(74, 171, 224, 0.08);
+  --glow-b: rgba(74, 130, 224, 0.06);
+  --eu-gold: #FFD633;
+  --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.75);
+  --shadow-sm: 0 4px 14px -8px rgba(0, 0, 0, 0.65);
+  --shadow-btn: 0 8px 18px -8px rgba(74, 171, 224, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --bg-tint: #0d1626;
+    --surface: #121d32;
+    --surface-2: #1b2942;
+    --border: #243450;
+    --border-strong: #37496c;
+    --navy: #ecf2fb;
+    --text: #d7e1f0;
+    --text-muted: #9db0cc;
+    --text-faint: #66779a;
+    --accent: #4aabe0;
+    --accent-strong: #7cc4ec;
+    --accent-soft: #14283f;
+    --on-accent: #06111d;
+    --ok: #34d399;
+    --ok-strong: #7fe7c3;
+    --ok-soft: #0d2b23;
+    --ok-border: rgba(52, 211, 153, 0.4);
+    --glow-a: rgba(74, 171, 224, 0.08);
+    --glow-b: rgba(74, 130, 224, 0.06);
+    --eu-gold: #FFD633;
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.75);
+    --shadow-sm: 0 4px 14px -8px rgba(0, 0, 0, 0.65);
+    --shadow-btn: 0 8px 18px -8px rgba(74, 171, 224, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background:
+    radial-gradient(820px 460px at 50% -6%, var(--glow-a), transparent 60%),
+    radial-gradient(640px 460px at 100% 0%, var(--glow-b), transparent 55%),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- shared ---- */
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+.icon { width: 20px; height: 20px; flex: none; }
+h1, h2, h3 { color: var(--navy); line-height: 1.2; margin: 0 0 0.5em; }
+p { margin: 0 0 1em; }
+.muted { color: var(--text-muted); }
+
+.skip-link {
+  position: absolute; left: -999px; top: 8px;
+  background: var(--surface); color: var(--accent);
+  padding: 10px 16px; border-radius: var(--r-sm); box-shadow: var(--shadow-sm); z-index: 100;
+}
+.skip-link:focus { left: 8px; }
+
+/* ---- buttons ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 12px 26px;
+  border: none; border-radius: var(--r-sm);
+  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+  transition: transform var(--t), filter var(--t), background var(--t), box-shadow var(--t);
+}
+.btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-btn); }
+.btn-primary:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.btn-ghost { background: var(--surface); color: var(--navy); border: 1px solid var(--border-strong); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent); }
+
+/* ---- header ---- */
+.site-header { padding: 18px 0; }
+.site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo svg { width: 34px; height: 34px; }
+.logo strong { color: var(--navy); font-size: 1.05rem; letter-spacing: -0.01em; white-space: nowrap; }
+.header-cta { min-height: 40px; padding: 8px 18px; font-size: 0.9rem; }
+
+.site-footer { padding: 40px 0 48px; }
+.site-footer .wrap {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  border-top: 1px solid var(--border); padding-top: 24px;
+  font-size: 0.85rem; color: var(--text-faint);
+}
+.site-footer a { color: var(--text-muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 18px; }
+
+
+.prose { max-width: 760px; margin: 0 auto; }
+.prose h1 { font-size: clamp(1.6rem, 3vw, 2rem); margin: 0 0 4px; }
+.prose h2 { font-size: 1.05rem; margin: 26px 0 6px; color: var(--navy); }
+.prose p { color: var(--text); line-height: 1.6; }
+.prose .muted { color: var(--text-muted); }
+

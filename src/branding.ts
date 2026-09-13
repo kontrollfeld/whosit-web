@@ -82,7 +82,7 @@ const esc = (s: string) => s.replace(/[<>&"]/g, (ch) => ({ '<': '&lt;', '>': '&g
 /**
  * What gets injected into `<head>`.
  *
- * ORDER MATTERS: the `<style>` block MUST come after `landing.css`/`style.css`, i.e. directly
+ * ORDER MATTERS: the `<style>` block MUST come after `style.css`/`pages.css`, i.e. directly
  * before `</head>`. Placed earlier, the stylesheet wins the cascade and the branding has no
  * effect — exactly the bug that showed up on the first attempt.
  */

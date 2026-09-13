@@ -105,66 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(function () {});
 })();
 
-/* The app demo film, where the instance has one.
+/* Der Demo-Film der App stand bis zum 13.09.2026 hier: ~60 Zeilen, die `[data-app-demo]` in
+ * landing.html bedienten. Beides ist mit den Marketingseiten in ein eigenes Repository gezogen —
+ * der Film zeigt unsere App, und der Code, der ihn einbindet, gehört zum selben Inhalt.
  *
- * It plays by itself and repeats — the section is about how the app feels, and a still frame
- * does not show that. Three things keep the cost of that honest:
- *
- *   - Nothing is loaded until the section is actually scrolled to. Most visitors never reach
- *     the bottom of the page, and on a day with press attention that difference is the whole
- *     bandwidth bill.
- *   - Playback pauses when the film scrolls out of view again, so a tab parked on the page does
- *     not keep a decoder busy.
- *   - Whoever asked their system not to animate things (prefers-reduced-motion) gets the poster
- *     frame with a play button instead. Autoplay is exactly what that setting is about.
- *
- * Muted throughout: the film has no audio track, and without `muted` no browser would autoplay
- * it anyway. A click pauses and resumes.
- *
- * The film shows OUR app, so it lives in the operator directory, not in this repository — a
- * self-hosted instance keeps the plain logo instead (see operator-pages.ts).
+ * Was im Server bleibt, ist die allgemeine Hälfte: `availableMedia()` meldet über /capabilities,
+ * welche Medien ein Betreiber hinterlegt hat, und /operator/ liefert sie aus. Damit kann jede
+ * Instanz eigene Medien einbinden, ohne dass diese Datei etwas davon wissen muss.
  */
-function appDemo(caps) {
-  var box = document.querySelector('[data-app-demo]');
-  if (!box || !caps.operatorMedia || caps.operatorMedia.indexOf('appdemo') < 0) return;
-  var en = (document.documentElement.lang || 'de').slice(0, 2) === 'en';
-  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'app-demo';
-  btn.setAttribute('aria-label', en ? 'App demo film — click to pause or play'
-                                    : 'Demo-Film der App — Klick pausiert oder startet');
-  btn.innerHTML =
-    '<video loop muted playsinline preload="none" poster="/operator/media/appdemo.jpg"></video>'
-    + '<span class="app-demo-play" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none">'
-    + '<circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.92)"/>'
-    + '<path d="M26 21l18 11-18 11z" fill="#0f172a"/></svg></span>';
-  var video = btn.querySelector('video');
-  video.muted = true;   // the attribute alone is not enough for autoplay in every browser
-
-  function play() {
-    if (!video.getAttribute('src')) video.setAttribute('src', '/operator/media/appdemo.mp4');
-    return video.play().then(function () { btn.setAttribute('data-playing', ''); })
-      .catch(function () { btn.removeAttribute('data-playing'); });  // then the play button stays
-  }
-  function pause() { video.pause(); btn.removeAttribute('data-playing'); }
-
-  btn.addEventListener('click', function () {
-    if (btn.hasAttribute('data-playing')) { pause(); btn.setAttribute('data-paused', ''); }
-    else { btn.removeAttribute('data-paused'); play(); }
-  });
-
-  box.innerHTML = '';
-  box.appendChild(btn);
-
-  if (calm) return;  // poster and play button — the visitor decides
-
-  if (!window.IntersectionObserver) { play(); return; }
-  new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (btn.hasAttribute('data-paused')) return;   // a deliberate pause outranks scrolling
-      if (e.isIntersecting) play(); else pause();
-    });
-  }, { threshold: 0.35 }).observe(btn);
-}

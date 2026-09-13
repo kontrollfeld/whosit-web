@@ -541,7 +541,7 @@ const inviteCfg = inviteToken ? parseInviteCfg(inviteToken) : null;
 let roomId = inviteCfg ? inviteCfg.room : params.get('room');
 if (!roomId && !inviteToken) {
   roomId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
-  params.delete('new'); // entry flag from the landing CTA — not part of the room URL
+  params.delete('new'); // entry flag from a start page's CTA — not part of the room URL
   params.set('room', roomId);
   // Keep the hash: in embed mode it carries the #cfg config (parsed further below) —
   // dropping it here silently discarded the embedder's configuration.

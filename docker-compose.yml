@@ -42,6 +42,11 @@ services:
 
   app:
     build: .                      # reuses the existing multi-stage ./Dockerfile
+    # Your own imprint, privacy notice and front page belong to you, not to this software — see
+    # EUDI_OPERATOR_PAGES in .env.example. Put them in ./pages and uncomment both lines; without
+    # them "/" simply opens the call screen.
+    # volumes:
+    #   - ./pages:/data/pages:ro
     restart: unless-stopped
     expose:
       - "3000"                    # internal only; Traefik terminates TLS and proxies
