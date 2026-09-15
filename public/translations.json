@@ -427,7 +427,9 @@
     "Anmelden mit deiner EUDI-Wallet": "Sign in with your EUDI wallet",
     "Nur freigeschaltete Personen können hier einen Anruf führen. Weise dich aus — diese Angaben werden geprüft:": "Only authorised people can hold a call here. Identify yourself — these details are checked:",
     "Melde dich mit deiner EUDI-Wallet an, um einen Anruf zu führen.": "Sign in with your EUDI wallet to hold a call.",
-    "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "This identity is not authorised here. Only permitted people can hold a call on this site — please contact the responsible office if you believe this is a mistake."
+    "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "This identity is not authorised here. Only permitted people can hold a call on this site — please contact the responsible office if you believe this is a mistake.",
+    "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "The ID request is made by {rp} on behalf of {brand}.",
+    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "The ID request is not made by {brand}, but by the operator of this instance."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> (identité numérique) — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -857,6 +859,8 @@
     "Anmelden mit deiner EUDI-Wallet": "Connectez-vous avec votre portefeuille EUDI",
     "Nur freigeschaltete Personen können hier einen Anruf führen. Weise dich aus — diese Angaben werden geprüft:": "Seules les personnes autorisées peuvent passer un appel ici. Identifiez-vous — ces informations sont vérifiées :",
     "Melde dich mit deiner EUDI-Wallet an, um einen Anruf zu führen.": "Connectez-vous avec votre portefeuille EUDI pour passer un appel.",
-    "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "Cette identité n’est pas autorisée ici. Seules les personnes habilitées peuvent passer un appel sur ce site — contactez le service compétent si vous pensez qu’il s’agit d’une erreur."
+    "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "Cette identité n’est pas autorisée ici. Seules les personnes habilitées peuvent passer un appel sur ce site — contactez le service compétent si vous pensez qu’il s’agit d’une erreur.",
+    "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "La demande d'identité est présentée par {rp} pour le compte de {brand}.",
+    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "La demande d'identité n'est pas présentée par {brand}, mais par l'exploitant de cette instance."
   }
 }

@@ -170,6 +170,11 @@
       <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:</p>
       <ul class="consent" id="consent-list"></ul>
       <div class="auth-cta">
+        <!-- Wer die Abfrage tatsaechlich stellt. Bleibt leer und versteckt, solange Marke und
+             Zertifikatsinhaber dieselbe Stelle sind — siehe src/relying-party.ts. Steht VOR dem
+             Wallet-Knopf, weil das auf dem Telefon die erste Handlung ist: danach gelesen waere
+             der Satz wertlos. Die `order`-Regeln in style.css halten das auch am Desktop. -->
+        <p class="hint rp-disclosure" id="rp-disclosure" hidden></p>
         <a id="auth-link" class="same-device" href="#">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
           <span data-i18n>Wallet auf diesem Gerät öffnen</span>
@@ -526,7 +531,7 @@
     <div class="settings-row"><span class="settings-label" data-i18n>Design</span><span id="settings-theme-slot"></span></div>
     <div class="settings-row"><span class="settings-label" data-i18n>Version</span><span id="settings-version-slot"></span></div>
     <div class="settings-row"><span class="settings-label" data-i18n>Rechtliches</span><a class="settings-link" href="impressum.html" data-i18n>Impressum</a> · <a class="settings-link" href="datenschutz.html" data-i18n>Datenschutz</a></div>
-    <p class="settings-about muted" data-i18n>EUDI Verified Call — verifizierte Anrufe per EUDI-Wallet.</p>
+    <p class="settings-about muted" data-i18n data-brand-product>EUDI Verified Call — verifizierte Anrufe per EUDI-Wallet.</p>
   </section>
 
   <footer class="app-footer">
