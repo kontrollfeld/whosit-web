@@ -53,6 +53,12 @@ async function refreshIce() {
 let caps = new Set();
 /** A tenant instance with a host gate: setup is preceded by a sign-in. */
 let hostLoginRequired = false;
+/**
+ * Who the wallet will name as asking, when the page carries someone else's name (see
+ * src/relying-party.ts). Default: disclose nothing — an unbranded instance has nothing to
+ * disclose, and a failed /capabilities fetch must not invent an accusation.
+ */
+let rpDisclosure = { name: null, onBehalfOf: null, disclose: false };
 function capOn(id) { return caps.has(id); }
 function applyCapabilities() {
   // "With an appointment" needs only ONE of the two: the signed invitation (`planned-invites`,
@@ -94,12 +100,38 @@ async function refreshCaps() {
       if (Array.isArray(j.enabled)) caps = new Set(j.enabled);
       if (j.policy && typeof j.policy === 'object') wrpPolicy = j.policy;
       hostLoginRequired = j.hostLogin === true;
+      if (j.relyingParty && typeof j.relyingParty === 'object') rpDisclosure = j.relyingParty;
     }
   } catch { /* keep defaults (all off, local whitelist mirror) */ }
   applyCapabilities();
   applyPolicyTexts();
+  applyRelyingPartyDisclosure();
   refreshCredCatalog(); // Nachweis-Katalog — no-op, wenn kein Katalog konfiguriert ist
 }
+/**
+ * State who is actually asking, before the wallet opens.
+ *
+ * Two wordings, and the difference matters. When the operator has named the certificate holder
+ * we can say WHO asks and on whose behalf — which is the sentence that makes the arrangement
+ * understandable. When they have not (EUDI_RP_NAME unset), we can only say who it is NOT. That
+ * is less useful to the reader and less flattering to the operator, deliberately: the fix is one
+ * variable, and the incentive should point at setting it rather than at leaving it out.
+ *
+ * There is no third wording in which nothing is said. Whether the sentence appears is decided by
+ * the server (`relyingParty.disclose`), and the server decides it from the tenant, not from a
+ * switch an operator can flip.
+ */
+function applyRelyingPartyDisclosure() {
+  const el = document.getElementById('rp-disclosure');
+  if (!el) return;
+  const show = rpDisclosure && rpDisclosure.disclose === true && rpDisclosure.onBehalfOf;
+  el.hidden = !show;
+  if (!show) { el.textContent = ''; return; }
+  el.textContent = rpDisclosure.name
+    ? t('Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.', { rp: rpDisclosure.name, brand: rpDisclosure.onBehalfOf })
+    : t('Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.', { brand: rpDisclosure.onBehalfOf });
+}
+
 // Fill the compliance note and the purpose-binding line from the server's policy, so the
 // text the user consents to and the purpose sent to the wallet are the same string.
 function applyPolicyTexts() {
@@ -743,7 +775,9 @@ function refreshPlannedInvite() {
 }
 
 // ---- calendar invite (.ics download / Google Calendar) ----
-const CAL_TITLE_FALLBACK = 'EUDI Verified Call';
+// Used when the title field is left empty. Follows the brand for the same reason the field's
+// default does (see branding.js): the value ends up in a guest's calendar.
+const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'EUDI Verified Call';
 function calTitleValue() { return calTitle.value.trim() || CAL_TITLE_FALLBACK; }
 // Default the schedule to the next full quarter hour, today.
 (function initSchedule() {
@@ -1210,6 +1244,9 @@ function showAuth(msg) {
   // always render it (don't gate on a possibly-stale selfVerified flag).
   if (callStarted) return;
   qrContainer.innerHTML = '';
+  // Re-render rather than rely on the one call at startup: the card is shown again on renew and
+  // for a second participant, and the locale may have changed in between.
+  applyRelyingPartyDisclosure();
   // A freshly arrived offer makes the renew button usable again.
   if (authRenewBtn) authRenewBtn.disabled = false;
   const qrData = msg.crossDeviceUri || msg.uri;

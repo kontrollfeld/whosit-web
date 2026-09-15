@@ -200,6 +200,10 @@
       </div>
       <p class="hint" id="share-hint" data-i18n>Teile diesen Link mit der Person, die du anrufen möchtest.</p>
       <div id="schedule-block" hidden>
+      <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
+           der .ics-Datei. Auf einer gebrandeten Instanz traegt er die Marke des Betreibers
+           (siehe branding.js) — sonst steht im Kalender des Gastes der Name einer Firma, mit der
+           er nie etwas vereinbart hat. -->
       <input id="cal-title" type="text" value="EUDI Verified Call" aria-label="Titel des Termins" maxlength="120" data-i18n-attr="aria-label" />
       <div class="schedule-fields">
         <input id="cal-date" type="date" aria-label="Datum" data-i18n-attr="aria-label" />
