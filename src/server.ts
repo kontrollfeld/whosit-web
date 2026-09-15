@@ -23,20 +23,29 @@ import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
+import { relyingParty, relyingPartyWarning } from './relying-party';
+
 /** This instance's brand — null when unbranded, in which case all branding is a no-op. */
 const BRANDING = readBranding();
 const OPERATOR = readOperatorPages();
+/** Who the wallet will show as asking, against whose name the page carries (see
+ *  ./relying-party). Computed once: both inputs are environment variables. */
+const RELYING_PARTY = relyingParty(BRANDING?.name);
 import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, type SemanticAttr, type CredentialProfile } from './credential-profiles';
 import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFingerprint, fingerprintFromSdp, type TransactionDataEntry } from './channel-binding';
 import {
   resolveAttributes, partitionAttributes, PolicyViolationError, policyDescriptor,
   isDerived, requiresWalletPresentation, wrpStrict, WRP_PURPOSE_ID,
-  activePolicyName, assertPolicyOrExit,
+  activePolicyName, assertPolicyOrExit, assertNarrowOrExit,
 } from './wrp-policy';
 
 // Very early, before any server is built: an unknown policy name must not end in a silent
 // fallback to the default registration.
 assertPolicyOrExit();
+// And a narrowing must fit the policy it narrows. Same reasoning, one step further in: an
+// attribute the operator believes they configured but that the policy does not permit would
+// simply never be requested, and nothing would point at the variable.
+assertNarrowOrExit();
 import { recordAudit, setAuditForwarder } from './audit';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
@@ -583,8 +592,24 @@ const publicCors: express.RequestHandler = (_req, res, next) => {
   next();
 };
 
+/**
+ * Liveness — and how much would be destroyed by a restart.
+ *
+ * `activeRooms` exists because room state lives in this process (see ./rooms: `const rooms = new
+ * Map()`). A redeployment therefore drops every call in progress, silently, mid-sentence. With one
+ * instance that was a thing to remember; with an instance per customer it has to be something a
+ * deployment can ASK, so a rollout can wait for a quiet moment per instance instead of taking a
+ * guess for all of them.
+ *
+ * Deliberately a count and nothing else: no room ids, no participants, no timestamps. This
+ * endpoint is public (the Docker HEALTHCHECK calls it from inside the container, monitoring from
+ * outside), and "how many calls are happening right now" is already close enough to the edge.
+ */
 app.get('/health', publicCors, (_req, res) => {
-  res.json({ ok: true, publicUrl: PUBLIC_URL });
+  // `null` when the configured store cannot report it (an older Pro build). A rollout must
+  // treat that as "cannot confirm it is quiet", not as zero.
+  const activeRooms = ext.roomStore.activeCount ? ext.roomStore.activeCount() : null;
+  res.json({ ok: true, publicUrl: PUBLIC_URL, activeRooms });
 });
 
 // ICE configuration for the browser. Serves STUN plus, when a TURN relay is configured
@@ -669,6 +694,10 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // share" choice that does not exist — the attributes are enforced, and anyone unticking
     // them is refused without learning why.
     hostLogin: hostGateActive(),
+    // Who the wallet will name as asking, when that is not who the page appears to be (see
+    // ./relying-party). The client states it above the QR code. Always present, so a client
+    // never has to guess from the absence of a field whether disclosure applies.
+    relyingParty: RELYING_PARTY,
     // Which operator pages this instance actually has (see ./operator-pages). The footer links
     // them only when they exist: a "Presse" link that 404s is worse than no link, and a
     // self-hoster who has not written a press page must not appear to have one. Resolved live,
@@ -1635,6 +1664,22 @@ loadExtensions().then((resolved) => {
     // would otherwise go unnoticed, because the interface would be branded and the request
     // would work.
     console.log(`Verifier: eudiplo-tenant=${verifierTenantId()}${isDefaultVerifierTenant() ? ' (Standard)' : ''}`);
+    // Who the person being asked will be told is asking. Unlike the warning further down, this
+    // one is not about a misconfiguration — it reports a property of a white-labelled instance
+    // that the operator should be able to confirm at a glance.
+    {
+      const w = relyingPartyWarning(RELYING_PARTY);
+      if (w) console.log(w);
+    }
+    // A narrowed instance asks for less than its registration permits. Report both, because
+    // "which attributes does this instance request" is the first question in any data
+    // protection review and the answer is now in two places.
+    {
+      const p = policyDescriptor();
+      if (p.narrowed) {
+        console.log(`WRP narrowing (EUDI_WRP_NARROW): asking for [${p.allowedAttributes.join(', ')}] of the [${p.registrationPermits.join(', ')}] this policy permits`);
+      }
+    }
     // Make it visible whether the gate applies. An access control whose state you cannot see
     // is one you rely on mistakenly.
     console.log(hostGateActive()
@@ -1665,7 +1710,7 @@ loadExtensions().then((resolved) => {
       console.log(`⚠️  Not switchable, therefore ignored: ${FEATURES_OFF.refused.join(', ')} — the verified call and the privacy guarantees (attribute whitelist, pseudonym, PII-free record) apply in every instance. A guarantee you can switch off would not be one.`);
     }
     if (activePolicyName() !== 'p2p-call' && isDefaultVerifierTenant()) {
-      console.log(`⚠️  This instance runs under WRP policy "${activePolicyName()}" but queries wallets through the DEFAULT verifier tenant. The wallet will therefore show the default identity, not the authority's — the request would run under someone else's registration. An authority instance needs its OWN EUDIPLO tenant with its own certificate (EUDIPLO_CLIENT_ID).`);
+      console.log(`⚠️  This instance runs under WRP policy "${activePolicyName()}" but queries wallets through the DEFAULT verifier tenant. The wallet will therefore show the default identity, not the authority's — the request would run under someone else's registration. An authority instance needs its OWN EUDIPLO tenant with its own certificate (EUDIPLO_CLIENT_ID). Until then the verification dialogue discloses the gap to whoever is asked (see src/relying-party.ts); that makes it honest, not correct.`);
     }
     if (!wrpStrict()) {
       console.log('ℹ️  WRP enforcement is TRANSITIONAL (EUDI_WRP_STRICT unset): out-of-scope attribute requests are narrowed to the whitelist + audited, not refused. Set EUDI_WRP_STRICT=on once the updated app/clients have rolled out.');
