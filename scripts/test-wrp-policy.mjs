@@ -10,6 +10,10 @@
  *      meant as a verifiable commitment, not as prose.
  *   3. An unknown policy name must abort startup instead of quietly falling back to the default
  *      registration.
+ *   3b. A NARROWING (`EUDI_WRP_NARROW`, added for hosted white-label instances) must only ever
+ *      subtract. This is the one property of that variable that matters: if it could add, the
+ *      attribute whitelist would no longer live in reviewed source but in a deployment's
+ *      environment, and the promise at the top of src/wrp-policy.ts would be void.
  *
  * Plus normalisation: mdoc and SD-JWT name the same claims differently. On 2026-08-12 that made
  * `birth_date` fall through from mdoc only and `address` from SD-JWT only — requested, presented,
@@ -71,6 +75,58 @@ check('Alias liefert dieselbe Attributmenge',
   JSON.stringify(alias.allowedAttributes) === JSON.stringify(kommune.allowedAttributes),
   `${JSON.stringify(alias.allowedAttributes)} vs ${JSON.stringify(kommune.allowedAttributes)}`);
 check('Alias liefert denselben Zweck', alias.purposeId === kommune.purposeId, alias.purposeId);
+
+// `EUDI_WRP_NARROW` exists so a hosted instance can serve one customer's purpose, which is
+// usually narrower than the registration it runs under. Everything below tests the same
+// question from different sides: can it ever result in MORE being asked of a wallet?
+console.log('\nNarrowing subtracts — and can never add');
+const narrowed = describe({ EUDI_WRP_POLICY: 'kommune-buergerservice', EUDI_WRP_NARROW: 'given_name,family_name' });
+check('only the named attributes remain',
+  JSON.stringify(narrowed.allowedAttributes) === JSON.stringify(['given_name', 'family_name']),
+  JSON.stringify(narrowed.allowedAttributes));
+check('the narrowing is declared as such', narrowed.narrowed === true, String(narrowed.narrowed));
+check('what the registration permits is still published, unnarrowed',
+  JSON.stringify(narrowed.registrationPermits) === JSON.stringify(kommune.allowedAttributes),
+  `${JSON.stringify(narrowed.registrationPermits)} vs ${JSON.stringify(kommune.allowedAttributes)}`);
+// The published waiver has to follow, or /wrp-policy would keep claiming an attribute is in use
+// that this instance gave up — the endpoint would lie exactly where it is meant to be checkable.
+check('what was narrowed away is published as waived',
+  ['birth_date', 'address', 'pseudonym_id'].every((a) => narrowed.retiredAttributes.includes(a)),
+  JSON.stringify(narrowed.retiredAttributes));
+check('permitted and waived never overlap',
+  !narrowed.allowedAttributes.some((a) => narrowed.retiredAttributes.includes(a)),
+  JSON.stringify(narrowed.allowedAttributes));
+// The point of the whole exercise: nothing outside the policy can get in, whatever the order or
+// spelling in the variable.
+check('a narrowing is always a SUBSET of the policy',
+  narrowed.allowedAttributes.every((a) => kommune.allowedAttributes.includes(a)),
+  JSON.stringify(narrowed.allowedAttributes));
+const reordered = describe({ EUDI_WRP_POLICY: 'kommune-buergerservice', EUDI_WRP_NARROW: 'family_name, given_name' });
+check('order and whitespace in the variable change nothing (the EUDIPLO config id hangs on this)',
+  JSON.stringify(reordered.allowedAttributes) === JSON.stringify(narrowed.allowedAttributes),
+  `${JSON.stringify(reordered.allowedAttributes)} vs ${JSON.stringify(narrowed.allowedAttributes)}`);
+
+console.log('\nAn unusable narrowing aborts startup');
+const narrowRuns = [
+  ['an attribute the policy does not permit', { EUDI_WRP_POLICY: 'p2p-call', EUDI_WRP_NARROW: 'given_name,address' }, /address/],
+  ['an attribute that does not exist at all', { EUDI_WRP_POLICY: 'p2p-call', EUDI_WRP_NARROW: 'lieblingsfarbe' }, /lieblingsfarbe/],
+  ['only derived attributes — a wallet prompt with no claim', { EUDI_WRP_POLICY: 'p2p-call', EUDI_WRP_NARROW: 'pseudonym_id' }, /derived/i],
+];
+for (const [label, env, expect] of narrowRuns) {
+  const r = spawnSync('npx', ['tsx', '-e', `import { assertNarrowOrExit } from './src/wrp-policy'; assertNarrowOrExit();`],
+    { env: { ...process.env, ...env }, encoding: 'utf8' });
+  check(`${label} -> exit 1`, r.status === 1, `status=${r.status}`);
+  check(`${label}: the message says what is wrong`, expect.test(r.stderr || ''), (r.stderr || '').slice(0, 160));
+}
+// Without the variable this must be a complete no-op, or every existing instance would be at
+// risk from a check written for a feature it does not use.
+const noNarrow = spawnSync('npx', ['tsx', '-e', `import { assertNarrowOrExit } from './src/wrp-policy'; assertNarrowOrExit(); console.log('weiter');`],
+  { env: { ...process.env, EUDI_WRP_POLICY: 'p2p-call', EUDI_WRP_NARROW: '' }, encoding: 'utf8' });
+check('no narrowing -> no abort', noNarrow.status === 0 && /weiter/.test(noNarrow.stdout || ''), `status=${noNarrow.status}`);
+check('an instance without the variable is unchanged',
+  JSON.stringify(describe({ EUDI_WRP_POLICY: '' }).allowedAttributes) === JSON.stringify(std.allowedAttributes),
+  'default drifted');
+check('and does not declare itself narrowed', std.narrowed === false, String(std.narrowed));
 
 console.log('\nAn unknown policy aborts startup');
 const bad = spawnSync('npx', ['tsx', '-e', `import './src/wrp-policy'; import { assertPolicyOrExit } from './src/wrp-policy'; assertPolicyOrExit();`],

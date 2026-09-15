@@ -137,6 +137,41 @@ export function activePolicyName(): string {
 }
 
 /**
+ * `EUDI_WRP_NARROW` — per-instance NARROWING within the selected policy.
+ *
+ * The rule at the top of this file is unchanged and stays load-bearing: no environment
+ * variable may ever WIDEN what a wallet is asked. This one cannot. It is intersected with
+ * the active policy, never unioned, so the result is always a SUBSET of a set that was
+ * written down, reviewed and committed above.
+ *
+ * Why it exists: a hosted instance runs under the operator's registration but serves ONE
+ * customer's purpose, and that purpose is almost always narrower than the registration. The
+ * registration is drawn wide enough to cover every deployment; a single deployment covers one.
+ * A support line that only needs "who am I talking to" should not ask for a date of birth
+ * merely because the registration would permit it, whether it belongs to an insurer, a notary,
+ * a clinic, a landlord or a public authority. Data minimisation (Art. 5a(4) EU 2024/1183) is an
+ * obligation per PROCESSING, not per registration — so an instance must be able to ask for LESS
+ * without a code change, while asking for MORE stays a code change forever.
+ *
+ * What it is NOT: a way to configure a new policy. An attribute that is not in the selected
+ * policy is refused at startup, not silently ignored — see `assertNarrowOrExit`.
+ *
+ * Unset or empty → no-op: `ALLOWED_PID_ATTRIBUTES` is exactly the policy's set, and an
+ * instance that does not use this variable is entirely unaffected.
+ *
+ *     EUDI_WRP_NARROW=given_name,family_name
+ */
+const NARROW: readonly string[] = (process.env.EUDI_WRP_NARROW || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+/** Is this instance asking for less than its registration permits? */
+export function wrpNarrowed(): boolean {
+  return NARROW.length > 0;
+}
+
+/**
  * Refuse to start on a policy name that does not exist.
  *
  * Falling back silently would be the worst outcome: a deployment meant to run under an
@@ -154,9 +189,71 @@ export function assertPolicyOrExit(log: (m: string) => void = console.error): vo
   process.exit(1);
 }
 
-/** The permitted set of the ACTIVE policy. Everything downstream reads this, unchanged. */
+/**
+ * What this instance may ask for: the ACTIVE policy, optionally narrowed by
+ * `EUDI_WRP_NARROW`. Everything downstream reads this and needs no change — the retired
+ * set, the wallet-requestable set, the egress gate and the published descriptor all derive
+ * from here, so a narrowed instance is narrow everywhere at once.
+ *
+ * `filter` over `KNOWN_PID_ATTRIBUTES` rather than over the policy: it fixes the canonical
+ * ORDER in one place, so neither the policy's spelling nor the operator's spelling of
+ * EUDI_WRP_NARROW can change the EUDIPLO config id derived from this list.
+ */
 export const ALLOWED_PID_ATTRIBUTES: readonly AllowedPidAttribute[] =
-  KNOWN_PID_ATTRIBUTES.filter((a) => ACTIVE.attributes.includes(a));
+  KNOWN_PID_ATTRIBUTES.filter(
+    (a) => ACTIVE.attributes.includes(a) && (NARROW.length === 0 || NARROW.includes(a)),
+  );
+
+/**
+ * Refuse to start on a narrowing that does not fit the selected policy.
+ *
+ * Three separate refusals, all of them silent failures if they were tolerated:
+ *
+ *   1. A name outside the policy. Ignoring it would mean the operator believes they
+ *      configured an attribute and the instance never asks for it — the mistake would only
+ *      surface as "the wallet did not show the field", with nothing pointing at this
+ *      variable. Note the asymmetry that makes this safe: an unrecognised name can only
+ *      ever be REFUSED here, never granted. There is no path from this variable to a wider
+ *      request.
+ *   2. An empty intersection. An instance that may ask for nothing can verify nobody; every
+ *      call would end in the anonymous direction while the interface still offers
+ *      identification.
+ *   3. Nothing but derived attributes. `pseudonym_id` alone builds a DCQL query with zero
+ *      claims — a wallet prompt that proves nothing (same rule the request path applies in
+ *      `assertAllowedAttributes`).
+ *
+ * Called from the server's startup path, right after `assertPolicyOrExit`.
+ */
+export function assertNarrowOrExit(log: (m: string) => void = console.error): void {
+  if (!NARROW.length) return;
+  const policyAttrs = ACTIVE.attributes as readonly string[];
+  const unknown = NARROW.filter((a) => !policyAttrs.includes(a));
+  if (unknown.length) {
+    log(
+      `FATAL: EUDI_WRP_NARROW names [${unknown.join(', ')}], which policy ` +
+        `'${activePolicyName()}' does not permit. This variable can only narrow, never widen: ` +
+        `pick from [${policyAttrs.join(', ')}], or change the policy in src/wrp-policy.ts — ` +
+        `which is a code change, a review and a deploy, deliberately.`,
+    );
+    process.exit(1);
+  }
+  if (!ALLOWED_PID_ATTRIBUTES.length) {
+    log(
+      `FATAL: EUDI_WRP_NARROW leaves no attribute at all. An instance that may ask for ` +
+        `nothing can verify nobody — unset the variable instead of emptying it.`,
+    );
+    process.exit(1);
+  }
+  if (!requiresWalletPresentation(ALLOWED_PID_ATTRIBUTES)) {
+    log(
+      `FATAL: EUDI_WRP_NARROW leaves only derived attributes ` +
+        `[${ALLOWED_PID_ATTRIBUTES.join(', ')}]. Those are computed by this server, not ` +
+        `presented by a wallet, so the request would carry no claim and prove nothing. ` +
+        `Add at least one of [${ACTIVE.attributes.filter((a) => a !== 'pseudonym_id').join(', ')}].`,
+    );
+    process.exit(1);
+  }
+}
 
 /**
  * Attributes this codebase COULD ask for but this deployment's policy does not permit.
@@ -381,10 +478,22 @@ export function resolveAttributes(attrs: unknown): {
 /** Public, cacheable description of this WRP's policy (served at /capabilities). */
 export function policyDescriptor() {
   return {
+    policyId: activePolicyName(),
     purposeId: WRP_PURPOSE_ID,
     purposeText: WRP_PURPOSE_TEXT,
     complianceNote: WRP_COMPLIANCE_NOTE,
     allowedAttributes: [...ALLOWED_PID_ATTRIBUTES],
+    /**
+     * What the REGISTRATION permits, as against what this instance actually asks.
+     *
+     * Published so the two cannot be confused by a reader, and so a narrowing is
+     * falsifiable in the same way `retiredAttributes` makes the whitelist falsifiable: an
+     * auditor can see "the registration allows five, this instance asks for two" without
+     * access to the deployment. Identical to `allowedAttributes` when EUDI_WRP_NARROW is
+     * unset, which is the honest representation of "not narrowed".
+     */
+    registrationPermits: KNOWN_PID_ATTRIBUTES.filter((a) => ACTIVE.attributes.includes(a)),
+    narrowed: wrpNarrowed(),
     walletRequestable: [...WALLET_REQUESTABLE],
     derivedAttributes: [...DERIVED_ATTRIBUTES],
     retiredAttributes: [...RETIRED_ATTRIBUTES],
