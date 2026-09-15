@@ -975,7 +975,19 @@ body:not(.wizard) .card.is-active {
    mobile = "open wallet on this device" is the primary action, QR is the alternative */
 .auth-cta { display: flex; flex-direction: column; }
 .qr-hint--mobile { display: none; }
+/* Wer fragt. Kein Warnbanner — es ist keine Stoerung, sondern eine Angabe, die zur Abfrage
+   gehoert. Aber auch keine Fussnote: linke Kante markiert, normale Textfarbe statt --text-faint,
+   damit sie nicht zwischen den Hinweisen verschwindet. */
+.rp-disclosure {
+  color: var(--text);
+  border-left: 3px solid var(--accent-border);
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
 @media (min-width: 641px) {
+  /* Ohne eigenes `order` bekaeme dieser Absatz den Standardwert 0 und stuende zufaellig
+     richtig. Explizit -1, damit er es bleibt, wenn hier jemand umsortiert. */
+  .auth-cta .rp-disclosure { order: -1; }
   .auth-cta .qr-hint--desktop { order: 1; }
   .auth-cta .qr { order: 2; }
   .auth-cta #auth-link { order: 3; margin-top: 12px; }

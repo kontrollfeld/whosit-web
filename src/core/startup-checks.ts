@@ -47,6 +47,9 @@ export interface ConfigProblem {
  */
 const PLACEHOLDERS = [
   '__set_me__',
+  // The literal stand-in .env.example prints wherever it says `openssl rand -hex 32`. Anyone
+  // who copied the file and did not run the command is holding a publicly known "secret".
+  '__openssl_rand_hex_32__',
   'change-me',
   'changeme',
   'CHANGE-ME',
@@ -134,6 +137,54 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
             + 'publicly known and therefore compromised — rotate it at the verifier.'
           : 'still holds a placeholder from .env.example',
         fatal: true,
+      });
+    }
+  }
+
+  // --- secrets copied verbatim from the template ------------------------------------
+  // These are config-gated: unset simply means the feature is off, which is safe (see the
+  // header). Set to the template's stand-in is the opposite of safe — the value is in a public
+  // repository, so invitations could be forged, staff links minted and framing tokens issued by
+  // anyone who read it. That is a live hole, not a missing feature, hence fatal.
+  for (const name of ['EUDI_INVITE_SECRET', 'EUDI_STAFF_SECRET', 'EMBED_SIGNING_SECRET', 'TURN_SECRET'] as const) {
+    const v = env[name];
+    if (isSet(v) && looksLikePlaceholder(v!)) {
+      out.push({
+        variable: name,
+        problem: 'still holds the stand-in from .env.example, which is published with this '
+          + 'repository and therefore known to everyone. Generate one: openssl rand -hex 32',
+        fatal: true,
+      });
+    }
+  }
+
+  // --- a branded instance carrying the original operator's identity -----------------
+  // The failure this prevents was observed while setting up the first tenant instance: a
+  // deployment duplicated from an existing one keeps every variable, and the ones that assert
+  // WHO OWNS THIS DOMAIN keep asserting the wrong owner — quietly, because everything still
+  // works.
+  //
+  //   EUDI_IOS_APP_ID / EUDI_ANDROID_* make this host serve a `.well-known` file naming a
+  //   specific mobile app as the domain's owner, which hands that app the right to open this
+  //   host's invitation links.
+  //   EUDI_PASS_* sign an Apple Wallet pass with a particular organisation's pass certificate,
+  //   which is then handed out under this instance's brand.
+  //
+  // A WARNING, not an abort: an operator may legitimately ship their own app and hold their own
+  // pass certificate, and this check cannot tell that apart from an inherited value — only the
+  // operator can. Naming the consequence is what they need; refusing to start would be a guess.
+  const brand = (env.EUDI_BRAND_NAME || '').trim();
+  if (brand) {
+    const inherited = (['EUDI_IOS_APP_ID', 'EUDI_ANDROID_PACKAGE', 'EUDI_ANDROID_SHA256', 'EUDI_PASS_TYPE_ID', 'EUDI_PASS_TEAM_ID', 'EUDI_PASS_CERT'] as const)
+      .filter((n) => isSet(env[n]));
+    if (inherited.length) {
+      out.push({
+        variable: inherited.join(', '),
+        problem: 'set on a BRANDED instance. These name a mobile app and a pass certificate as '
+          + 'belonging to this host. If they were inherited from another deployment, this host '
+          + 'now vouches for someone else\'s app and signs wallet passes with someone else\'s '
+          + 'certificate under this brand. Keep them only if they are this brand\'s own.',
+        fatal: false,
       });
     }
   }

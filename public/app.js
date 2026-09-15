@@ -53,6 +53,12 @@ async function refreshIce() {
 let caps = new Set();
 /** A tenant instance with a host gate: setup is preceded by a sign-in. */
 let hostLoginRequired = false;
+/**
+ * Who the wallet will name as asking, when the page carries someone else's name (see
+ * src/relying-party.ts). Default: disclose nothing — an unbranded instance has nothing to
+ * disclose, and a failed /capabilities fetch must not invent an accusation.
+ */
+let rpDisclosure = { name: null, onBehalfOf: null, disclose: false };
 function capOn(id) { return caps.has(id); }
 function applyCapabilities() {
   // "With an appointment" needs only ONE of the two: the signed invitation (`planned-invites`,
@@ -94,12 +100,38 @@ async function refreshCaps() {
       if (Array.isArray(j.enabled)) caps = new Set(j.enabled);
       if (j.policy && typeof j.policy === 'object') wrpPolicy = j.policy;
       hostLoginRequired = j.hostLogin === true;
+      if (j.relyingParty && typeof j.relyingParty === 'object') rpDisclosure = j.relyingParty;
     }
   } catch { /* keep defaults (all off, local whitelist mirror) */ }
   applyCapabilities();
   applyPolicyTexts();
+  applyRelyingPartyDisclosure();
   refreshCredCatalog(); // Nachweis-Katalog — no-op, wenn kein Katalog konfiguriert ist
 }
+/**
+ * State who is actually asking, before the wallet opens.
+ *
+ * Two wordings, and the difference matters. When the operator has named the certificate holder
+ * we can say WHO asks and on whose behalf — which is the sentence that makes the arrangement
+ * understandable. When they have not (EUDI_RP_NAME unset), we can only say who it is NOT. That
+ * is less useful to the reader and less flattering to the operator, deliberately: the fix is one
+ * variable, and the incentive should point at setting it rather than at leaving it out.
+ *
+ * There is no third wording in which nothing is said. Whether the sentence appears is decided by
+ * the server (`relyingParty.disclose`), and the server decides it from the tenant, not from a
+ * switch an operator can flip.
+ */
+function applyRelyingPartyDisclosure() {
+  const el = document.getElementById('rp-disclosure');
+  if (!el) return;
+  const show = rpDisclosure && rpDisclosure.disclose === true && rpDisclosure.onBehalfOf;
+  el.hidden = !show;
+  if (!show) { el.textContent = ''; return; }
+  el.textContent = rpDisclosure.name
+    ? t('Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.', { rp: rpDisclosure.name, brand: rpDisclosure.onBehalfOf })
+    : t('Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.', { brand: rpDisclosure.onBehalfOf });
+}
+
 // Fill the compliance note and the purpose-binding line from the server's policy, so the
 // text the user consents to and the purpose sent to the wallet are the same string.
 function applyPolicyTexts() {
@@ -743,7 +775,9 @@ function refreshPlannedInvite() {
 }
 
 // ---- calendar invite (.ics download / Google Calendar) ----
-const CAL_TITLE_FALLBACK = 'EUDI Verified Call';
+// Used when the title field is left empty. Follows the brand for the same reason the field's
+// default does (see branding.js): the value ends up in a guest's calendar.
+const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'EUDI Verified Call';
 function calTitleValue() { return calTitle.value.trim() || CAL_TITLE_FALLBACK; }
 // Default the schedule to the next full quarter hour, today.
 (function initSchedule() {
@@ -1210,6 +1244,9 @@ function showAuth(msg) {
   // always render it (don't gate on a possibly-stale selfVerified flag).
   if (callStarted) return;
   qrContainer.innerHTML = '';
+  // Re-render rather than rely on the one call at startup: the card is shown again on renew and
+  // for a second participant, and the locale may have changed in between.
+  applyRelyingPartyDisclosure();
   // A freshly arrived offer makes the renew button usable again.
   if (authRenewBtn) authRenewBtn.disabled = false;
   const qrData = msg.crossDeviceUri || msg.uri;
@@ -2168,15 +2205,72 @@ async function updateSas() {
 // of speaking it aloud.
 let sasOverlayActive = false;
 let sasOverlayCanvas = null, sasOverlayCtx = null, sasOverlaySourceVideo = null;
-let sasOverlayTrack = null, sasOverlayRAF = null;
+let sasOverlayTrack = null, sasOverlayFrameHandle = null, sasOverlayFrameIsRAF = false;
+let sasOverlayClock = null, sasOverlayClockUrl = null;
 let sasOverlayResumeAfterScreenShare = false;
 
 function sasOverlaySupported() {
   return mode === 'video' && peers.size === 1 && !screenStream
     && !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
 }
+// Keeping the picture alive while the tab is in the background.
+// The composited canvas is the OUTGOING track, so whatever stops drawing it freezes the
+// picture for the other side — that was the bug: switch to another tab and your
+// counterpart (and your own tile, which shows the same stream) saw a still image.
+// requestAnimationFrame does not run at all in a hidden tab, and a main-thread setTimeout
+// is throttled there to 1 Hz unless the page happens to be audible — which it is not when
+// the other side has their microphone muted. A dedicated worker's timer is exempt from
+// that throttling, so it is what drives the frames while you are away.
+// Measured over 12 s hidden (Chrome 152): rAF 0 fps, setTimeout 1 fps (22 fps if audible),
+// worker 24 fps either way.
+const SAS_OVERLAY_HIDDEN_MS = 42; // ~24 fps — enough to stay a live picture, not a slideshow
+const SAS_OVERLAY_CLOCK_SRC =
+  'let i = null; onmessage = (e) => { clearInterval(i); i = null;' +
+  ' if (e.data && e.data.ms) i = setInterval(() => postMessage(0), e.data.ms); };';
+function startSasOverlayClock() {
+  if (sasOverlayClock) return;
+  try {
+    sasOverlayClockUrl = URL.createObjectURL(new Blob([SAS_OVERLAY_CLOCK_SRC], { type: 'text/javascript' }));
+    sasOverlayClock = new Worker(sasOverlayClockUrl);
+    sasOverlayClock.onmessage = () => { if (sasOverlayActive && document.hidden) drawSasOverlayFrame(); };
+  } catch (e) {
+    // A deployment may forbid blob: workers via CSP. Then the hidden tab falls back to the
+    // throttled timer below: a slow picture, but never a frozen one.
+    console.warn('SAS-Overlay-Taktgeber nicht verfügbar:', e && e.message);
+    stopSasOverlayClock();
+  }
+}
+function stopSasOverlayClock() {
+  if (sasOverlayClock) { try { sasOverlayClock.terminate(); } catch {} sasOverlayClock = null; }
+  if (sasOverlayClockUrl) { try { URL.revokeObjectURL(sasOverlayClockUrl); } catch {} sasOverlayClockUrl = null; }
+}
+// Let the worker tick only while it is actually needed.
+function syncSasOverlayClock() {
+  if (!sasOverlayClock) return;
+  sasOverlayClock.postMessage({ ms: sasOverlayActive && document.hidden ? SAS_OVERLAY_HIDDEN_MS : 0 });
+}
+function scheduleSasOverlayFrame() {
+  cancelSasOverlayFrame();
+  if (!sasOverlayActive) return;
+  if (!document.hidden) {
+    sasOverlayFrameIsRAF = true;
+    sasOverlayFrameHandle = requestAnimationFrame(drawSasOverlayFrame);
+    return;
+  }
+  if (sasOverlayClock) return; // hidden: the worker calls drawSasOverlayFrame() instead
+  sasOverlayFrameIsRAF = false;
+  sasOverlayFrameHandle = setTimeout(drawSasOverlayFrame, SAS_OVERLAY_HIDDEN_MS);
+}
+function cancelSasOverlayFrame() {
+  if (sasOverlayFrameHandle === null) return;
+  if (sasOverlayFrameIsRAF) cancelAnimationFrame(sasOverlayFrameHandle); else clearTimeout(sasOverlayFrameHandle);
+  sasOverlayFrameHandle = null;
+}
 function drawSasOverlayFrame() {
   if (!sasOverlayActive) return;
+  // Some browsers pause a <video> while its tab is in the background. Drawing from a
+  // paused element would repeat one stale frame, which is the freeze we are avoiding.
+  if (sasOverlaySourceVideo && sasOverlaySourceVideo.paused) sasOverlaySourceVideo.play().catch(() => {});
   const w = sasOverlayCanvas.width, h = sasOverlayCanvas.height;
   try { sasOverlayCtx.drawImage(sasOverlaySourceVideo, 0, 0, w, h); } catch { /* frame not ready yet */ }
   const text = sasCode.textContent;
@@ -2200,7 +2294,7 @@ function drawSasOverlayFrame() {
     sasOverlayCtx.textBaseline = 'middle';
     sasOverlayCtx.fillText(text, x + padX, y + boxH / 2 + 1);
   }
-  sasOverlayRAF = requestAnimationFrame(drawSasOverlayFrame);
+  scheduleSasOverlayFrame();
 }
 function cleanupSasOverlayDom() {
   if (sasOverlaySourceVideo) { try { sasOverlaySourceVideo.remove(); } catch {} sasOverlaySourceVideo = null; }
@@ -2228,6 +2322,8 @@ async function startSasOverlay() {
   sasOverlayTrack = stream.getVideoTracks()[0];
   if (!sasOverlayTrack) { cleanupSasOverlayDom(); return; }
   sasOverlayActive = true;
+  startSasOverlayClock();
+  syncSasOverlayClock();
   drawSasOverlayFrame();
   for (const s of localVideoSenders()) { try { await s.replaceTrack(sasOverlayTrack); } catch {} }
   enforceLocalMuteState();
@@ -2236,8 +2332,8 @@ async function startSasOverlay() {
 async function stopSasOverlay() {
   if (!sasOverlayActive) return;
   sasOverlayActive = false;
-  if (sasOverlayRAF) cancelAnimationFrame(sasOverlayRAF);
-  sasOverlayRAF = null;
+  cancelSasOverlayFrame();
+  stopSasOverlayClock();
   if (sasOverlayTrack) { try { sasOverlayTrack.stop(); } catch {} sasOverlayTrack = null; }
   cleanupSasOverlayDom();
   if (localStream && !screenStream) { // screen-share (if active) owns the senders instead
@@ -2247,6 +2343,24 @@ async function stopSasOverlay() {
     localVideo.srcObject = localStream;
   }
 }
+
+// ---- coming back from another tab ----
+// Two things go stale while the tab is in the background, and neither repairs itself:
+// the overlay's frame loop (a pending requestAnimationFrame never fires once the page is
+// hidden, so the chain would end there), and the video tiles themselves — several
+// browsers pause a <video> in a background tab and leave it on its last frame even though
+// the track kept running. Re-arm the loop for whichever schedule now applies, and nudge
+// every call tile back into playback.
+function resumeCallVideos() {
+  const tiles = videosEl ? Array.from(videosEl.querySelectorAll('video')) : [];
+  if (sasOverlaySourceVideo) tiles.push(sasOverlaySourceVideo);
+  for (const v of tiles) { if (v.paused && v.srcObject) v.play().catch(() => {}); }
+}
+document.addEventListener('visibilitychange', () => {
+  syncSasOverlayClock();
+  scheduleSasOverlayFrame(); // both no-ops unless the overlay is running
+  if (!document.hidden) resumeCallVideos();
+});
 
 function anyConnected() {
   for (const p of peers.values()) if (p.pc.connectionState === 'connected') return true;

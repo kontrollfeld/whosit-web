@@ -228,6 +228,21 @@ export function findByWs(ws: WebSocket): { room: Room; participant: Participant 
   return undefined;
 }
 
+/**
+ * How many rooms this process is holding — i.e. how much a restart would destroy.
+ *
+ * Counts every room still in the map, including one whose participants are inside their
+ * reconnect grace window. That is the conservative reading and the right one for the only
+ * caller (`GET /health`, read by the rollout): a room in grace is a call someone still expects
+ * to come back to, and restarting takes it away just the same.
+ *
+ * A room is removed from the map as soon as its last participant leaves (see below), so this
+ * needs no sweep of its own.
+ */
+export function activeRoomCount(): number {
+  return rooms.size;
+}
+
 export function removeParticipant(room: Room, participant: Participant): void {
   const i = room.participants.indexOf(participant);
   if (i >= 0) {
