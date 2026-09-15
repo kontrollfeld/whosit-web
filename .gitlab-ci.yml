@@ -30,6 +30,7 @@ default:
 stages:
   - test
   - image
+  - betrieb
 
 # Without this, every push to a branch with an open merge request produces TWO pipelines (one for
 # the branch, one for the MR) — the same work twice, and two sets of results to interpret.
@@ -159,6 +160,57 @@ container:
     # item as a mapping, and the whole pipeline fails as "yaml invalid" with 0 jobs.
     - 'echo "Files in /app/pro: $COUNT"'
     - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
+    # ── publish, on the default branch only ──────────────────────────────────────────────
+    # BUILD ONCE, DEPLOY THAT. Until now every instance was built from source by its own
+    # deployment, which is how lhd.id-call.eu ended up four releases behind while reporting
+    # success: a build that is skipped looks identical to a build that ran. A pushed, immutable
+    # tag removes the question — either an instance runs this tag or it does not, and
+    # `npm run check:instances` can tell from outside which it is.
+    #
+    # LICENCE, and it is not a formality: the `pro` image contains commercially licensed code
+    # that pro/LICENSE forbids DISTRIBUTING. It goes to this project's own registry, which is
+    # private, and must never be pushed anywhere public or handed to a customer. The `agpl` tag
+    # is the one that may go anywhere.
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker tag evc:agpl "$CI_REGISTRY_IMAGE:agpl-$CI_COMMIT_SHORT_SHA"
+        docker push "$CI_REGISTRY_IMAGE:agpl-$CI_COMMIT_SHORT_SHA"
+        docker build --build-arg WITH_PRO=1 --build-arg SOURCE_COMMIT="$CI_COMMIT_SHORT_SHA" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+        docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+        # `stable` is what an instance follows by default. Moving it is the rollout; the SHA tag
+        # stays put so a rollback is naming an older tag, not rebuilding an older commit.
+        docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE:stable"
+        docker push "$CI_REGISTRY_IMAGE:stable"
+        echo "Published $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA (and :stable)"
+      else
+        echo "Not the default branch — built and checked, not published."
+      fi
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Do the instances we run actually run what we shipped?
+#
+# The job that would have caught the thing nobody caught: on 2026-09-15 lhd.id-call.eu was found
+# serving a build from 15 August. Nothing had failed loudly — one webhook, one skipped build step,
+# and an instance that stayed green while going stale. With a paid white-label offering, "updates
+# reach every instance" IS the product, so it gets checked rather than assumed.
+#
+# Needs the variable EUDI_INSTANCES (comma-separated base URLs, Protected). Deliberately NOT in
+# the repository: which customers run an instance is business data and this repository is
+# mirrored publicly.
+#
+# Runs on a SCHEDULE, not on every push — right after a deploy an instance is legitimately still
+# restarting, and a job that cries wolf gets ignored. Set one up under CI/CD → Schedules; without
+# a schedule this job never runs at all.
+instanzen:
+  stage: betrieb
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  before_script: []
+  cache: []
+  script:
+    - test -n "$EUDI_INSTANCES" || { echo "EUDI_INSTANCES is not set — nothing to check. Add it under Settings → CI/CD → Variables (Protected)."; exit 1; }
+    - npm run check:instances
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
 # The version stamp is NOT written by CI — it is committed, and this job only checks that nobody
