@@ -57,6 +57,16 @@ export interface RoomStore {
   findBySession(sessionId: string): Located | undefined;
   findByWs(ws: WebSocket): Located | undefined;
   remove(room: Room, p: Participant): void;
+  /**
+   * How many rooms are currently held — what a restart would destroy. Read by `GET /health`
+   * so a rollout can wait for a quiet moment per instance.
+   *
+   * OPTIONAL, so a Pro build compiled against an earlier version of this port still satisfies
+   * the interface (same reasoning as `VerificationEvent.purposeId`). A store that does not
+   * implement it reports "unknown" rather than zero — claiming zero would tell a rollout it is
+   * safe to restart precisely when it cannot know.
+   */
+  activeCount?(): number;
 }
 
 /**
