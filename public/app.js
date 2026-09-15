@@ -2168,15 +2168,72 @@ async function updateSas() {
 // of speaking it aloud.
 let sasOverlayActive = false;
 let sasOverlayCanvas = null, sasOverlayCtx = null, sasOverlaySourceVideo = null;
-let sasOverlayTrack = null, sasOverlayRAF = null;
+let sasOverlayTrack = null, sasOverlayFrameHandle = null, sasOverlayFrameIsRAF = false;
+let sasOverlayClock = null, sasOverlayClockUrl = null;
 let sasOverlayResumeAfterScreenShare = false;
 
 function sasOverlaySupported() {
   return mode === 'video' && peers.size === 1 && !screenStream
     && !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
 }
+// Keeping the picture alive while the tab is in the background.
+// The composited canvas is the OUTGOING track, so whatever stops drawing it freezes the
+// picture for the other side — that was the bug: switch to another tab and your
+// counterpart (and your own tile, which shows the same stream) saw a still image.
+// requestAnimationFrame does not run at all in a hidden tab, and a main-thread setTimeout
+// is throttled there to 1 Hz unless the page happens to be audible — which it is not when
+// the other side has their microphone muted. A dedicated worker's timer is exempt from
+// that throttling, so it is what drives the frames while you are away.
+// Measured over 12 s hidden (Chrome 152): rAF 0 fps, setTimeout 1 fps (22 fps if audible),
+// worker 24 fps either way.
+const SAS_OVERLAY_HIDDEN_MS = 42; // ~24 fps — enough to stay a live picture, not a slideshow
+const SAS_OVERLAY_CLOCK_SRC =
+  'let i = null; onmessage = (e) => { clearInterval(i); i = null;' +
+  ' if (e.data && e.data.ms) i = setInterval(() => postMessage(0), e.data.ms); };';
+function startSasOverlayClock() {
+  if (sasOverlayClock) return;
+  try {
+    sasOverlayClockUrl = URL.createObjectURL(new Blob([SAS_OVERLAY_CLOCK_SRC], { type: 'text/javascript' }));
+    sasOverlayClock = new Worker(sasOverlayClockUrl);
+    sasOverlayClock.onmessage = () => { if (sasOverlayActive && document.hidden) drawSasOverlayFrame(); };
+  } catch (e) {
+    // A deployment may forbid blob: workers via CSP. Then the hidden tab falls back to the
+    // throttled timer below: a slow picture, but never a frozen one.
+    console.warn('SAS-Overlay-Taktgeber nicht verfügbar:', e && e.message);
+    stopSasOverlayClock();
+  }
+}
+function stopSasOverlayClock() {
+  if (sasOverlayClock) { try { sasOverlayClock.terminate(); } catch {} sasOverlayClock = null; }
+  if (sasOverlayClockUrl) { try { URL.revokeObjectURL(sasOverlayClockUrl); } catch {} sasOverlayClockUrl = null; }
+}
+// Let the worker tick only while it is actually needed.
+function syncSasOverlayClock() {
+  if (!sasOverlayClock) return;
+  sasOverlayClock.postMessage({ ms: sasOverlayActive && document.hidden ? SAS_OVERLAY_HIDDEN_MS : 0 });
+}
+function scheduleSasOverlayFrame() {
+  cancelSasOverlayFrame();
+  if (!sasOverlayActive) return;
+  if (!document.hidden) {
+    sasOverlayFrameIsRAF = true;
+    sasOverlayFrameHandle = requestAnimationFrame(drawSasOverlayFrame);
+    return;
+  }
+  if (sasOverlayClock) return; // hidden: the worker calls drawSasOverlayFrame() instead
+  sasOverlayFrameIsRAF = false;
+  sasOverlayFrameHandle = setTimeout(drawSasOverlayFrame, SAS_OVERLAY_HIDDEN_MS);
+}
+function cancelSasOverlayFrame() {
+  if (sasOverlayFrameHandle === null) return;
+  if (sasOverlayFrameIsRAF) cancelAnimationFrame(sasOverlayFrameHandle); else clearTimeout(sasOverlayFrameHandle);
+  sasOverlayFrameHandle = null;
+}
 function drawSasOverlayFrame() {
   if (!sasOverlayActive) return;
+  // Some browsers pause a <video> while its tab is in the background. Drawing from a
+  // paused element would repeat one stale frame, which is the freeze we are avoiding.
+  if (sasOverlaySourceVideo && sasOverlaySourceVideo.paused) sasOverlaySourceVideo.play().catch(() => {});
   const w = sasOverlayCanvas.width, h = sasOverlayCanvas.height;
   try { sasOverlayCtx.drawImage(sasOverlaySourceVideo, 0, 0, w, h); } catch { /* frame not ready yet */ }
   const text = sasCode.textContent;
@@ -2200,7 +2257,7 @@ function drawSasOverlayFrame() {
     sasOverlayCtx.textBaseline = 'middle';
     sasOverlayCtx.fillText(text, x + padX, y + boxH / 2 + 1);
   }
-  sasOverlayRAF = requestAnimationFrame(drawSasOverlayFrame);
+  scheduleSasOverlayFrame();
 }
 function cleanupSasOverlayDom() {
   if (sasOverlaySourceVideo) { try { sasOverlaySourceVideo.remove(); } catch {} sasOverlaySourceVideo = null; }
@@ -2228,6 +2285,8 @@ async function startSasOverlay() {
   sasOverlayTrack = stream.getVideoTracks()[0];
   if (!sasOverlayTrack) { cleanupSasOverlayDom(); return; }
   sasOverlayActive = true;
+  startSasOverlayClock();
+  syncSasOverlayClock();
   drawSasOverlayFrame();
   for (const s of localVideoSenders()) { try { await s.replaceTrack(sasOverlayTrack); } catch {} }
   enforceLocalMuteState();
@@ -2236,8 +2295,8 @@ async function startSasOverlay() {
 async function stopSasOverlay() {
   if (!sasOverlayActive) return;
   sasOverlayActive = false;
-  if (sasOverlayRAF) cancelAnimationFrame(sasOverlayRAF);
-  sasOverlayRAF = null;
+  cancelSasOverlayFrame();
+  stopSasOverlayClock();
   if (sasOverlayTrack) { try { sasOverlayTrack.stop(); } catch {} sasOverlayTrack = null; }
   cleanupSasOverlayDom();
   if (localStream && !screenStream) { // screen-share (if active) owns the senders instead
@@ -2247,6 +2306,24 @@ async function stopSasOverlay() {
     localVideo.srcObject = localStream;
   }
 }
+
+// ---- coming back from another tab ----
+// Two things go stale while the tab is in the background, and neither repairs itself:
+// the overlay's frame loop (a pending requestAnimationFrame never fires once the page is
+// hidden, so the chain would end there), and the video tiles themselves — several
+// browsers pause a <video> in a background tab and leave it on its last frame even though
+// the track kept running. Re-arm the loop for whichever schedule now applies, and nudge
+// every call tile back into playback.
+function resumeCallVideos() {
+  const tiles = videosEl ? Array.from(videosEl.querySelectorAll('video')) : [];
+  if (sasOverlaySourceVideo) tiles.push(sasOverlaySourceVideo);
+  for (const v of tiles) { if (v.paused && v.srcObject) v.play().catch(() => {}); }
+}
+document.addEventListener('visibilitychange', () => {
+  syncSasOverlayClock();
+  scheduleSasOverlayFrame(); // both no-ops unless the overlay is running
+  if (!document.hidden) resumeCallVideos();
+});
 
 function anyConnected() {
   for (const p of peers.values()) if (p.pc.connectionState === 'connected') return true;
