@@ -66,6 +66,16 @@
 
     <div id="status-bar" class="status" data-i18n>Verbindung wird hergestellt …</div>
 
+    <!-- Medien-Freigabe: eigener, STEHENDER Hinweis — bewusst nicht die Statuszeile. Die wird
+         beim Verbindungsaufbau zwei Zeilen später überschrieben (app.js, startCall), womit eine
+         verweigerte Freigabe spurlos verschwand: Der Anruf meldete „Verbunden ✓", hatte aber
+         weder Bild noch Ton und keine Erklärung. Bleibt stehen, bis Kamera/Mikrofon laufen. -->
+    <div id="media-notice" class="media-notice" role="status" aria-live="polite" hidden>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.27A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.89L15 14"/><rect width="13" height="10" x="2" y="7" rx="2"/></svg>
+      <span id="media-notice-text"></span>
+      <button type="button" id="media-retry-btn" class="ghost" data-i18n>Erneut versuchen</button>
+    </div>
+
     <!-- Wartebildschirm für einen Termin, der noch nicht offen ist. Der Countdown ist
          nicht Zierde: er belegt, dass hier etwas passieren WIRD — vorher stand da eine
          Aufforderung zum erneuten Öffnen, und nichts geschah von allein. -->
@@ -288,7 +298,13 @@
       </div>
       <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
       <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
-      <div class="row">
+      <!-- Auf schmalen Screens klebt diese Leiste am unteren Rand, solange die Review offen ist
+           (style.css). Kein Modal: Verbinden ist eine Einwilligung zur Datenweitergabe, und ein
+           Fenster, das in einem Moment aufspringt, den die Nutzerin nicht steuert, setzt ihr
+           diesen Knopf beim Scrollen unter den Daumen — es müsste zudem genau die Liste
+           verdecken, die es zu lesen gibt. -->
+      <div class="row review-actions" id="review-actions">
+        <span class="review-ready" id="review-ready" hidden></span>
         <button id="decline-btn" class="ghost" data-i18n>Ablehnen</button>
         <button id="confirm-btn" data-i18n>Verbinden ✓</button>
       </div>

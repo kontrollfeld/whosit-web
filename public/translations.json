@@ -429,7 +429,21 @@
     "Melde dich mit deiner EUDI-Wallet an, um einen Anruf zu führen.": "Sign in with your EUDI wallet to hold a call.",
     "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "This identity is not authorised here. Only permitted people can hold a call on this site — please contact the responsible office if you believe this is a mistake.",
     "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "The ID request is made by {rp} on behalf of {brand}.",
-    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "The ID request is not made by {brand}, but by the operator of this instance."
+    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "The ID request is not made by {brand}, but by the operator of this instance.",
+    "Bitte {geraete} freigeben — der Anruf wartet so lange.": "Please allow {geraete} — the call is waiting for it.",
+    "Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.": "Access to {geraete} is blocked. Allow it in your browser (padlock icon in the address bar), then try again.",
+    "Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.": "Cannot access {geraete} — no device found. You can hold the call as a chat instead.",
+    "Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.": "Cannot access {geraete} — another application is using it right now. Close it and try again.",
+    "Zugriff auf {geraete} ist fehlgeschlagen.": "Access to {geraete} failed.",
+    "das Mikrofon": "the microphone",
+    "Kamera und Mikrofon": "camera and microphone",
+    "Erneut versuchen": "Try again",
+    "{n} von {m} Schritten erledigt": "{n} of {m} steps done",
+    "ausgewiesen": "identified",
+    "Kamera/Mikrofon frei": "camera/microphone allowed",
+    "verbunden": "connected",
+    "Gegenseite bereit — es fehlt nur noch deine Bestätigung.": "Your peer is ready — only your confirmation is missing.",
+    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "Your turn: your peer has confirmed — review and confirm to connect."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> (identité numérique) — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -861,6 +875,20 @@
     "Melde dich mit deiner EUDI-Wallet an, um einen Anruf zu führen.": "Connectez-vous avec votre portefeuille EUDI pour passer un appel.",
     "Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.": "Cette identité n’est pas autorisée ici. Seules les personnes habilitées peuvent passer un appel sur ce site — contactez le service compétent si vous pensez qu’il s’agit d’une erreur.",
     "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "La demande d'identité est présentée par {rp} pour le compte de {brand}.",
-    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "La demande d'identité n'est pas présentée par {brand}, mais par l'exploitant de cette instance."
+    "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "La demande d'identité n'est pas présentée par {brand}, mais par l'exploitant de cette instance.",
+    "Bitte {geraete} freigeben — der Anruf wartet so lange.": "Veuillez autoriser {geraete} — l’appel attend.",
+    "Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.": "L’accès à {geraete} est bloqué. Autorisez-le dans le navigateur (icône de cadenas dans la barre d’adresse), puis réessayez.",
+    "Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.": "Accès à {geraete} impossible — aucun appareil trouvé. Vous pouvez poursuivre l’appel en mode chat.",
+    "Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.": "Accès à {geraete} impossible — une autre application l’utilise actuellement. Fermez-la et réessayez.",
+    "Zugriff auf {geraete} ist fehlgeschlagen.": "L’accès à {geraete} a échoué.",
+    "das Mikrofon": "le microphone",
+    "Kamera und Mikrofon": "la caméra et le microphone",
+    "Erneut versuchen": "Réessayer",
+    "{n} von {m} Schritten erledigt": "{n} étapes sur {m} effectuées",
+    "ausgewiesen": "identifié",
+    "Kamera/Mikrofon frei": "caméra/microphone autorisés",
+    "verbunden": "connecté",
+    "Gegenseite bereit — es fehlt nur noch deine Bestätigung.": "Votre interlocuteur est prêt — il ne manque que votre confirmation.",
+    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "À vous : votre interlocuteur a confirmé — vérifiez et confirmez pour vous connecter."
   }
 }

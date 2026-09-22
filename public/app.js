@@ -238,6 +238,10 @@ const micBtn = $('mic-btn');
 const micLabel = $('mic-label');
 const camBtn = $('cam-btn');
 const camLabel = $('cam-label');
+const mediaNotice = $('media-notice');
+const mediaNoticeText = $('media-notice-text');
+const mediaRetryBtn = $('media-retry-btn');
+const reviewReady = $('review-ready');
 const emojiBtn = $('emoji-btn');
 const emojiPalette = $('emoji-palette');
 const fileBtn = $('file-btn');
@@ -1302,6 +1306,41 @@ function updateStepper(active) {
   stepperEl.hidden = false;
 }
 
+/**
+ * Readiness per participant: identified → confirmed → media → connected.
+ *
+ * A chip used to be binary — „bestätigt ✓" and then silence. A call hanging on a missing
+ * camera permission therefore looked exactly like one that was merely slow. The steps show
+ * WHERE it is stuck, without adding another line of prose.
+ *
+ * Chat calls have no media step; naming one there would be an eternally open dot.
+ */
+function stepFlags(verified, confirmed, media, connected) {
+  const f = [['ausgewiesen', verified], ['bestätigt', confirmed]];
+  if (mode !== 'chat') f.push(['Kamera/Mikrofon frei', media]);
+  f.push(['verbunden', connected]);
+  return f;
+}
+
+function renderSteps(chip, flags) {
+  const old = chip.querySelector('.steps');
+  if (old) old.remove();
+  const done = flags.filter(([, on]) => on).length;
+  const w = document.createElement('span');
+  w.className = 'steps';
+  // One label for screen readers instead of four unlabelled dots; the per-dot title serves
+  // the mouse. Both go through t() — the dots are the only non-textual state here.
+  w.setAttribute('role', 'img');
+  w.setAttribute('aria-label', t('{n} von {m} Schritten erledigt', { n: done, m: flags.length }));
+  for (const [label, on] of flags) {
+    const pip = document.createElement('i');
+    if (on) pip.className = 'on';
+    pip.title = t(label);
+    w.appendChild(pip);
+  }
+  chip.appendChild(w);
+}
+
 function updateChips(msg) {
   // self — names are masked until all confirm, so verified shows "bestätigt ✓"
   const hostDiscloses = isHost() && msg.disclosedAttrs && msg.disclosedAttrs.length;
@@ -1323,6 +1362,7 @@ function updateChips(msg) {
   else { selfChip.className = 'id-chip pending'; selfLabel.textContent = t('Du: noch nicht bestätigt'); }
   selfChip.classList.add('you'); // color code: self = blue, everyone else = green
   if (handRaised) selfLabel.textContent += ' ✋';
+  renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, mediaState === 'ok', anyConnected()));
 
   // one chip per peer (rebuilt each status)
   const list = msg.peers || [];
@@ -1345,7 +1385,12 @@ function updateChips(msg) {
     else { s.textContent = `${role}: ${t('Bestätigung ausstehend')}`; }
     if (peer.peerId && handsUp.has(peer.peerId)) s.textContent += ' ✋';
     chip.classList.add('guest');
-    chip.appendChild(s); peerChipsEl.appendChild(chip);
+    chip.appendChild(s);
+    const lp = peer.peerId ? peers.get(peer.peerId) : null;
+    renderSteps(chip, stepFlags(
+      !!peer.verified, !!peer.confirmed,
+      !!(lp && lp.gotMedia), !!(lp && lp.pc.connectionState === 'connected')));
+    peerChipsEl.appendChild(chip);
   }
 }
 
@@ -1499,10 +1544,18 @@ function renderStatus(msg) {
     renderReview(msg);
     reviewBox.hidden = false;
     reviewWait.hidden = true; setConfirmWaiting(false);
-    setStatus('Prüfe, was geteilt wird, und bestätige zum Verbinden.');
+    // Directive instead of descriptive, and it separates the two cases that both used to read
+    // as „warten": the others are still busy — or they are done and only you are missing.
+    const others = msg.peers || [];
+    const othersReady = others.length > 0 && others.every((x) => x.confirmed);
+    setReviewUrgency(othersReady);
+    setStatus(othersReady
+      ? 'Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.'
+      : 'Prüfe, was geteilt wird, und bestätige zum Verbinden.', 'prompt');
     return;
   }
   reviewBox.hidden = true;
+  setReviewUrgency(false);
 
   // Open room: confirmed but fewer than 2 present → wait (host keeps the invite link visible).
   if (isOpenRoom && msg.self.confirmed && !msg.revealed) {
@@ -1615,6 +1668,20 @@ function setConfirmWaiting(w) {
   confirmBtn.disabled = w; declineBtn.disabled = w;
   confirmBtn.textContent = t(w ? CONFIRM_WAIT : CONFIRM_LABEL);
 }
+
+/**
+ * Everyone else is done and only you are missing — say so, and make the button look like it.
+ *
+ * Without this the two states that matter most both read as „warten": waiting because the
+ * others are not ready, and waiting because YOU are the one holding things up. On a phone the
+ * second case is invisible — the button sits below the fold — which is exactly how a call
+ * appears to have stalled while it is only waiting for a tap.
+ */
+function setReviewUrgency(on) {
+  confirmBtn.classList.toggle('urgent', !!on);
+  reviewReady.hidden = !on;
+  if (on) reviewReady.textContent = t('Gegenseite bereit — es fehlt nur noch deine Bestätigung.');
+}
 startBtn.addEventListener('click', () => { startBtn.disabled = true; wsSend({ type: 'start-call' }); });
 confirmBtn.addEventListener('click', () => { wsSend({ type: 'confirm' }); reviewWait.hidden = true; setConfirmWaiting(true); });
 declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended = true; teardownCall(); showEnded('Du hast abgelehnt. Es wird keine Verbindung aufgebaut.'); });
@@ -1637,15 +1704,106 @@ let callConnectedOnce = false; // set once ≥1 peer is connected → later peer
 let screenStream = null;
 let cameraTrack = null;
 
+/**
+ * Media permission as a STATE, not as silence.
+ *
+ * This used to be a bare try/catch that set `localStream = false` and carried on. A refused
+ * permission therefore ended in „Verbunden ✓ – sichere P2P-Verbindung steht." — connected,
+ * but without picture or sound, without a reason, and with no way back except reloading.
+ *
+ * The browser does say WHY it failed, and the cases need different sentences because the
+ * remedy differs: a blocked permission is undone in the address bar, a missing microphone is
+ * not. `err.name` is the diagnosis; `err.message` is browser-specific prose and never shown.
+ *
+ * The hint lives IN here rather than at the call sites. `startCall()` had one and
+ * `onRemoteOffer()` did not, so whoever answered the offer got the browser prompt with nothing
+ * beside it explaining why. Inside the function both paths are covered by construction.
+ */
+let mediaState = 'idle'; // idle | pending | ok | denied | nodevice | busy | error | skipped
+
+/* Only states with an entry produce a notice — `ok`, `skipped` and `idle` stay silent.
+   `{geraete}` because audio calls never ask for a camera, and a hint naming one is wrong.
+   Phrased to avoid grammatical agreement with the inserted noun. */
+const MEDIA_MSG = {
+  pending: 'Bitte {geraete} freigeben — der Anruf wartet so lange.',
+  denied: 'Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.',
+  nodevice: 'Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.',
+  busy: 'Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.',
+  error: 'Zugriff auf {geraete} ist fehlgeschlagen.',
+};
+
+function mediaDevicesLabel() { return mode === 'audio' ? t('das Mikrofon') : t('Kamera und Mikrofon'); }
+
+function renderMediaNotice() {
+  const key = MEDIA_MSG[mediaState];
+  if (!key) { mediaNotice.hidden = true; return; }
+  mediaNotice.hidden = false;
+  mediaNotice.dataset.state = mediaState === 'pending' ? 'wait' : 'error';
+  mediaNoticeText.textContent = t(key, { geraete: mediaDevicesLabel() });
+  // While the browser dialog is open there is nothing to retry — the answer is still pending.
+  mediaRetryBtn.hidden = mediaState === 'pending';
+}
+
+function setMediaState(s) {
+  mediaState = s;
+  renderMediaNotice();
+  if (lastStatusMsg) updateChips(lastStatusMsg); // the chips carry the media step
+}
+
 async function ensureMedia() {
   if (localStream !== null) return localStream;
-  if (mode === 'chat') { localStream = false; return false; }
+  if (mode === 'chat') { setMediaState('skipped'); localStream = false; return false; }
+  setMediaState('pending');
   try {
     localStream = await navigator.mediaDevices.getUserMedia(mode === 'audio' ? { audio: true, video: false } : { audio: true, video: true });
     if (mode === 'video') localVideo.srcObject = localStream;
-  } catch (e) { console.warn('getUserMedia failed:', e && e.message); localStream = false; }
+    setMediaState('ok');
+  } catch (e) {
+    const n = (e && e.name) || '';
+    setMediaState(
+      n === 'NotAllowedError' || n === 'SecurityError' ? 'denied'
+        : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'nodevice'
+          : n === 'NotReadableError' || n === 'AbortError' ? 'busy'
+            : 'error');
+    console.warn('getUserMedia failed:', n, e && e.message);
+    localStream = false;
+  }
   return localStream;
 }
+
+/**
+ * Retry after a refusal.
+ *
+ * Before any connection exists this is trivial: `getPeer()` attaches the tracks when it creates
+ * the peer. Afterwards they have to be added to the RUNNING connections and renegotiated —
+ * tracks are attached exactly once (see getPeer), so without a fresh offer the button would
+ * promise a picture it never delivers.
+ *
+ * The certificate is unchanged, so the DTLS fingerprint stays the same and the channel binding
+ * survives the renegotiation (the server checks every offer against the bound fingerprint).
+ */
+async function retryMedia() {
+  if (mediaState === 'pending') return;
+  mediaRetryBtn.disabled = true;
+  localStream = null;
+  const stream = await ensureMedia();
+  mediaRetryBtn.disabled = false;
+  if (!stream) return;
+  for (const [peerId, p] of peers) {
+    if (p.pc.connectionState === 'closed') continue;
+    try {
+      const sent = new Set(p.pc.getSenders().map((s) => s.track).filter(Boolean));
+      let added = false;
+      for (const tr of localTracks()) if (!sent.has(tr)) { p.pc.addTrack(tr, stream); added = true; }
+      if (!added) continue;
+      const offer = await p.pc.createOffer();
+      await p.pc.setLocalDescription(offer); p.offered = true;
+      wsSend({ type: 'offer', to: peerId, data: offer });
+    } catch (e) { console.warn('renegotiate after media retry:', e && e.message); }
+  }
+  enforceLocalMuteState(); // a retry must not undercut a mute set before it
+}
+mediaRetryBtn.addEventListener('click', () => { retryMedia(); });
 function localTracks() { return localStream && localStream.getTracks ? localStream.getTracks() : []; }
 
 // Create/find the per-peer connection. `meta` = { name, role, initiator }.
@@ -1672,10 +1830,18 @@ function getPeer(peerId, meta) {
     p.dc = e.channel; wireChat(p.dc, peerId);
   };
   pc.onicecandidate = (e) => { if (e.candidate) wsSend({ type: 'ice', to: peerId, data: e.candidate }); };
-  pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
+  pc.ontrack = (e) => {
+    // The peer's media readiness needs no protocol field: their tracks arriving IS the signal,
+    // and it is the one the chips show (audio calls never reach attachRemote's video branch,
+    // so the flag is set here rather than in there).
+    p.gotMedia = true;
+    attachRemote(peerId, e.streams[0]);
+    if (lastStatusMsg) updateChips(lastStatusMsg);
+  };
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') { revealCall(); updateSas(); }
-    else if (pc.connectionState === 'failed') setStatus('Verbindung zu einem Teilnehmer fehlgeschlagen (evtl. TURN nötig).');
+    else if (pc.connectionState === 'failed') setStatus('Verbindung zu einem Teilnehmer fehlgeschlagen (evtl. TURN nötig).', 'error');
+    if (lastStatusMsg) updateChips(lastStatusMsg); // last chip step = connected
   };
   for (const tr of localTracks()) pc.addTrack(tr, localStream);
   // A freshly established connection must not undercut the mute: someone who is muted and then
@@ -1744,9 +1910,10 @@ async function startCall(msg) {
     document.body.classList.add('in-call');
     reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; benefitsBox.hidden = true; startBar.hidden = true;
     setLocalLabel(titleCase(myName) || '');
-    setStatus(mode === 'chat' ? 'Verbindung wird aufgebaut …' : 'Bitte Kamera/Mikrofon erlauben – dann wird verbunden …');
+    // No permission hint here any more: it comes from ensureMedia() as a standing notice, and
+    // therefore on the answering path too — which this line never covered.
+    setStatus('Verbindung wird aufgebaut …', 'wait');
     await ensureMedia();
-    setStatus('Verbindung wird aufgebaut …');
     await refreshIce();
   }
 

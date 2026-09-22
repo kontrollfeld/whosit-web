@@ -1486,3 +1486,84 @@ body.link-down .schedule-actions { opacity: 0.55; }
 /* „Code erneuern" — unauffällig, aber auffindbar. Er wird nur gebraucht, wenn der QR-Code
    ins Leere läuft, und soll den Normalfall nicht überlagern. */
 .auth-renew { margin-top: 12px; font-size: 0.85rem; }
+
+/* ---- Medien-Freigabe: stehender Hinweis statt verschluckter Fehler ----
+   Die Statuszeile taugt dafür nicht: sie wird beim Verbindungsaufbau zwei Zeilen später
+   überschrieben. Ein abgelehnter Kamerazugriff verschwand damit spurlos — der Anruf meldete
+   „Verbunden ✓" ohne Bild und Ton. Dieser Kasten bleibt, bis die Medien laufen. */
+.media-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-radius: var(--r);
+  padding: 12px 15px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
+}
+.media-notice .icon { width: 20px; height: 20px; flex: none; }
+.media-notice #media-notice-text { flex: 1 1 14rem; }
+.media-notice #media-retry-btn { flex: none; }
+/* Wartend ist kein Fehler: solange der Browser-Dialog offen ist, ist alles in Ordnung. */
+.media-notice[data-state="wait"] {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+
+/* ---- Bereitschaft pro Person: ausgewiesen → bestätigt → Medien → verbunden ----
+   Vier Punkte im Chip statt einer weiteren Textzeile. Sie beantworten die Frage, die ein
+   binäres „bestätigt ✓" offenließ: Woran hängt es gerade? */
+.steps { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; flex: none; }
+.steps i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; opacity: 0.25;
+  transition: opacity var(--t);
+}
+.steps i.on { opacity: 1; }
+
+/* ---- Verbinden: „du bist dran" sichtbar machen ----
+   Signalfarbe und Puls nur, wenn die Gegenseite fertig ist und wirklich nur noch diese
+   Bestätigung fehlt. Sonst pulst dauernd etwas und niemand schaut mehr hin. */
+#confirm-btn.urgent { animation: pulse 2s ease-in-out infinite; }
+/* `.row` ist ein nicht umbrechender Flex-Container — ohne das Umbrechen hier würde der
+   Bereitschaftstext die beiden Knöpfe zusammenquetschen statt eine eigene Zeile zu nehmen. */
+.review-actions { flex-wrap: wrap; }
+.review-ready {
+  flex: 1 1 100%;
+  order: -1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ok-strong);
+}
+
+/* ---- Verbinden erreichbar halten (schmale Screens) ----
+   Der Knopf steht am Fuß einer langen Karte und liegt auf dem Handy regelmäßig außerhalb des
+   Bildes; bestätigt die Gegenseite, bemerkt niemand, dass er dran ist.
+   Bewusst KEIN Modal (Begründung im Markup) und bewusst kein IntersectionObserver: eine
+   Leiste, die je nach Scrollstand erscheint und verschwindet, ändert dabei die Seitenhöhe und
+   kann sich selbst ein- und ausblenden. Immer unten heften ist vorhersagbar. */
+@media (max-width: 640px) {
+  #review:not([hidden]) .review-actions {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    margin: 0;
+    padding: 10px max(12px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px -12px rgba(0, 0, 0, 0.45);
+  }
+  #review:not([hidden]) .review-actions > button { flex: 1 1 0; }
+  /* Platz, damit die Leiste den Karteninhalt nie verdeckt — konstant, nicht zustandsabhängig,
+     sonst springt die Seite beim Scrollen. */
+  #review:not([hidden]) { padding-bottom: 96px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #confirm-btn.urgent { animation: none; box-shadow: 0 0 0 3px var(--ok-soft); }
+}
