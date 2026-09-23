@@ -1601,3 +1601,10 @@ body.link-down .schedule-actions { opacity: 0.55; }
 }
 .wiz-switch input { width: 15px; height: 15px; flex: none; accent-color: var(--accent); }
 .wiz-switch:hover { color: var(--text); }
+
+/* ---- Vorschauzeile: zwei Zeilen, getrennt schaltbar ----
+   Früher trennte ein <br> die beiden Hälften. Im geführten Modus muss die Gast-Hälfte auf dem
+   Schritt „Ich teile" verschwinden: Was der Gast teilt, wird erst im nächsten Schritt gewählt,
+   und eine Zusammenfassung, die das vorwegnimmt, liest sich wie eine schon getroffene Wahl. */
+.preview > span { display: block; }
+body.wizard[data-wkind="you"] .preview .prev-guest { display: none; }

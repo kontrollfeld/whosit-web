@@ -156,7 +156,14 @@
         <span><span data-i18n>Weitere Gäste später zulassen</span> <span class="field-note" data-i18n>— Anruf startet ab 2 Personen, weitere kommen später dazu</span></span>
       </label>
 
-      <p class="preview"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong><br /><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></p>
+      <!-- Zwei Zeilen als eigene Elemente statt durch <br> getrennt: im geführten Modus darf
+           auf dem Schritt „Ich teile" nicht schon stehen, was der Gast teilt — das ist die
+           Entscheidung des nächsten Schritts, und eine Zusammenfassung, die Ungefragtes
+           vorwegnimmt, liest sich wie eine bereits getroffene Wahl. -->
+      <p class="preview">
+        <span class="prev-you"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong></span>
+        <span class="prev-guest"><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></span>
+      </p>
 
       <!-- Schritt-Navigation des Setup-Assistenten (mobil/App; app.js aktiviert). -->
       <div id="wiz-nav" class="wiz-nav">

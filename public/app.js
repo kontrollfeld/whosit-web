@@ -1308,19 +1308,18 @@ function updateStepper(active) {
 }
 
 /**
- * Readiness per participant: identified → confirmed → media → connected.
+ * Readiness per participant: identified → confirmed → connected.
  *
- * A chip used to be binary — „bestätigt ✓" and then silence. A call hanging on a missing
- * camera permission therefore looked exactly like one that was merely slow. The steps show
- * WHERE it is stuck, without adding another line of prose.
+ * A chip used to be binary — „bestätigt ✓" and then silence. The steps show where a call is
+ * stuck, without adding another line of prose.
  *
- * Chat calls have no media step; naming one there would be an eternally open dot.
+ * THREE steps, always. There used to be a fourth for media readiness, which chat calls did not
+ * have — so the row silently lost a dot when you picked Chat, and the count no longer matched
+ * the three-step stepper at the top of the page either. Media state is carried by the standing
+ * notice instead (see ensureMedia), which is the part that actually tells you what to do.
  */
-function stepFlags(verified, confirmed, media, connected) {
-  const f = [['ausgewiesen', verified], ['bestätigt', confirmed]];
-  if (mode !== 'chat') f.push(['Kamera/Mikrofon frei', media]);
-  f.push(['verbunden', connected]);
-  return f;
+function stepFlags(verified, confirmed, connected) {
+  return [['ausgewiesen', verified], ['bestätigt', confirmed], ['verbunden', connected]];
 }
 
 function renderSteps(chip, flags) {
@@ -1383,7 +1382,7 @@ function updateChips(msg) {
   selfChip.className = `id-chip ${roleClass(myRole)}${self.identified ? ' is-identified' : ' pending'}`;
   selfLabel.textContent = `${t('Du')}: ${self.text}`;
   if (handRaised) selfLabel.textContent += ' ✋';
-  renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, mediaState === 'ok', anyConnected()));
+  renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, anyConnected()));
 
   // one chip per peer (rebuilt each status)
   const list = msg.peers || [];
@@ -1412,8 +1411,7 @@ function updateChips(msg) {
     chip.appendChild(s);
     const lp = peer.peerId ? peers.get(peer.peerId) : null;
     renderSteps(chip, stepFlags(
-      !!peer.verified, !!peer.confirmed,
-      !!(lp && lp.gotMedia), !!(lp && lp.pc.connectionState === 'connected')));
+      !!peer.verified, !!peer.confirmed, !!(lp && lp.pc.connectionState === 'connected')));
     peerChipsEl.appendChild(chip);
   }
 }
@@ -1779,7 +1777,6 @@ function renderMediaNotice() {
 function setMediaState(s) {
   mediaState = s;
   renderMediaNotice();
-  if (lastStatusMsg) updateChips(lastStatusMsg); // the chips carry the media step
 }
 
 async function ensureMedia() {
@@ -1862,14 +1859,7 @@ function getPeer(peerId, meta) {
     p.dc = e.channel; wireChat(p.dc, peerId);
   };
   pc.onicecandidate = (e) => { if (e.candidate) wsSend({ type: 'ice', to: peerId, data: e.candidate }); };
-  pc.ontrack = (e) => {
-    // The peer's media readiness needs no protocol field: their tracks arriving IS the signal,
-    // and it is the one the chips show (audio calls never reach attachRemote's video branch,
-    // so the flag is set here rather than in there).
-    p.gotMedia = true;
-    attachRemote(peerId, e.streams[0]);
-    if (lastStatusMsg) updateChips(lastStatusMsg);
-  };
+  pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') { revealCall(); updateSas(); }
     else if (pc.connectionState === 'failed') setStatus('Verbindung zu einem Teilnehmer fehlgeschlagen (evtl. TURN nötig).', 'error');
