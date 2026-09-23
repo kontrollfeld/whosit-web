@@ -1586,3 +1586,18 @@ body.link-down .schedule-actions { opacity: 0.55; }
    als fälliger Schritt markiert, statt gleichwertig unten mitzulaufen. */
 .invite-lock-note { color: var(--warn-text); }
 #share.is-next { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+/* ---- Schalter „Schritt für Schritt einrichten" ----
+   Sitzt in der Karte, nicht in einem Menü: Wer aussteigen will, soll den Ausweg dort finden,
+   wo er geführt wird. Bleibt in jedem Schritt sichtbar — deshalb taucht `.wiz-switch` in
+   keiner der `data-wkind`-Ausblendregeln auf. Zurückhaltend gesetzt, damit er nicht mit den
+   eigentlichen Entscheidungen der Karte konkurriert. */
+.wiz-switch {
+  display: flex; align-items: center; gap: 8px;
+  margin: -2px 0 16px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.wiz-switch input { width: 15px; height: 15px; flex: none; accent-color: var(--accent); }
+.wiz-switch:hover { color: var(--text); }

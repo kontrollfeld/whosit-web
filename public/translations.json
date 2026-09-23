@@ -447,7 +447,8 @@
     "ausgewiesen ✓": "identified ✓",
     "noch nicht ausgewiesen": "not identified yet",
     "noch nicht beigetreten": "has not joined yet",
-    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Once your guest joins, nothing above can be changed any more — so finish setting up the call first."
+    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Once your guest joins, nothing above can be changed any more — so finish setting up the call first.",
+    "Schritt für Schritt einrichten": "Set up step by step"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> (identité numérique) — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -897,6 +898,7 @@
     "ausgewiesen ✓": "identifié ✓",
     "noch nicht ausgewiesen": "pas encore identifié",
     "noch nicht beigetreten": "n’a pas encore rejoint",
-    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Dès que votre invité rejoint l’appel, plus rien ne peut être modifié ci-dessus — terminez donc la configuration d’abord."
+    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Dès que votre invité rejoint l’appel, plus rien ne peut être modifié ci-dessus — terminez donc la configuration d’abord.",
+    "Schritt für Schritt einrichten": "Configurer étape par étape"
   }
 }

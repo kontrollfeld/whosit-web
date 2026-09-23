@@ -1676,10 +1676,11 @@ function renderStatus(msg) {
  * at once. As a result the eye falls on the largest box (setup) instead of on the open task
  * (scan the QR code).
  *
- * Deliberately NOT the phone's wizard: desktop has the space, and the invitation link is not a
- * station but a reference the host wants to keep in view. So leave everything visible and only
- * steer attention. On small screens and in the app the step wizard already does this — the CSS
- * rules hang off `body:not(.wizard)`, so the two never overlap.
+ * This is the DEFAULT on desktop, not the only option: the space is there, and the invitation
+ * link is not a station but a reference the host wants to keep in view — so leave everything
+ * visible and only steer attention. Since the guided mode became a choice rather than a screen
+ * width (see initSetupWizard), a desktop host can switch to the step wizard instead; the CSS
+ * rules here hang off `body:not(.wizard)`, so the two exclude each other by construction.
  */
 function setActiveCard(el) {
   for (const c of [setupBox, shareBox, authBox]) {
@@ -3257,8 +3258,28 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
   const setup = $('setup'), nav = $('wiz-nav'), back = $('wiz-back'), next = $('wiz-next'), dots = $('wiz-dots');
   if (!setup || !nav) return;
   if (isEmbedded) return;
-  const small = () => window.matchMedia('(max-width: 640px)').matches;
-  if (!isNativeApp() && !small()) return;
+
+  /**
+   * Who gets the guided mode — a preference, no longer a screen width.
+   *
+   * This used to be `if (!isNativeApp() && !small()) return;`, evaluated once when the module
+   * ran. Three things followed: a desktop host never got any guidance through ~20 controls,
+   * the „invite last" ordering was a suggestion there instead of a sequence (and `lockSetup()`
+   * makes it a one-way door), and the decision never changed again — narrowing a window or
+   * rotating a phone that started in landscape did nothing.
+   *
+   * The CSS never needed a viewport: every rule hangs off `body.wizard[data-wkind]`, and the
+   * desktop card highlighting is gated on `body:not(.wizard)`, so the two exclude each other
+   * by construction.
+   *
+   * An explicit choice wins over the screen, and the screen only decides for those who have
+   * not chosen — otherwise turning it off on a phone would be undone by the next rotation.
+   */
+  const WIZ_KEY = 'eudi_setup_wizard';
+  const sw = $('wiz-switch');
+  const mq = window.matchMedia('(max-width: 640px)');
+  const pref = () => { try { const v = localStorage.getItem(WIZ_KEY); return v === '1' ? true : v === '0' ? false : null; } catch { return null; } };
+  const guided = () => { const p = pref(); return p === null ? (isNativeApp() || mq.matches) : p; };
 
   // Step kinds: mode · you · guest · invite · (auth, only when the host has to identify
   // themselves). The identification step shows the invite box collapsed beneath it.
@@ -3288,10 +3309,21 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
   if (shareEl) { const h = shareEl.querySelector('h2'); if (h) h.addEventListener('click', () => { if (document.body.dataset.wkind === 'auth') shareEl.classList.toggle('wiz-collapsed'); }); }
 
   const syncActive = () => {
-    const on = !setup.hidden;
+    const want = guided();
+    if (sw) sw.checked = want;
+    const on = !setup.hidden && want;
     document.body.classList.toggle('wizard', on);
     if (on) render();
   };
+  if (sw) {
+    sw.addEventListener('change', () => {
+      try { localStorage.setItem(WIZ_KEY, sw.checked ? '1' : '0'); } catch {}
+      idx = 0; // switching on mid-way would otherwise resume at a step nobody chose
+      syncActive();
+    });
+  }
+  // Only for those who have not decided — an explicit choice must survive a rotation.
+  mq.addEventListener('change', () => { if (pref() === null) syncActive(); });
   new MutationObserver(syncActive).observe(setup, { attributes: true, attributeFilter: ['hidden'] });
   // The visibility of #auth changes the step count -> re-render on change
   if (authEl) new MutationObserver(() => { if (!setup.hidden) render(); }).observe(authEl, { attributes: true, attributeFilter: ['hidden'] });
