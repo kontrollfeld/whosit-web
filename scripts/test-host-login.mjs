@@ -190,6 +190,7 @@ await new Promise((r) => verifier.listen(VERIFIER_PORT, r));
 const gatedSrv = startServer(GATED_PORT, {
   EUDI_HOST_ALLOWLIST: 'Mustermann,Erika; Schmidt,Hans-Peter',
   EUDI_BRAND_NAME: 'Test Authority',
+  EUDI_TRUST_LIST_IDS: 'pid-issuers',
 });
 const openSrv = startServer(OPEN_PORT, {});
 const sockets = [];
@@ -212,6 +213,12 @@ try {
   const asked1 = requestedClaims(offerIdOf(auth1.uri));
   check('family name requested', asked1.has('family_name'), [...asked1].join(','));
   check('given name requested', asked1.has('given_name'), [...asked1].join(','));
+  // EUDIPLO 7+ only takes a trust list as an object; a URL string registers and then fails
+  // every verification with a bare 400.
+  const ta1 = configs.get(offers.get(offerIdOf(auth1.uri))?.requestId)?.credentials?.[0]?.trusted_authorities;
+  check('the trust list goes out as { trustListId }',
+    JSON.stringify(ta1) === JSON.stringify([{ type: 'etsi_tl', values: [{ trustListId: 'pid-issuers' }] }]),
+    JSON.stringify(ta1));
 
   console.log('\nA listed name gets through');
   const p1 = await present(offerIdOf(auth1.uri), { given_name: 'Erika', family_name: 'Mustermann' });

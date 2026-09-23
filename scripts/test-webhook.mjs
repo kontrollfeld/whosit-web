@@ -40,6 +40,9 @@ function check(name, ok, detail) {
 // ---------------------------------------------------------------- Verifier ----
 /** offerId -> the full webhook URL (including ?t=…) exactly as the server handed it out. */
 const offers = new Map();
+/** Offer bodies EUDIPLO 8.0.2 would refuse — must stay empty. */
+const offerRejections = [];
+const OFFER_FIELDS = ['response_type', 'requestId', 'webhook', 'redirectUri', 'expected_origin', 'transaction_data', 'skewSeconds'];
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b)); });
 const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
 
@@ -51,6 +54,9 @@ const verifier = http.createServer(async (req, res) => {
   if (req.method === 'POST' && p === '/api/verifier/offer') {
     const body = JSON.parse((await readBody(req)) || '{}');
     if (!body?.webhook?.url) return json(res, 400, { error: 'missing webhook.url' });
+    // EUDIPLO 7+ validates the offer strictly: an unknown field is a 400, not silently dropped.
+    const unknown = Object.keys(body).filter((k) => !OFFER_FIELDS.includes(k));
+    if (unknown.length) { offerRejections.push(unknown); return json(res, 400, { error: `unrecognized keys: ${unknown.join(',')}` }); }
     const id = randomUUID();
     offers.set(id, body.webhook.url);
     const uri = `http://127.0.0.1:${VERIFIER_PORT}/simulate/${id}`;
@@ -216,6 +222,10 @@ try {
     check('no webhook token in the server log', !/[?&]t=[A-Za-z0-9-]{8,}/.test(joined), 'a token in the log');
     check('sessionId not in clear text', !/session=[0-9a-f]{8}-[0-9a-f]{4}/.test(joined), 'a sessionId in the log');
   }
+
+  // ---------------------------------------------------------------------------
+  console.log('\nEvery offer passes EUDIPLO 8 schema validation');
+  check('no offer carried a field EUDIPLO rejects', offerRejections.length === 0, JSON.stringify(offerRejections));
 } catch (e) {
   console.error(`\n✗ Test setup failed: ${e.message}`);
   failures++;

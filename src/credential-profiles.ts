@@ -37,18 +37,6 @@ import {
 export type CredentialFormat = 'mso_mdoc' | 'dc+sd-jwt' | 'jwt_vc_json';
 
 /**
- * How the verifier identifies itself to the wallet (trust-framework lever).
- *
- * CAUTION (measured against a live system on 2026-08-09): the value set here currently has
- * NO EFFECT — EUDIPLO signs the authorization request and picks the scheme itself. On a real
- * instance the result is `x509_hash` (client_id = SHA-256 of the certificate), not the
- * `x509_san_dns` configured below. VERIFIER_CLIENT_ID is equally without effect. Before
- * stating anything about this (documentation, audit, conversation), inspect the actual
- * request: read the x5c header and client_id from the signed JWT.
- */
-export type ClientIdScheme = 'x509_san_dns' | 'did' | 'verifier_attestation' | 'redirect_uri';
-
-/**
  * Semantic attributes = the app's format-independent UI vocabulary.
  *
  * This is DERIVED from the WRP vocabulary (see ./wrp-policy) rather than declared here:
@@ -78,8 +66,6 @@ export interface CredentialProfile {
   /** Type identifier in the format's own namespace:
    *  mso_mdoc → doctype; dc+sd-jwt → vct; jwt_vc_json → VC `type`. */
   credentialType: string;
-  clientIdScheme: ClientIdScheme;
-  clientId?: string;          // defaults to VERIFIER_CLIENT_ID
   edition: 'community' | 'pro';
   /** Semantic attribute → DCQL claim path(s) FOR THIS FORMAT ([] if unsupported). */
   claimPaths(attr: SemanticAttr): (string | number)[][];
@@ -101,12 +87,17 @@ export interface DcqlCredentialQuery {
    * up the issuer of the presented credential, and additionally checks its revocation status
    * using the stored revocation certificate.
    *
+   * Since EUDIPLO 7.0 an `etsi_tl` value is an OBJECT: `{ trustListId }` for a list the
+   * instance manages itself. A plain URL string still registers, but every verification then
+   * fails with HTTP 400 ("trusted_authorities values url is required when trustListId is not
+   * set"). External lists would need `{ url, verifierKey | verifierX509Der }` — not offered here.
+   *
    * WITHOUT this entry the verifier has no trust anchor and rejects EVERY presentation
    * ("Configured trust lists: none configured", measured live on 2026-08-09 against EUDIPLO
    * 6.2.0). Version 5.0.0 did not check revocation status and therefore ran without one — the
    * migration made the gap visible, it did not create it.
    */
-  trusted_authorities?: Array<{ type: 'etsi_tl' | 'aki' | 'openid_federation'; values: string[] }>;
+  trusted_authorities?: Array<{ type: 'etsi_tl'; values: Array<{ trustListId: string }> }>;
 }
 export interface DcqlQuery {
   credentials: DcqlCredentialQuery[];
@@ -132,28 +123,25 @@ const PRO = effectiveEdition() === 'pro';
 // Examples: 'pid_mdoc,pid_sdjwt' (multi-format) · 'pid_sdjwt' (pin to SD-JWT only).
 const CONFIGURED = (process.env.EUDI_CREDENTIAL_PROFILES || 'pid_mdoc')
   .split(',').map((s) => s.trim()).filter(Boolean);
-// No preset: this used to hold the address of an instance we operate, which in a published
-// edition would mean shipping someone else's identity as the default. Without effect anyway —
-// EUDIPLO derives the client_id from the certificate. Left empty, `createVerifierOffer` omits
-// the field (see ./eudiplo).
-const DEFAULT_CLIENT_ID = process.env.VERIFIER_CLIENT_ID || '';
 const PID_DOCTYPE = process.env.PID_MDOC_DOCTYPE || 'eu.europa.ec.eudi.pid.1';
 // Confirmed live 2026-07-10 against the German sandbox (SPRIND wallet ↔ our EUDIPLO):
 // the SD-JWT PID is issued with vct `urn:eudi:pid:de:1` by preprod.pid-provider.bundesdruckerei.de.
 const PID_VCT = process.env.PID_SDJWT_VCT || 'urn:eudi:pid:de:1';
 /**
- * Trust lists (LoTE URLs, comma-separated) against which the verifier checks the issuer of a
- * presented PID — see `trusted_authorities` on DcqlCredentialQuery.
+ * Trust lists (ids of lists managed by the EUDIPLO instance, comma-separated) against which
+ * the verifier checks the issuer of a presented PID — see `trusted_authorities` on
+ * DcqlCredentialQuery. The id is the last path segment of the published list:
+ * `https://<verifier>/issuers/<tenant>/trust-list/<id>`.
  *
  * Deliberately WITHOUT a preset: which issuer an instance trusts is the operator's decision
  * and must not come from the source code. Left empty, the query goes out unchanged — but the
- * verifier will then reject every presentation, if like EUDIPLO from 6.2.0 it demands a trust
+ * verifier will then reject every presentation, since EUDIPLO from 6.2.0 demands a trust
  * anchor.
  *
- * EUDIPLO substitutes `<TENANT_URL>` in these URLs with its own tenant host, so a
- * self-published list can be referenced without an absolute URL.
+ * Replaces EUDI_TRUST_LIST_URLS (URL strings), which EUDIPLO 7+ no longer accepts; startup
+ * refuses to run with the old variable (./core/startup-checks).
  */
-const TRUST_LIST_URLS = (process.env.EUDI_TRUST_LIST_URLS || '')
+const TRUST_LIST_IDS = (process.env.EUDI_TRUST_LIST_IDS || '')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
 /**
@@ -256,8 +244,6 @@ const pidMdoc: CredentialProfile = {
   label: 'PID (ISO mdoc)',
   format: 'mso_mdoc',
   credentialType: PID_DOCTYPE,
-  clientIdScheme: 'x509_san_dns',
-  clientId: DEFAULT_CLIENT_ID,
   edition: 'community',
   // mdoc paths are [namespace/doctype, claimKey] — matches the live verifier config.
   claimPaths: (attr) => (MDOC_KEYS[attr] ?? []).map((k) => [PID_DOCTYPE, k]),
@@ -271,8 +257,6 @@ const pidSdJwt: CredentialProfile = {
   label: 'PID (SD-JWT VC)',
   format: 'dc+sd-jwt',
   credentialType: PID_VCT,
-  clientIdScheme: 'x509_san_dns',
-  clientId: DEFAULT_CLIENT_ID,
   // Community since 2026-08-09 (previously 'pro'). The reason is NOT generosity but a
   // consequence that would otherwise contradict the edition rule: channel binding (DTLS
   // fingerprint in `transaction_data` → KB-JWT) is implemented in the EUDIPLO verifier for
@@ -340,8 +324,8 @@ export function buildDcql(profiles: CredentialProfile[], attrs: SemanticAttr[]):
     // Trust anchor for the issuer. Only set when configured — an empty `trusted_authorities`
     // is not the same as an absent one and could, depending on the verifier, be read as
     // "trust nobody".
-    ...(TRUST_LIST_URLS.length
-      ? { trusted_authorities: [{ type: 'etsi_tl' as const, values: TRUST_LIST_URLS }] }
+    ...(TRUST_LIST_IDS.length
+      ? { trusted_authorities: [{ type: 'etsi_tl' as const, values: TRUST_LIST_IDS.map((trustListId) => ({ trustListId })) }] }
       : {}),
   }));
   const query: DcqlQuery = { credentials };

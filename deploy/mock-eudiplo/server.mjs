@@ -81,12 +81,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && /^\/api\/client\/[^/]+\/rotate-secret$/.test(p)) return json(res, 200, { secret: 'mock-secret' });
   if (req.method === 'POST' && p === '/api/verifier/config') {
     const body = JSON.parse((await readBody(req)) || '{}');
+    // Like EUDIPLO 7+: an etsi_tl reference must be an object ({ trustListId } or { url, … }).
+    const stringRef = (body?.dcql_query?.credentials ?? [])
+      .flatMap((c) => c.trusted_authorities ?? [])
+      .some((ta) => ta.type === 'etsi_tl' && (ta.values ?? []).some((v) => typeof v !== 'object'));
+    if (stringRef) return json(res, 400, { error: 'trusted_authorities etsi_tl values must be objects (EUDIPLO 7+)' });
     if (body?.id && body?.dcql_query) configs.set(body.id, body.dcql_query);
     return json(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && p === '/api/verifier/offer') {
     const body = JSON.parse((await readBody(req)) || '{}');
+    // Like EUDIPLO 7+: the offer schema is strict, an unknown field is a 400.
+    const unknown = Object.keys(body).filter((k) => !['response_type', 'requestId', 'webhook', 'redirectUri', 'expected_origin', 'transaction_data', 'skewSeconds'].includes(k));
+    if (unknown.length) return json(res, 400, { error: `unrecognized keys: ${unknown.join(',')}` });
     const webhook = body?.webhook?.url;
     if (!webhook) return json(res, 400, { error: 'missing webhook.url' });
     const id = randomUUID();

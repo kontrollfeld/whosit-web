@@ -16,7 +16,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import type { CredentialFormat, ClientIdScheme, DcqlQuery } from './credential-profiles';
+import type { CredentialFormat, DcqlQuery } from './credential-profiles';
 
 export interface CatalogClaim {
   /** DCQL claim path in the credential's own namespace (e.g. ["objekt_id"]). */
@@ -36,8 +36,6 @@ export interface CatalogCredential {
    *  consistent (e.g. the live Wohnraum-ID carries the literal vct "Wohnraum-ID", not its URL),
    *  so a catalog entry can match several. mdoc uses only the FIRST (doctype_value is single). */
   credentialType: string | string[];
-  clientIdScheme?: ClientIdScheme;
-  clientId?: string;
   claims: CatalogClaim[];
 }
 

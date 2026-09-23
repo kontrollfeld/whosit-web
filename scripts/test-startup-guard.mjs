@@ -75,6 +75,13 @@ check('verifier access not flagged', !names(problems(rootOnly)).includes('EUDIPL
 const halfRoot = { EUDIPLO_BASE_URL: OK_ENV.EUDIPLO_BASE_URL, EUDIPLO_CLIENT_ID: 'agency-tenant', EUDIPLO_ROOT_SECRET: 'secret-without-its-id-8c2d' };
 check('half a legacy path (no ROOT_ID) is not enough', fatalNames(problems(halfRoot)).includes('EUDIPLO_CLIENT_SECRET'), JSON.stringify(problems(halfRoot)));
 
+console.log('\nTrust lists in the pre-EUDIPLO-7 form are refused, the new form is not');
+const oldTrust = { ...OK_ENV, EUDI_TRUST_LIST_URLS: 'https://verifier.agency.example-real.eu/issuers/agency/trust-list/pid-issuers' };
+check('EUDI_TRUST_LIST_URLS -> fatal', fatalNames(problems(oldTrust)).includes('EUDI_TRUST_LIST_URLS'), JSON.stringify(problems(oldTrust)));
+check('the message does not echo the URL', !JSON.stringify(problems(oldTrust)).includes('agency/trust-list'), JSON.stringify(problems(oldTrust)));
+const newTrust = { ...OK_ENV, EUDI_TRUST_LIST_IDS: 'pid-issuers' };
+check('EUDI_TRUST_LIST_IDS draws no complaint', problems(newTrust).length === 0, JSON.stringify(problems(newTrust)));
+
 console.log('\nPlaceholders copied from the template are rejected');
 for (const [variable, value] of [
   ['EUDIPLO_CLIENT_SECRET', '__set_me__'],
