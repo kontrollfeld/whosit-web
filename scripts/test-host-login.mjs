@@ -37,10 +37,29 @@ function check(name, cond, detail) {
 /** requestId -> DCQL, so the test can check WHAT was asked for. */
 const configs = new Map();
 /** offerId → { webhook, requestId } */
+/** Verifier configs EUDIPLO 8.0.2 would refuse — must stay empty. */
+const configRejections = [];
 const offers = new Map();
 
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b)); });
 const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+
+/**
+ * The DCQL rules EUDIPLO 8.0.2 enforces on POST /verifier/config (read off its OpenAPI schema,
+ * every level `additionalProperties: false`). Returns the first violation, or null.
+ */
+function dcqlViolation(dcql) {
+  const only = (o, keys) => Object.keys(o ?? {}).find((k) => !keys.includes(k));
+  for (const c of dcql?.credentials ?? []) {
+    const claimKeys = c.format === 'mso_mdoc' ? ['id', 'path', 'values', 'intent_to_retain'] : ['id', 'path', 'values'];
+    for (const cl of c.claims ?? []) { const k = only(cl, claimKeys); if (k) return `${c.format} claim: unknown key ${k}`; }
+    for (const ta of c.trusted_authorities ?? []) {
+      if (ta.type === 'etsi_tl' && (ta.values ?? []).some((v) => typeof v !== 'object')) return 'etsi_tl values must be objects';
+    }
+  }
+  for (const s of dcql?.credential_sets ?? []) { const k = only(s, ['options', 'required']); if (k) return `credential_sets: unknown key ${k}`; }
+  return null;
+}
 
 const verifier = http.createServer(async (req, res) => {
   const p = new URL(req.url, `http://127.0.0.1:${VERIFIER_PORT}`).pathname;
@@ -48,6 +67,8 @@ const verifier = http.createServer(async (req, res) => {
   if (req.method === 'POST' && /^\/api\/client\/[^/]+\/rotate-secret$/.test(p)) return json(res, 200, { secret: 'test-secret' });
   if (req.method === 'POST' && p === '/api/verifier/config') {
     const body = JSON.parse((await readBody(req)) || '{}');
+    const bad = dcqlViolation(body?.dcql_query);
+    if (bad) { configRejections.push(bad); return json(res, 400, { error: bad }); }
     if (body?.id) configs.set(body.id, body.dcql_query);
     return json(res, 200, { ok: true });
   }
@@ -191,6 +212,8 @@ const gatedSrv = startServer(GATED_PORT, {
   EUDI_HOST_ALLOWLIST: 'Mustermann,Erika; Schmidt,Hans-Peter',
   EUDI_BRAND_NAME: 'Test Authority',
   EUDI_TRUST_LIST_IDS: 'pid-issuers',
+  // Both formats, so SD-JWT claims and credential_sets reach the strict verifier too.
+  EUDI_CREDENTIAL_PROFILES: 'pid_mdoc,pid_sdjwt',
 });
 const openSrv = startServer(OPEN_PORT, {});
 const sockets = [];
@@ -216,6 +239,7 @@ try {
   // EUDIPLO 7+ only takes a trust list as an object; a URL string registers and then fails
   // every verification with a bare 400.
   const ta1 = configs.get(offers.get(offerIdOf(auth1.uri))?.requestId)?.credentials?.[0]?.trusted_authorities;
+  check('every verifier config passes EUDIPLO 8 DCQL validation', configRejections.length === 0, JSON.stringify(configRejections));
   check('the trust list goes out as { trustListId }',
     JSON.stringify(ta1) === JSON.stringify([{ type: 'etsi_tl', values: [{ trustListId: 'pid-issuers' }] }]),
     JSON.stringify(ta1));

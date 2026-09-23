@@ -72,6 +72,23 @@ function html(res, code, body) {
   res.end(body);
 }
 
+/**
+ * The DCQL rules EUDIPLO 8.0.2 enforces on POST /verifier/config (read off its OpenAPI schema,
+ * every level `additionalProperties: false`). Returns the first violation, or null.
+ */
+function dcqlViolation(dcql) {
+  const only = (o, keys) => Object.keys(o ?? {}).find((k) => !keys.includes(k));
+  for (const c of dcql?.credentials ?? []) {
+    const claimKeys = c.format === 'mso_mdoc' ? ['id', 'path', 'values', 'intent_to_retain'] : ['id', 'path', 'values'];
+    for (const cl of c.claims ?? []) { const k = only(cl, claimKeys); if (k) return `${c.format} claim: unknown key ${k}`; }
+    for (const ta of c.trusted_authorities ?? []) {
+      if (ta.type === 'etsi_tl' && (ta.values ?? []).some((v) => typeof v !== 'object')) return 'etsi_tl values must be objects';
+    }
+  }
+  for (const s of dcql?.credential_sets ?? []) { const k = only(s, ['options', 'required']); if (k) return `credential_sets: unknown key ${k}`; }
+  return null;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, SELF_URL);
   const p = url.pathname;
@@ -81,11 +98,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && /^\/api\/client\/[^/]+\/rotate-secret$/.test(p)) return json(res, 200, { secret: 'mock-secret' });
   if (req.method === 'POST' && p === '/api/verifier/config') {
     const body = JSON.parse((await readBody(req)) || '{}');
-    // Like EUDIPLO 7+: an etsi_tl reference must be an object ({ trustListId } or { url, … }).
-    const stringRef = (body?.dcql_query?.credentials ?? [])
-      .flatMap((c) => c.trusted_authorities ?? [])
-      .some((ta) => ta.type === 'etsi_tl' && (ta.values ?? []).some((v) => typeof v !== 'object'));
-    if (stringRef) return json(res, 400, { error: 'trusted_authorities etsi_tl values must be objects (EUDIPLO 7+)' });
+    const bad = dcqlViolation(body?.dcql_query);
+    if (bad) return json(res, 400, { error: `${bad} (EUDIPLO 8 schema)` });
     if (body?.id && body?.dcql_query) configs.set(body.id, body.dcql_query);
     return json(res, 200, { ok: true });
   }
