@@ -261,17 +261,6 @@ header { margin-bottom: 22px; }
 .sub { color: var(--text-muted); margin: 0; font-size: 0.98rem; max-width: 54ch; }
 .sub strong { color: var(--navy); font-weight: 600; }
 
-/* ---- benefits list ---- */
-.benefits { list-style: none; margin: 20px 0 2px; padding: 0; display: grid; gap: 11px; max-width: 56ch; }
-.benefits li { display: flex; gap: 11px; align-items: flex-start; font-size: 0.92rem; color: var(--text-muted); line-height: 1.45; }
-.benefits strong { color: var(--navy); font-weight: 600; }
-.benefits .check {
-  flex: none; width: 22px; height: 22px; margin-top: 1px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  background: var(--ok-soft); color: var(--ok-strong);
-  font-size: 0.78rem; font-weight: 800;
-}
 .wallet-note { text-align: center; margin-top: 12px; font-size: 0.8rem; }
 
 /* ---- status + restart ---- */
@@ -853,7 +842,6 @@ body:not(.wizard) .card.is-active {
 /* ---- embed mode: compact widget (loaded in a third-party iframe) ---- */
 .embedded body { background: var(--surface); }
 .embedded main { padding-top: 18px; padding-bottom: 18px; }
-.embedded #benefits,
 .embedded header .sub,
 .embedded .app-footer { display: none; }
 .embedded header .logo { transform: scale(0.9); transform-origin: left center; margin-bottom: 6px; }
@@ -877,7 +865,7 @@ body:not(.wizard) .card.is-active {
 /* participants: compact bar right under the status line */
 .identities { padding: 12px 16px; }
 
-/* setup-phase two-column layout: explainer text (logo/title/benefits) sticks on the
+/* setup-phase two-column layout: explainer text (logo/title/intro) sticks on the
    left, the actual forms/status/QR/review sit on the right — breaks out of the narrow
    reading column on wide screens, same technique as .setup-zone below. Fallback
    (narrow / no :has): plain single-column stack, unchanged from before. */
@@ -1211,7 +1199,6 @@ body:not(.wizard) .card.is-active {
  * EUDI_APP_CONFIG.native). The website never gets the class — zero impact.
  * Layout: compact header, marketing stripped, bottom tab bar (Anruf/Mehr). */
 html.native-app .sub,
-html.native-app .benefits,
 html.native-app .wallet-note { display: none; }
 html.native-app header { margin-bottom: 8px; }
 html.native-app .logo { margin-bottom: 0; gap: 10px; }
@@ -1382,14 +1369,20 @@ html.native-app .stepper { margin-bottom: 14px; }
 .app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; }
 .app-footer .footer-link:hover { color: var(--text-muted); }
 
-/* ---- App-Stärken (erster Wizard-Screen) ---- */
-.app-strengths { display: none; }
-body.wizard[data-wkind="mode"] .app-strengths {
-  display: block;
+/* ---- „Warum id-call.eu?" ----
+   Ersetzt seit 2026-09-23 die Häkchen-Liste im Kopf. Beide sagten dasselbe in zwei
+   Formulierungen und standen auf dem Desktop nebeneinander; auf schmalen Screens war die Liste
+   ohnehin schon ausgeblendet. Deshalb zeigt sich die Karte jetzt überall dort, wo die Liste
+   stand — bis der Anruf läuft — und im geführten Modus weiterhin nur auf dem ersten Schritt,
+   damit sie die Schritte danach nicht zustellt. */
+.app-strengths {
+  display: none;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   padding: 20px 20px 6px; margin-top: 14px;
 }
+body:not(.wizard):not(.in-call) .app-strengths,
+body.wizard[data-wkind="mode"] .app-strengths { display: block; }
 .app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
 .strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
 .strength .s-ic {
@@ -1400,8 +1393,6 @@ body.wizard[data-wkind="mode"] .app-strengths {
 .strength .s-ic svg { width: 20px; height: 20px; }
 .strength h3 { font-size: 0.92rem; margin: 0 0 2px; color: var(--navy); font-weight: 650; }
 .strength p { font-size: 0.86rem; margin: 0; color: var(--text-muted); line-height: 1.45; }
-/* auf schmalen Screens ersetzt der Stärken-Block die obere Benefits-Liste */
-@media (max-width: 640px) { .benefits { display: none; } }
 
 /* ---- Tooltip: immer dunkel (Fix: --navy ist im Dark-Theme hell → weiß auf weiß) ---- */
 .tooltip { background: #0f172a; color: #eef2f8; border: 1px solid rgba(255, 255, 255, 0.12); }

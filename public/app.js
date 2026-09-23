@@ -158,7 +158,6 @@ const inviteCountdown = $('invite-countdown');
 const inviteRetryBtn = $('invite-retry-btn');
 const restartBtn = $('restart-btn');
 const restartLabel = $('restart-label');
-const benefitsBox = $('benefits');
 const headerSub = document.querySelector('header .sub');
 const setupBox = $('setup');
 const modeSeg = $('mode-seg');
@@ -1930,7 +1929,7 @@ async function startCall(msg) {
   if (!callStarted) {
     callStarted = true;
     document.body.classList.add('in-call');
-    reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; benefitsBox.hidden = true; startBar.hidden = true;
+    reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; startBar.hidden = true;
     setLocalLabel(titleCase(myName) || '');
     // No permission hint here any more: it comes from ensureMedia() as a standing notice, and
     // therefore on the answering path too — which this line never covered.
@@ -2579,7 +2578,7 @@ function revealCall() {
   // so the header stays compact (logo/title only) instead of permanently taking up
   // space next to video/chat.
   if (headerSub) headerSub.hidden = true;
-  benefitsBox.hidden = true; reviewBox.hidden = true; setupBox.hidden = true; authBox.hidden = true;
+  reviewBox.hidden = true; setupBox.hidden = true; authBox.hidden = true;
   // In an open room keep the invite link visible during the call so more guests can join.
   shareBox.hidden = !isOpenRoom;
   if (anyConnected()) setStatus('Verbunden ✓ – sichere P2P-Verbindung steht.');
