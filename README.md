@@ -67,8 +67,10 @@ Roles: the first person in the room is the `caller` (host, WebRTC initiator), th
   (TURN). For guests on corporate networks, also set up TURN over **443** — see "TURN over 443"
   below.
 - **Your own EUDIPLO instance.** This is the biggest hurdle, and it is not a technical one:
-  - EUDIPLO 6.2.0 as a container (`ghcr.io/openwallet-foundation-labs/eudiplo`), **pin the
-    version** — the jump from 5 to 6 is a breaking change.
+  - EUDIPLO 8.0.2 as a container (`ghcr.io/openwallet-foundation/eudiplo`), **pin the
+    version** — 6→7 and 7→8 were both breaking changes. Upgrading from 6.x: go straight to
+    8.0.2 (7.0–7.2 break `/verifier/offer` after the database migration), back up the data
+    volume first, and replace `EUDI_TRUST_LIST_URLS` with `EUDI_TRUST_LIST_IDS`.
   - Its **own subdomain with TLS**: the wallet contacts the verifier directly, so it cannot stay
     on an internal network.
   - An **access certificate from a registration authority**, issued for exactly that hostname
@@ -364,7 +366,7 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDIPLO_CLIENT_SECRET` | Tenant client secret — the recommended route |
 | `EUDIPLO_ROOT_ID` / `EUDIPLO_ROOT_SECRET` | Legacy alternative: EUDIPLO root login (rotates the tenant secret) |
 | `VERIFIER_REQUEST_ID` | Fallback verifier ID (normally computed per attribute set) |
-| `VERIFIER_CLIENT_ID` | x509 SAN-DNS client ID of the verifier |
+| `EUDI_TRUST_LIST_IDS` | Id(s) of the trust list(s) on your EUDIPLO instance that decide which PID issuers are accepted — the last path segment of `…/issuers/<tenant>/trust-list/<id>` |
 | `ALLOWED_ORIGINS` | *(optional)* permitted WebSocket origins (CSWSH protection); default: same host |
 | `EUDI_EDITION` | `community` (default) or `pro` — unlocks the three commercially licensed features |
 | `EUDI_PRO_MODULE` | Path to the Pro module, e.g. `./pro`. Only with a valid licence. Set but not loadable → startup aborts in production, instead of silently running without retention |

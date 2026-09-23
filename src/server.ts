@@ -169,14 +169,12 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   await ensureVerifierConfig(requestId, dcql, 'pid');
   console.log(`[eudiplo] offer ${participant.role} attrs=[${attrs.join(',')}] profiles=[${profiles.map((p) => p.id).join(',')}]`);
   const webhookUrl = `${origin}/webhook/${participant.sessionId}?t=${participant.webhookToken}`;
-  const scheme = profiles[0]?.clientIdScheme;   // one client_id_scheme per offer (see credential-profiles)
-  const clientId = profiles[0]?.clientId;
   const redirectUri = roomId ? `${origin}/?room=${encodeURIComponent(roomId)}` : undefined;
   // Channel binding: only when the client reported a fingerprint AND the active profiles
   // support the check. Both must hold — see ./channel-binding.
   const txData = bindingFor(participant, profiles, roomId);
   participant.channelBound = undefined;          // only becomes true through verification
-  participant.offer = await createVerifierOffer(webhookUrl, requestId, scheme, clientId, redirectUri, txData);
+  participant.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri, txData);
   participant.pendingBinding = txData.length > 0;
 }
 
@@ -227,7 +225,7 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
   console.log(`[eudiplo] in-call offer ${c.id} for ${r.target.role} (${r.target.clientId.slice(0, 8)})`);
   const webhookUrl = `${origin}/webhook/${r.sessionId}?t=${r.webhookToken}`;
   const redirectUri = roomId ? `${origin}/?room=${encodeURIComponent(roomId)}` : undefined;
-  r.offer = await createVerifierOffer(webhookUrl, requestId, c.clientIdScheme ?? 'x509_san_dns', c.clientId ?? undefined, redirectUri);
+  r.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
 }
 
 const PORT = Number(process.env.PORT || 3000);

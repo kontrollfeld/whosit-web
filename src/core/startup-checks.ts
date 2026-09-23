@@ -91,7 +91,7 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     out.push({
       variable: 'EUDIPLO_BASE_URL',
       problem: 'missing — no wallet verification can happen without a verifier. This '
-        + 'application ships NO verifier: you need your own EUDIPLO instance (pin 6.2.0, its '
+        + 'application ships NO verifier: you need your own EUDIPLO instance (pin 8.0.2, its '
         + 'own subdomain with TLS, an access certificate from a registration authority). '
         + 'See the README.',
       fatal: true,
@@ -139,6 +139,21 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
         fatal: true,
       });
     }
+  }
+
+  // --- trust lists in the pre-7.0 form ----------------------------------------------
+  // EUDIPLO 7 accepts an `etsi_tl` reference only as an object. A URL string still registers,
+  // so nothing complains until a citizen presents their PID and every verification comes back
+  // as a bare HTTP 400. Refusing to start is the kinder failure. The message names the
+  // replacement, never the value.
+  if (isSet(env.EUDI_TRUST_LIST_URLS)) {
+    out.push({
+      variable: 'EUDI_TRUST_LIST_URLS',
+      problem: 'no longer supported — EUDIPLO 7 and later reject trust lists given as URLs, and '
+        + 'every verification would fail. Set EUDI_TRUST_LIST_IDS to the id of the list instead '
+        + '(the last path segment of …/issuers/<tenant>/trust-list/<id>) and remove this variable.',
+      fatal: true,
+    });
   }
 
   // --- secrets copied verbatim from the template ------------------------------------

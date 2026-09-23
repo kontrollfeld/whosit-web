@@ -11,7 +11,7 @@
  * (`buildDcql`/`normalizeClaims`) — so different OpenID4VP wallets are supported by varying
  * the query, not by changing this transport.
  */
-import type { DcqlQuery, ClientIdScheme } from './credential-profiles';
+import type { DcqlQuery } from './credential-profiles';
 import { normalizeClaims, permittedPidClaimPaths } from './credential-profiles';
 import { PolicyViolationError, WRP_PURPOSE_ID } from './wrp-policy';
 
@@ -96,14 +96,6 @@ export function isDefaultVerifierTenant(): boolean {
  * self-hosters in that situation.
  */
 const CLIENT_SECRET = process.env.EUDIPLO_CLIENT_SECRET || '';
-/**
- * Documentary only: EUDIPLO derives the `client_id` from the access certificate
- * (`x509_hash:<SHA-256 of the DER>`) — measured on 2026-08-09. Whatever is set here has no
- * effect in the request object. No default: a foreign hostname as a preset would be
- * misleading, and when empty `createVerifierOffer` omits the field entirely.
- */
-const VERIFIER_CLIENT_ID = process.env.VERIFIER_CLIENT_ID || '';
-
 export interface Offer {
   uri: string; // same-device (tap to open the wallet on this phone)
   crossDeviceUri: string; // cross-device (render as QR, scan with a separate phone)
@@ -242,7 +234,12 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
       registeredConfigs.add(id);
       return;
     } catch (e: any) {
-      if (e.status === 409) { registeredConfigs.add(id); return; } // already exists
+      // POST is an upsert since EUDIPLO 7, so 409 no longer means "exists already": it means
+      // the config is file-managed (config import) and refuses API writes. Caching that as
+      // success would leave a stale config in place without a word.
+      if (e.status === 409) {
+        throw new Error(`EUDIPLO: verifier config ${id} is file-managed and refuses API updates — detach it in EUDIPLO or drop it from the config import`);
+      }
       if (e.status === 401 && attempt === 0) { cachedToken = null; continue; }
       throw e;
     }
@@ -250,25 +247,23 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
 }
 
 /**
- * Create a verifier offer for the registered config `requestId`. `clientIdScheme` +
- * `clientId` (from the selected credential profile) set the trust framework the verifier
- * presents to the wallet. EUDIPLO POSTs the result to `webhookUrl` when the wallet responds.
+ * Create a verifier offer for the registered config `requestId`. EUDIPLO POSTs the result
+ * to `webhookUrl` when the wallet responds.
+ *
+ * NO `client_id` / `client_id_scheme` in the body: EUDIPLO derives the client_id from the
+ * access certificate (`x509_hash:<SHA-256 of the DER>`, measured 2026-08-09), so the fields
+ * never had an effect. 6.2.0 dropped them silently; since 7.0 the offer schema is strict and
+ * answers them with HTTP 400 — every sign-in would fail.
  */
 export async function createVerifierOffer(
   webhookUrl: string,
   requestId: string,
-  clientIdScheme: ClientIdScheme = 'x509_san_dns',
-  clientId: string = VERIFIER_CLIENT_ID,
   redirectUri?: string,
   transactionData?: readonly Record<string, unknown>[],
 ): Promise<Offer> {
   const payload: Record<string, unknown> = {
     response_type: 'uri',
     requestId,
-    client_id_scheme: clientIdScheme,
-    // Only send when set: without a default the value can be empty, and an empty `client_id`
-    // is not the same as an absent one. It has no effect either way (see above).
-    ...(clientId ? { client_id: clientId } : {}),
     // Channel binding (see ./channel-binding). PER SESSION, not per configuration — the
     // fingerprint belongs to this one call, whereas the configuration is shared. EUDIPLO
     // prefers the session value over the configured one (oid4vp.service.ts).
