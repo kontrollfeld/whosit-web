@@ -28,7 +28,6 @@ import { effectiveEdition } from './core/edition';
 import {
   ALLOWED_PID_ATTRIBUTES,
   WALLET_REQUESTABLE,
-  WRP_PURPOSE_TEXT,
   isAllowedPidAttribute,
   type AllowedPidAttribute,
 } from './wrp-policy';
@@ -102,7 +101,17 @@ export interface DcqlCredentialQuery {
 export interface DcqlQuery {
   credentials: DcqlCredentialQuery[];
   /** "any ONE of these options satisfies the request" → multi-format alternatives. */
-  credential_sets?: Array<{ options: string[][]; purpose?: string }>;
+  credential_sets?: Array<{ options: string[][]; required?: boolean }>;
+}
+
+/**
+ * One DCQL claim query. `intent_to_retain: false` states the zero-retention promise to the
+ * wallet, matching the fact that nothing is persisted (see ../audit) — but OpenID4VP defines
+ * that parameter for mdoc ONLY, and EUDIPLO 8 validates strictly: on a `dc+sd-jwt` claim it
+ * is an unknown field and the whole verifier config is refused with HTTP 400.
+ */
+export function claimQuery(format: CredentialFormat, path: (string | number)[]): DcqlCredentialQuery['claims'][number] {
+  return format === 'mso_mdoc' ? { path, intent_to_retain: false } : { path };
 }
 
 /** A normalized presentation result (canonical keys, format-independent). */
@@ -317,10 +326,8 @@ export function buildDcql(profiles: CredentialProfile[], attrs: SemanticAttr[]):
     meta: metaFor(p),
     claims: asked
       .filter((a) => p.supports(a))
-      // intent_to_retain: false on every claim — the zero-retention promise stated to
-      // the wallet, matching the fact that nothing is persisted (see ../audit).
       .flatMap((a) => p.claimPaths(a))
-      .map((path) => ({ path, intent_to_retain: false })),
+      .map((path) => claimQuery(p.format, path)),
     // Trust anchor for the issuer. Only set when configured — an empty `trusted_authorities`
     // is not the same as an absent one and could, depending on the verifier, be read as
     // "trust nobody".
@@ -330,9 +337,10 @@ export function buildDcql(profiles: CredentialProfile[], attrs: SemanticAttr[]):
   }));
   const query: DcqlQuery = { credentials };
   if (profiles.length > 1) {
-    // The wallet shows this purpose to the user; keep it identical to the purpose the
-    // room UI displays, so consent screen and app screen cannot diverge.
-    query.credential_sets = [{ options: profiles.map((p) => [p.id]), purpose: WRP_PURPOSE_TEXT }];
+    // No `purpose` here: OpenID4VP 1.0 dropped it from credential_sets, and EUDIPLO 8 refuses
+    // the config over it (HTTP 400). What the wallet shows as the purpose comes from the
+    // registration certificate, not from the query.
+    query.credential_sets = [{ options: profiles.map((p) => [p.id]) }];
   }
   return query;
 }

@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { CredentialFormat, DcqlQuery } from './credential-profiles';
+import { claimQuery } from './credential-profiles';
 
 export interface CatalogClaim {
   /** DCQL claim path in the credential's own namespace (e.g. ["objekt_id"]). */
@@ -124,7 +125,7 @@ export function buildCatalogDcql(c: CatalogCredential): DcqlQuery {
       id: c.id,
       format: c.format,
       meta: metaFor(c),
-      claims: c.claims.map((cl) => ({ path: cl.path, intent_to_retain: false })),
+      claims: c.claims.map((cl) => claimQuery(c.format, cl.path)),
     }],
   };
 }
