@@ -880,21 +880,28 @@ body:not(.wizard) .card.is-active {
     margin-left: 50%;
     transform: translateX(-50%);
   }
-  .setup-columns-left { position: sticky; top: 20px; }
-  .setup-columns-right { min-width: 0; }
+  /* Erklärtext oben links, die Argumente darunter — beide gehören zum Text, nicht zum
+     Formular. Die rechte Spalte überspannt beide Zeilen, sonst begänne die zweite Zeile
+     erst unterhalb des gesamten Formulars. */
+  .setup-columns-left { position: sticky; top: 20px; grid-column: 1; grid-row: 1; }
+  .setup-columns-right { min-width: 0; grid-column: 2; grid-row: 1 / 3; }
+  .setup-columns > #app-strengths { grid-column: 1; grid-row: 2; margin-top: 0; }
   /* The inner setup-zone breakout below would otherwise re-center on the viewport,
      escaping the right column — keep it inline here instead. */
-  .setup-columns-right .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
+  body:not(.wizard) .setup-columns-right .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
     width: auto; margin-left: 0; transform: none;
   }
 }
 
 /* setup zone: on wide screens, when the host both configures AND identifies, the two
    cards sit side by side (cause → effect: pick "Daten teilen" → QR appears NEXT to it)
-   and the zone breaks out of the narrow reading column. Fallback (no :has): stacked. */
+   and the zone breaks out of the narrow reading column. Fallback (no :has): stacked.
+   NOT in guided mode: there the wizard hides #auth with `display: none` rather than
+   `[hidden]`, so :has() still matched and a column was held open for a card nobody could
+   see — which is why the step form looked cramped in the middle of a wide screen. */
 .setup-zone { display: contents; }
 @media (min-width: 1020px) {
-  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
+  body:not(.wizard) .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
     display: grid;
     grid-template-columns: 1.15fr 0.85fr;
     gap: 16px;
@@ -904,8 +911,8 @@ body:not(.wizard) .card.is-active {
     transform: translateX(-50%);
     margin-bottom: 16px;
   }
-  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > .card { margin-bottom: 0; }
-  .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > #auth { position: sticky; top: 12px; }
+  body:not(.wizard) .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > .card { margin-bottom: 0; }
+  body:not(.wizard) .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) > #auth { position: sticky; top: 12px; }
 }
 
 /* chat + shared document: side by side on wide screens when BOTH are open (same
@@ -1381,8 +1388,11 @@ html.native-app .stepper { margin-bottom: 14px; }
   border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   padding: 20px 20px 6px; margin-top: 14px;
 }
-body:not(.wizard):not(.in-call) .app-strengths,
-body.wizard[data-wkind="mode"] .app-strengths { display: block; }
+/* Sichtbar, solange eingerichtet wird — genau wie die Häkchen-Liste, die sie ersetzt.
+   Nicht mehr auf den ersten Wizard-Schritt beschränkt: in der linken Spalte steht sie dem
+   Formular nicht im Weg, und ein Argument, das nach dem ersten Klick verschwindet, ist
+   keines. */
+body:not(.in-call) .app-strengths { display: block; }
 .app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
 .strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
 .strength .s-ic {
