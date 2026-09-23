@@ -440,10 +440,20 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   background: var(--text-faint);
   transition: background var(--t), box-shadow var(--t);
 }
-.id-chip.verified { border-color: var(--ok-border); background: var(--ok-soft); color: var(--ok-strong); }
-.id-chip.verified .dot { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
-.id-chip.host { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-strong); }
-.id-chip.host .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+/* Farbe nach ROLLE, nicht nach Perspektive: Gastgeber blau, Gast grün — auf beiden Geräten
+   gleich. Vorher galt „ich blau, die anderen grün", nur bekam ein Peer mit role=caller
+   ebenfalls Blau; ein Gast sah also zwei blaue Chips und die Regel stimmte nicht. Wer „ich"
+   ist, steht als „Du:" im Text und braucht keine eigene Farbe.
+   Die Rolle setzt nur die Farbe, der Zustand entscheidet, OB gefüllt wird. */
+.id-chip.role-host { --chip: var(--accent); --chip-soft: var(--accent-soft); --chip-border: var(--accent-border); --chip-strong: var(--accent-strong); }
+.id-chip.role-guest { --chip: var(--ok); --chip-soft: var(--ok-soft); --chip-border: var(--ok-border); --chip-strong: var(--ok-strong); }
+
+/* Gefüllt erst ab „ausgewiesen". Wer gerade erst beigetreten ist, darf nicht so fertig
+   aussehen wie jemand, der sich bereits ausgewiesen hat — der Punkt trägt die Rollenfarbe
+   dann schon, gedämpft. */
+.id-chip.is-identified { border-color: var(--chip-border); background: var(--chip-soft); color: var(--chip-strong); }
+.id-chip.is-identified .dot { background: var(--chip); box-shadow: 0 0 0 4px var(--chip-soft); }
+.id-chip:not(.is-identified) .dot { background: var(--chip, var(--text-faint)); opacity: 0.45; }
 
 /* Ausstehende EIGENE Aktion — gesetzt in app.js nur fuer den noch nicht ausgewiesenen
  * Host bzw. den noch nicht bestaetigten Gast. Ein anonymer Host oder ein fertiger
@@ -937,8 +947,10 @@ body:not(.wizard) .card.is-active {
 .party.you > .field-label > span:first-child { color: var(--accent-strong); }
 .party.guest > .field-label > span:first-child { color: var(--ok-strong); }
 
-.id-chip.you { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent-strong); }
-.id-chip.you .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-ring); }
+/* Die frühere Regel `.id-chip.you` (immer blau) ist entfallen: Chips färben sich jetzt nach
+   Rolle, nicht nach Perspektive — siehe .role-host / .role-guest weiter oben. Die .you/.guest
+   Farbgebung der Review-Spalten unterscheidet dagegen weiter „meine Seite / deine Seite" und
+   bleibt, dort ist die Perspektive genau der Punkt. */
 
 .review-col.you { border-top: 3px solid var(--accent); border-radius: 2px; padding-top: 10px; }
 .review-col.guest { border-top: 3px solid var(--ok); border-radius: 2px; padding-top: 10px; }
@@ -1567,3 +1579,10 @@ body.link-down .schedule-actions { opacity: 0.55; }
 @media (prefers-reduced-motion: reduce) {
   #confirm-btn.urgent { animation: none; box-shadow: 0 0 0 3px var(--ok-soft); }
 }
+
+/* ---- Einladen: die Folge nennen, bevor sie eintritt ----
+   Sobald der Gast beitritt, ist die Einrichtung schreibgeschützt (app.js, lockSetup). Die
+   Karte steht deshalb bewusst UNTER dem Formular — sie bekommt dafür einen Hinweis und wird
+   als fälliger Schritt markiert, statt gleichwertig unten mitzulaufen. */
+.invite-lock-note { color: var(--warn-text); }
+#share.is-next { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-ring); }

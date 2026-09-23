@@ -87,7 +87,9 @@
     <!-- Teilnehmer (kompakt, immer im Blick) -->
     <section id="identities" class="card identities">
       <div class="ids">
-        <div class="id-chip you" id="self-chip"><span class="dot"></span><span id="self-label" data-i18n>Du</span></div>
+        <!-- Rollenklasse (role-host / role-guest) setzt app.js: die Farbe folgt der Rolle,
+             nicht der Perspektive — Gastgeber blau, Gast grün, auf beiden Geräten gleich. -->
+        <div class="id-chip" id="self-chip"><span class="dot"></span><span id="self-label" class="chip-label" data-i18n>Du</span></div>
         <div id="peer-chips"></div>
       </div>
     </section>
@@ -209,6 +211,11 @@
         <button type="button" data-when="later" data-i18n>Mit Termin</button>
       </div>
       <p class="hint" id="share-hint" data-i18n>Teile diesen Link mit der Person, die du anrufen möchtest.</p>
+      <!-- Die Reihenfolge Einrichten → Einladen ist keine Kosmetik: sobald der Gast beitritt,
+           schaltet app.js die Einrichtung schreibgeschützt (lockSetup). Wer zuerst einlädt und
+           von seinem Gast überholt wird, hat den Anruf auf die Voreinstellungen festgenagelt und
+           sieht danach nur noch ein totes Formular. Also sagen, bevor es passiert. -->
+      <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.</p>
       <div id="schedule-block" hidden>
       <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
            der .ics-Datei. Auf einer gebrandeten Instanz traegt er die Marke des Betreibers

@@ -443,7 +443,11 @@
     "Kamera/Mikrofon frei": "camera/microphone allowed",
     "verbunden": "connected",
     "Gegenseite bereit — es fehlt nur noch deine Bestätigung.": "Your peer is ready — only your confirmation is missing.",
-    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "Your turn: your peer has confirmed — review and confirm to connect."
+    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "Your turn: your peer has confirmed — review and confirm to connect.",
+    "ausgewiesen ✓": "identified ✓",
+    "noch nicht ausgewiesen": "not identified yet",
+    "noch nicht beigetreten": "has not joined yet",
+    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Once your guest joins, nothing above can be changed any more — so finish setting up the call first."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> (identité numérique) — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -889,6 +893,10 @@
     "Kamera/Mikrofon frei": "caméra/microphone autorisés",
     "verbunden": "connecté",
     "Gegenseite bereit — es fehlt nur noch deine Bestätigung.": "Votre interlocuteur est prêt — il ne manque que votre confirmation.",
-    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "À vous : votre interlocuteur a confirmé — vérifiez et confirmez pour vous connecter."
+    "Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.": "À vous : votre interlocuteur a confirmé — vérifiez et confirmez pour vous connecter.",
+    "ausgewiesen ✓": "identifié ✓",
+    "noch nicht ausgewiesen": "pas encore identifié",
+    "noch nicht beigetreten": "n’a pas encore rejoint",
+    "Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.": "Dès que votre invité rejoint l’appel, plus rien ne peut être modifié ci-dessus — terminez donc la configuration d’abord."
   }
 }

@@ -242,6 +242,7 @@ const mediaNotice = $('media-notice');
 const mediaNoticeText = $('media-notice-text');
 const mediaRetryBtn = $('media-retry-btn');
 const reviewReady = $('review-ready');
+const inviteLockNote = $('invite-lock-note');
 const emojiBtn = $('emoji-btn');
 const emojiPalette = $('emoji-palette');
 const fileBtn = $('file-btn');
@@ -1341,26 +1342,46 @@ function renderSteps(chip, flags) {
   chip.appendChild(w);
 }
 
+/**
+ * What a chip says — and the difference the old wording lost.
+ *
+ * `verified` means "identified with the wallet", `confirmed` means "consented to the
+ * disclosure". The peer chip used to label `verified` as „bestätigt ✓" and never rendered
+ * `confirmed` at all: someone who had only just identified looked exactly like someone who had
+ * already agreed, while someone who had merely joined read „Bestätigung ausstehend" — although
+ * nothing was pending from them yet.
+ *
+ * Both words stay. Identifying is what this product is for, but consent is the step the whole
+ * review screen exists for; collapsing the two into „ausgewiesen" would erase it.
+ *
+ * `identified` also drives the colour: only from that point on is a chip filled in its role
+ * colour. A guest who has just arrived must not look as finished as one who has signed.
+ */
+function chipState(name, verified, confirmed) {
+  if (name) return { text: `${titleCase(name)} ✓`, identified: true };
+  if (confirmed) return { text: t('bestätigt ✓'), identified: true };
+  if (verified) return { text: t('ausgewiesen ✓'), identified: true };
+  return { text: t('noch nicht ausgewiesen'), identified: false };
+}
+
+/** Colour follows the ROLE, not the point of view: host blue, guest green — the same on both
+ *  devices. It used to be "self blue, everyone else green", except that a peer with
+ *  `role === 'caller'` also got blue, so a guest saw two blue chips and the rule silently did
+ *  not hold. Who "I" am is in the text („Du: …"), which does not need a colour of its own. */
+function roleClass(role) { return role === 'caller' ? 'role-host' : 'role-guest'; }
+
 function updateChips(msg) {
-  // self — names are masked until all confirm, so verified shows "bestätigt ✓"
   const hostDiscloses = isHost() && msg.disclosedAttrs && msg.disclosedAttrs.length;
-  if (msg.self.name) { selfChip.className = 'id-chip verified'; selfLabel.textContent = `${t('Du')}: ${titleCase(msg.self.name)} ✓`; }
-  else if (hostDiscloses && msg.self.verified) { selfChip.className = 'id-chip verified'; selfLabel.textContent = t('Du: bestätigt ✓'); }
-  // A host who WANTS to share data but is not yet identified: show their STATE, not their role.
-  // This used to read "You: Host" — which made your own open task the only participant state
-  // missing from the chip row, while the counterpart next to it already showed "Guest: confirmed
-  // ✓". From that it is not apparent that you still have to scan; that is exactly how a call
-  // appears to have "got stuck".
-  else if (hostDiscloses) { selfChip.className = 'id-chip pending'; selfLabel.textContent = t('Du: noch nicht ausgewiesen'); }
-  // Anonymous host: "Host" is right here — there is nothing to do.
-  else if (isHost()) { selfChip.className = 'id-chip host'; selfLabel.textContent = t('Du: Gastgeber:in'); }
-  else if (msg.self.verified) { selfChip.className = 'id-chip verified'; selfLabel.textContent = t('Du: bestätigt ✓'); }
-  // A guest who still has to present — the same open task as for the host above.
+  // Anonymous host: „Gastgeber:in" is the whole truth here — there is nothing to do, so no
+  // state is shown and the chip stays calm.
+  const anonymousHost = isHost() && !hostDiscloses;
+  const self = anonymousHost
+    ? { text: t('Gastgeber:in'), identified: true }
+    : chipState(msg.self.name, msg.self.verified, msg.self.confirmed);
   // `pending` makes the chip pulse (see style.css): "it's your turn" should not only be readable
-  // but visible. Only these two branches pulse; an anonymous host or a finished participant has
-  // nothing to do and stays calm.
-  else { selfChip.className = 'id-chip pending'; selfLabel.textContent = t('Du: noch nicht bestätigt'); }
-  selfChip.classList.add('you'); // color code: self = blue, everyone else = green
+  // but visible. Only an open identification pulses — a finished participant has nothing to do.
+  selfChip.className = `id-chip ${roleClass(myRole)}${self.identified ? ' is-identified' : ' pending'}`;
+  selfLabel.textContent = `${t('Du')}: ${self.text}`;
   if (handRaised) selfLabel.textContent += ' ✋';
   renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, mediaState === 'ok', anyConnected()));
 
@@ -1368,23 +1389,26 @@ function updateChips(msg) {
   const list = msg.peers || [];
   peerChipsEl.innerHTML = '';
   if (!list.length) {
-    const chip = document.createElement('div'); chip.className = 'id-chip';
+    // Nobody there yet. „wartet …" claimed a presence that does not exist — before the link is
+    // even shared there is no one to wait.
+    const otherRole = myRole === 'caller' ? 'callee' : 'caller';
+    const chip = document.createElement('div'); chip.className = `id-chip ${roleClass(otherRole)}`;
     chip.innerHTML = '<span class="dot"></span>';
-    const s = document.createElement('span'); s.textContent = `${roleLabelFor(myRole === 'caller' ? 'callee' : 'caller')}: ${t('wartet …')}`;
+    const s = document.createElement('span'); s.className = 'chip-label';
+    s.textContent = `${roleLabelFor(otherRole)}: ${t('noch nicht beigetreten')}`;
     chip.appendChild(s); peerChipsEl.appendChild(chip);
     return;
   }
   for (const peer of list) {
-    const chip = document.createElement('div'); chip.className = 'id-chip';
+    const st = chipState(peer.name, peer.verified, peer.confirmed);
+    const chip = document.createElement('div');
+    chip.className = `id-chip ${roleClass(peer.role)}${st.identified ? ' is-identified' : ''}`;
     chip.innerHTML = '<span class="dot"></span>';
-    const s = document.createElement('span');
-    const role = roleLabelFor(peer.role);
-    if (peer.name) { chip.className = 'id-chip verified'; s.textContent = `${role}: ${titleCase(peer.name)} ✓`; }
-    else if (peer.role === 'caller') { chip.className = 'id-chip host'; s.textContent = peer.verified ? `${role}: ${t('bestätigt ✓')}` : `${role}: ${t('Bestätigung ausstehend')}`; }
-    else if (peer.verified) { chip.className = 'id-chip verified'; s.textContent = `${role}: ${t('bestätigt ✓')}`; }
-    else { s.textContent = `${role}: ${t('Bestätigung ausstehend')}`; }
+    // `.chip-label` and not "the last span": the trust bar reads the name back out of here, and
+    // since the step dots are a span too, `span:last-of-type` started picking those up instead.
+    const s = document.createElement('span'); s.className = 'chip-label';
+    s.textContent = `${roleLabelFor(peer.role)}: ${st.text}`;
     if (peer.peerId && handsUp.has(peer.peerId)) s.textContent += ' ✋';
-    chip.classList.add('guest');
     chip.appendChild(s);
     const lp = peer.peerId ? peers.get(peer.peerId) : null;
     renderSteps(chip, stepFlags(
@@ -1598,7 +1622,14 @@ function renderStatus(msg) {
   if (isHost()) {
     buildSetup();
     setupBox.hidden = false;
-    if (peerPresent || msg.configPinned) lockSetup();
+    const locked = peerPresent || !!msg.configPinned;
+    if (locked) lockSetup();
+    // The invite card sits below the setup and gets missed — but it must NOT simply move up:
+    // the guest joining freezes the setup, so inviting first and being outrun nails the call to
+    // the defaults. Name the consequence while it can still be avoided, and mark the card as
+    // the step that is now due. Once it IS locked the note is only rubbing it in.
+    if (inviteLockNote) inviteLockNote.hidden = locked;
+    shareBox.classList.toggle('is-next', !locked);
     // Scheduled call: the invitation was sent long ago, and appointment fields do not belong in a
     // call that already IS one. The card only stays if this device still has the guest link —
     // then the host can send it again.
@@ -3186,7 +3217,11 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
   // there is no second source of truth; chip prefixes/checkmarks are stripped.
   const trustBar = $('trust-bar'), trustNames = $('trust-names'), trustSas = $('trust-sas');
   if (trustBar && trustNames && trustSas) {
-    const junk = () => new Set([t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in')]);
+    const junk = () => new Set([
+      t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
+      // The chip states, so a state never ends up in the trust bar as if it were a name.
+      t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'),
+    ]);
     const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
     const refreshTrust = () => {
       const inCall = document.body.classList.contains('in-call');
@@ -3194,7 +3229,7 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
       if (!inCall) return;
       const drop = junk();
       const names = [stripChip(selfLabel.textContent || '')];
-      document.querySelectorAll('#peer-chips .id-chip span:last-of-type').forEach((el) => names.push(stripChip(el.textContent || '')));
+      document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
       const clean = names.filter((n) => n && !drop.has(n));
       trustNames.textContent = clean.length ? clean.join(' ↔ ') : t('Verifizierter Anruf');
       trustSas.textContent = (sasCode.textContent || '').trim();
