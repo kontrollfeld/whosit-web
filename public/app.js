@@ -3272,14 +3272,24 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
    * desktop card highlighting is gated on `body:not(.wizard)`, so the two exclude each other
    * by construction.
    *
-   * An explicit choice wins over the screen, and the screen only decides for those who have
-   * not chosen — otherwise turning it off on a phone would be undone by the next rotation.
+   * Guided is the DEFAULT, on every screen. Setting up a call is a rare act even for people who
+   * do it often, and the two blocks „Ich teile" / „Der Gast teilt" look alike while meaning
+   * opposite things — being led through that costs a practised host three clicks and saves an
+   * unpractised one a wrong disclosure. Whoever knows their way around switches it off once.
+   *
+   * The screen no longer takes part in the decision at all: with guided as the default there is
+   * nothing left for a breakpoint to decide, and a stored choice must not be overridden by a
+   * rotation anyway.
+   *
+   * `localStorage`, not a cookie, and no consent dialogue: what is stored here is the execution
+   * of a choice the visitor just made themselves — the same category as `eudi_theme` and
+   * `eudi_lang`, which have been there all along. Nothing is read that was not written by this
+   * switch, and nothing leaves the device.
    */
   const WIZ_KEY = 'eudi_setup_wizard';
   const sw = $('wiz-switch');
-  const mq = window.matchMedia('(max-width: 640px)');
   const pref = () => { try { const v = localStorage.getItem(WIZ_KEY); return v === '1' ? true : v === '0' ? false : null; } catch { return null; } };
-  const guided = () => { const p = pref(); return p === null ? (isNativeApp() || mq.matches) : p; };
+  const guided = () => pref() !== false;
 
   // Step kinds: mode · you · guest · invite · (auth, only when the host has to identify
   // themselves). The identification step shows the invite box collapsed beneath it.
@@ -3322,8 +3332,6 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
       syncActive();
     });
   }
-  // Only for those who have not decided — an explicit choice must survive a rotation.
-  mq.addEventListener('change', () => { if (pref() === null) syncActive(); });
   new MutationObserver(syncActive).observe(setup, { attributes: true, attributeFilter: ['hidden'] });
   // The visibility of #auth changes the step count -> re-render on change
   if (authEl) new MutationObserver(() => { if (!setup.hidden) render(); }).observe(authEl, { attributes: true, attributeFilter: ['hidden'] });

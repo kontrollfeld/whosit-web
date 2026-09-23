@@ -109,7 +109,9 @@
            Schalter gehört in die Karte, nicht in ein Menü, das niemand öffnet. Bleibt in jedem
            Schritt sichtbar, damit der Ausweg nicht erst gesucht werden muss. -->
       <label class="wiz-switch" id="wiz-switch-row">
-        <input type="checkbox" id="wiz-switch" />
+        <!-- `checked` schon im Markup: die Voreinstellung ist „geführt", und ohne das Attribut
+             stünde der Haken bis zum ersten Lauf von syncActive() kurz falsch. -->
+        <input type="checkbox" id="wiz-switch" checked />
         <span data-i18n>Schritt für Schritt einrichten</span>
       </label>
 
