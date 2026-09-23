@@ -1,6 +1,6 @@
 {
   "name": "id-call-web",
-  "version": "1.17.0",
+  "version": "2.0.0",
   "description": "EUDI Verified Call — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
   "keywords": [
     "eudi",
