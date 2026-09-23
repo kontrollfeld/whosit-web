@@ -883,7 +883,13 @@ body:not(.wizard) .card.is-active {
   /* Erklärtext oben links, die Argumente darunter — beide gehören zum Text, nicht zum
      Formular. Die rechte Spalte überspannt beide Zeilen, sonst begänne die zweite Zeile
      erst unterhalb des gesamten Formulars. */
-  .setup-columns-left { position: sticky; top: 20px; grid-column: 1; grid-row: 1; }
+  /* NICHT mehr sticky. Solange hier nur der Kopftext stand, war das Kleben sinnvoll. Jetzt
+     sind Kopf und Argumente-Karte zwei getrennte Rasterelemente, und Sticky wirkt pro
+     Element: Der Kopf blieb oben stehen, während die Karte darunter nach oben wegscrollte —
+     und schob sich dabei hinter den Text. Eine Spalte, die als Ganzes klebt, gäbe es nur mit
+     beiden in EINEM Element; dann stünde die Karte auf schmalen Screens aber wieder über dem
+     Formular. Die Spalte ist ohnehin lang genug, dass Kleben wenig bringt. */
+  .setup-columns-left { grid-column: 1; grid-row: 1; }
   .setup-columns-right { min-width: 0; grid-column: 2; grid-row: 1 / 3; }
   .setup-columns > #app-strengths { grid-column: 1; grid-row: 2; margin-top: 0; }
   /* The inner setup-zone breakout below would otherwise re-center on the viewport,
