@@ -18,11 +18,32 @@ name: PR checks
 
 on:
   pull_request:
+    # `edited`: ticking the CLA box edits the PR description, and the legal job has to see that.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
 
 jobs:
+  # The one check that must hold BEFORE a maintainer ports anything (see CONTRIBUTING.md,
+  # "For maintainers"): a single uncovered contribution in the combined Pro build would oblige us to
+  # publish all of it under the AGPL. Read-only on purpose — it needs no token that could lapse, and
+  # the agreement is recorded in the ported commit, not here.
+  legal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: CLA confirmed and every commit signed off (DCO)
+        env:
+          # Via env, never interpolated into the script: the body is contributor-controlled text.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-contribution.mjs
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -54,7 +54,7 @@ services:
       PUBLIC_URL: "https://${DOMAIN}"
       PORT: "3000"
       ALLOWED_ORIGINS: "https://${DOMAIN}"
-      # community (default) is the full 1:1 product; pro adds audit-trail, multi-party and
+      # community (default) is the full product, group calls included; pro adds audit-trail and
       # qes-csc and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
       EUDI_EDITION: "${EUDI_EDITION:-community}"
       EUDIPLO_BASE_URL: "${EUDIPLO_BASE_URL}"

@@ -128,6 +128,48 @@ export interface SignalingPlugin {
   onHangup?(ctx: HangupContext): void | Promise<void>;
 }
 
+/**
+ * Qualified remote signing (QES) at a trust service provider via the CSC API v2 — the
+ * `qes-csc` capability. **Pro only, and deliberately without a Community implementation:** the
+ * signing flow lives in ./pro under the commercial licence. The core merely asks whether a signer
+ * is present; without one it never advertises CSC/QTSP providers (enabledFeatures() in
+ * ../server.ts), so the AGPL edition cannot claim a capability it does not have.
+ *
+ * The shape follows CSC API v2 `signatures/signHash`: the browser builds the PAdES signed
+ * attributes (public/qes/pades.js) and hashes them; only the HASH goes to the QTSP, never the
+ * document. The authorisation (`sad`) comes from the QTSP's own OAuth flow, in which the signer
+ * authenticates to the QTSP directly — this server never sees their credentials.
+ *
+ * Phase 6. Until then the Pro module registers a placeholder that refuses with
+ * `NotYetAvailable`. When the real flow lands, the HTTP route that calls `signHash` must be
+ * bound to a verified participant's session — a signing endpoint reachable without that would
+ * sign for anyone.
+ */
+export interface QualifiedSigner {
+  /** Signature provider kinds this signer serves (see ../signature-providers). */
+  kinds: Array<'csc'>;
+  signHash(req: QualifiedSignRequest): Promise<QualifiedSignResult>;
+}
+
+export interface QualifiedSignRequest {
+  /** Id of the `csc` entry in the signature provider list. */
+  providerId: string;
+  /** Base64 hashes of the signed attributes, one per document. */
+  hashes: string[];
+  /** OID of the hash algorithm, e.g. 2.16.840.1.101.3.4.2.1 for SHA-256. */
+  hashAlgorithmOid: string;
+  /** The QTSP's signing credential and the Signature Activation Data from its OAuth flow. */
+  credentialId: string;
+  sad: string;
+}
+
+export interface QualifiedSignResult {
+  /** Base64 raw signature values, same order as `hashes`. */
+  signatures: string[];
+  /** Base64 DER certificate chain of the signing certificate, leaf first. */
+  certificateChain: string[];
+}
+
 /** The pluggable pieces the server resolves once at startup. */
 export interface Extensions {
   roomStore: RoomStore;
@@ -135,4 +177,7 @@ export interface Extensions {
   plugins: SignalingPlugin[];
   /** Extra feature ids a Pro edition switches on (beyond the active edition's defaults). */
   enabledFeatures: string[];
+  /** Qualified remote signing — only a Pro module provides one. Optional, so a Pro build
+   *  compiled against an earlier version of this port still satisfies the interface. */
+  qualifiedSigner?: QualifiedSigner;
 }

@@ -18,20 +18,31 @@
  * Usage: npm run test:editions
  */
 import { spawn } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const PORT_COMMUNITY = 3771;
 const PORT_PRO = 3772;
 const PORT_PROMO = 3773;
+const PORT_PRO_MODULE = 3775;
 
-/** The three Pro features — where we genuinely provide something in return. */
-const PRO_IDS = ['audit-trail', 'multi-party', 'qes-csc'];
+/** The two Pro features — where we genuinely provide something in return, with the code in pro/. */
+const PRO_IDS = ['audit-trail', 'qes-csc'];
 
-/** Community features whose loss MUST be noticed immediately (the 2026-08-19 split). */
+/** Community features whose loss MUST be noticed immediately (the 2026-08-19 split, plus
+ *  multi-party on 2026-09-25: its code is all AGPL, so a Pro label was only a switch). */
 const MOVED_TO_COMMUNITY = [
   'meeting-controls', 'screen-share', 'spotlight', 'hand-raise',
   'file-transfer', 'emoji', 'calendar-invite', 'native-share',
-  'embed', 'in-call-credentials',
+  'embed', 'in-call-credentials', 'multi-party',
 ];
+
+// The Pro module straight from source (the server runs under tsx, which imports .ts), so the
+// test needs no `npm run build:pro` first. Its audit trail writes into a throwaway directory.
+const PRO_MODULE = './pro/index.ts';
+const auditDir = mkdtempSync(join(tmpdir(), 'id-call-editions-'));
+const withProModule = { EUDI_PRO_MODULE: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl') };
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -57,6 +68,7 @@ function startServer(port, extraEnv) {
       // Must stay OFF, otherwise the promo raises the edition to `pro` and the Community case
       // would prove nothing. Preventing exactly that mix-up is the point of this test.
       EUDI_PROMO_ALL_PRO: '',
+      EUDI_PRO_MODULE: '',
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -90,15 +102,17 @@ function stopAll() {
 try {
   startServer(PORT_COMMUNITY, { EUDI_EDITION: 'community' });
   startServer(PORT_PRO, { EUDI_EDITION: 'pro' });
-  startServer(PORT_PROMO, { EUDI_EDITION: 'community', EUDI_PROMO_ALL_PRO: 'true' });
+  startServer(PORT_PROMO, { EUDI_EDITION: 'community', EUDI_PROMO_ALL_PRO: 'true', ...withProModule });
+  startServer(PORT_PRO_MODULE, { EUDI_EDITION: 'pro', ...withProModule });
 
-  const [community, pro, promo] = await Promise.all([
+  const [community, pro, promo, proModule] = await Promise.all([
     waitForCapabilities(PORT_COMMUNITY),
     waitForCapabilities(PORT_PRO),
     waitForCapabilities(PORT_PROMO),
+    waitForCapabilities(PORT_PRO_MODULE),
   ]);
 
-  console.log('\nCommunity instance: the three Pro features stay off');
+  console.log('\nCommunity instance: the Pro features stay off');
   check('the edition is reported as community', community.edition === 'community', JSON.stringify(community.edition));
   for (const id of PRO_IDS) {
     check(`${id} not included`, !community.enabled.includes(id), 'would be given away');
@@ -116,14 +130,25 @@ try {
       'a guarantee that only holds in the paid edition is not a guarantee');
   }
 
-  console.log('\nPro instance: the three Pro features are added');
-  check('the edition is reported as pro', pro.edition === 'pro', JSON.stringify(pro.edition));
+  console.log('\nPro instance with the Pro module: the Pro features are added');
+  check('the edition is reported as pro', proModule.edition === 'pro', JSON.stringify(proModule.edition));
   for (const id of PRO_IDS) {
-    check(`${id} included`, pro.enabled.includes(id), 'the Pro feature is not being unlocked');
+    check(`${id} included`, proModule.enabled.includes(id), 'the Pro feature is not being unlocked');
   }
   check('Pro contains everything from Community',
-    community.enabled.every((id) => pro.enabled.includes(id)),
-    `missing in Pro: ${community.enabled.filter((id) => !pro.enabled.includes(id)).join(',')}`);
+    community.enabled.every((id) => proModule.enabled.includes(id)),
+    `missing in Pro: ${community.enabled.filter((id) => !proModule.enabled.includes(id)).join(',')}`);
+
+  console.log('\nPro edition WITHOUT the module: qualified signing is not claimed');
+  // The signing lives in pro/qes-csc.ts. EUDI_EDITION=pro alone is a switch in open code; if it
+  // were enough, qes-csc would be Pro in name only and the AGPL core would advertise CSC
+  // providers it cannot serve.
+  check('audit-trail included (edition gate)', pro.enabled.includes('audit-trail'));
+  check('qes-csc NOT included', !pro.enabled.includes('qes-csc'),
+    'advertised without the Pro module — the AGPL core cannot sign qualified');
+  const providers = await (await fetch(`http://127.0.0.1:${PORT_PRO}/signature-providers`)).json();
+  check('/signature-providers ships the demo provider only',
+    providers.providers.every((p) => p.kind === 'mock'), JSON.stringify(providers.providers));
 
   console.log('\nConfig gates apply independently of the edition');
   // Without EUDI_PASS_* / EUDI_INVITE_SECRET these two must NOT be advertised — not even in
@@ -140,21 +165,22 @@ try {
   const PORT_OFF = 3774;
   startServer(PORT_OFF, {
     EUDI_EDITION: 'pro',
-    EUDI_FEATURES_OFF: 'file-transfer,screen-share,multi-party,wrp-policy,pseudonym-id,does-not-exist',
+    ...withProModule,
+    EUDI_FEATURES_OFF: 'file-transfer,screen-share,multi-party,audit-trail,wrp-policy,pseudonym-id,does-not-exist',
   });
   const off = await waitForCapabilities(PORT_OFF);
-  for (const id of ['file-transfer', 'screen-share']) {
+  for (const id of ['file-transfer', 'screen-share', 'multi-party']) {
     check(`${id} switched off`, !off.enabled.includes(id), "the operator's decision had no effect");
   }
-  check('a Pro feature can be switched off too', !off.enabled.includes('multi-party'),
+  check('a Pro feature can be switched off too', !off.enabled.includes('audit-trail'),
     'holding a licence does not mean you must run the feature');
   for (const id of ['wrp-policy', 'pseudonym-id']) {
     check(`${id} NOT switchable`, off.enabled.includes(id),
       'a privacy guarantee that can be switched off is not a guarantee');
   }
   check('features not listed stay untouched', off.enabled.includes('emoji'), JSON.stringify(off.enabled));
-  check('the remaining Pro features stay active in Pro',
-    off.enabled.includes('audit-trail') && off.enabled.includes('qes-csc'), JSON.stringify(off.enabled));
+  check('the remaining Pro feature stays active in Pro',
+    off.enabled.includes('qes-csc'), JSON.stringify(off.enabled));
 
   console.log('\nThe launch promo raises the features but does not disguise where they came from');
   check('the effective edition is pro', promo.edition === 'pro', JSON.stringify(promo.edition));
@@ -168,6 +194,7 @@ try {
   failures++;
 } finally {
   stopAll();
+  rmSync(auditDir, { recursive: true, force: true });
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);

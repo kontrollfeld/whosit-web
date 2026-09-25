@@ -125,9 +125,9 @@ function startApp() {
       ...process.env,
       PORT: String(APP_PORT),
       PUBLIC_URL: `http://127.0.0.1:${APP_PORT}`,
-      // Open rooms are a Pro capability (multi-party); in Community a room holds two people
-      // and the leak cannot occur there at all.
-      EUDI_EDITION: 'pro',
+      // Open rooms need the multi-party capability — Community since 2026-09-25, so the plain
+      // default edition is exactly the case this test has to cover.
+      EUDI_EDITION: 'community',
       EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
       EUDIPLO_CLIENT_ID: 'test-tenant',
       EUDIPLO_CLIENT_SECRET: 'test-tenant-secret',

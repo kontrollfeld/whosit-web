@@ -13,9 +13,11 @@
  *   1. `edition: 'community'` — part of the published source. That is the large majority, for
  *      a sober reason: a gate that only the browser holds can be lifted with one line in an
  *      open client. It protected no revenue, yet made the free edition look crippled.
- *   2. `edition: 'pro'` — only where we render an actual service in return: retention with
- *      liability (`audit-trail`, implemented in ./pro), group calls over our relay
- *      infrastructure (`multi-party`), and qualified remote signing (`qes-csc`).
+ *   2. `edition: 'pro'` — only where we render an actual service in return AND the code lives
+ *      in ./pro under the commercial licence: retention with liability (`audit-trail`) and
+ *      qualified remote signing (`qes-csc`). A Pro entry whose implementation sits in the AGPL
+ *      core is only a switch, and anyone may flip a switch in open code — that is why
+ *      `multi-party` moved to Community (2026-09-25) rather than being called Pro.
  *   3. **Switchability** — EVERY capability can be turned off via EUDI_FEATURES_OFF (see
  *      UNSWITCHABLE below). Not a stopgap: public authorities must be able to disable
  *      functions for compliance reasons, not because they failed to pay for them.
@@ -97,9 +99,13 @@ export const FEATURES: Feature[] = [
   // Community, because embedding needs the OPERATOR's configuration — their portals, their
   // origins. We cannot charge for their own arrangements.
   { id: 'embed', title: 'Embeddable iframe widget', edition: 'community', clientGated: false },
-  // Pro, server-ENFORCED: room size limit (2 without it, EUDI_MAX_PARTICIPANTS with mesh).
-  // Group calls scale bandwidth, relay load and support — that is the service in return.
-  { id: 'multi-party', title: 'Multi-party calls (full mesh)', edition: 'pro', clientGated: false },
+  // Community since 2026-09-25 (was 'pro'). Room size limit: EUDI_MAX_PARTICIPANTS with it,
+  // 2 without (operators switch it off via EUDI_FEATURES_OFF=multi-party). The mesh logic is
+  // spread through the signalling in ../server.ts and the client in public/app.js — all of it
+  // AGPL. As 'pro' it was a one-line switch in open code: it protected no revenue, and the
+  // label claimed a protection that did not exist. What we DO charge for is operating group
+  // calls at scale (relay capacity, support) on the hosted service — not the code.
+  { id: 'multi-party', title: 'Multi-party calls (full mesh)', edition: 'community', clientGated: false },
   // PID in BOTH ARF formats — Community since 2026-08-09 (was 'pro').
   // The trigger was not generosity: channel binding (DTLS fingerprint → transaction_data →
   // KB-JWT) only works with SD-JWT VC in the EUDIPLO verifier. Pro-exclusive SD-JWT would
@@ -113,10 +119,13 @@ export const FEATURES: Feature[] = [
   // src/credential-requests.ts. Community, because the catalogue and the issuer arrangements
   // behind it belong to the operator.
   { id: 'in-call-credentials', title: 'In-call credential requests (catalogue)', edition: 'community', clientGated: false },
-  // Pro, server-ENFORCED: /signature-providers ships CSC/QTSP entries only with this
-  // capability. Without it there is just the demo provider, permanently labelled as not
-  // legally binding. Qualified remote signing requires a contract with a trust service
-  // provider and costs money per signature.
+  // Pro, server-ENFORCED, and implemented in ./pro (pro/qes-csc.ts, placeholder until Phase 6):
+  // /signature-providers ships CSC/QTSP entries only with this capability. It needs BOTH the
+  // Pro edition AND a loaded Pro module that provides the `qualifiedSigner` port — the AGPL
+  // core alone cannot sign qualified, so it never advertises that it could (see
+  // enabledFeatures() in ../server.ts). Without it there is just the demo provider, permanently
+  // labelled as not legally binding. Qualified remote signing requires a contract with a trust
+  // service provider and costs money per signature.
   { id: 'qes-csc', title: 'Qualified remote signature via CSC/QTSP (QES ceremony, Phase 6)', edition: 'pro', clientGated: false },
 ];
 

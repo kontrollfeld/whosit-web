@@ -125,7 +125,9 @@ function mockProvider(entry, getIdentity) {
   };
 }
 
-/** Pro CSC remote signing (Phase 6) — declared here so the seam is visible. */
+/** Pro CSC remote signing (Phase 6) — declared here so the seam is visible. The signing flow
+ *  itself (QTSP OAuth, signHash) is implemented server-side in the commercially licensed
+ *  pro/qes-csc.ts; this client only ever sees a 'csc' entry when that module is loaded. */
 function cscProvider(entry) {
   return {
     id: entry.id, label: entry.label, kind: 'csc',

@@ -236,8 +236,8 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || `http://localhost:${PORT}`).replac
 // so no request is ever served with a half-initialized set. See ./pro-loader.
 let ext: Extensions = { roomStore: communityRoomStore, verificationSink: noopVerificationSink, plugins: [], enabledFeatures: [] };
 
-// Which edition this instance declares itself as. `pro` switches on the three Pro features
-// (audit-trail, multi-party, qes-csc); everything else is Community. The
+// Which edition this instance declares itself as. `pro` switches on the Pro features
+// (audit-trail, qes-csc — the latter only with the Pro module loaded); everything else is Community. The
 // launch promo (EUDI_PROMO_ALL_PRO) forces the EFFECTIVE edition to `pro` for everyone —
 // see ./core/edition. CONFIGURED_EDITION keeps the real, licensed edition for transparency.
 const CONFIGURED_EDITION = configuredEdition();
@@ -668,6 +668,11 @@ function enabledFeatures(): Set<string> {
   // stays with a plain room link, rather than promising an appointment link that carries
   // nothing after the next restart.
   if (!inviteConfigured()) enabled.delete('planned-invites');
+  // Qualified signing is implemented in the commercially licensed Pro module (pro/qes-csc.ts),
+  // not here. Without that module the AGPL core has nothing that could sign qualified — so it
+  // must not advertise CSC/QTSP providers, whatever EUDI_EDITION says. This is what makes
+  // `qes-csc` a Pro feature in substance rather than a switch in open code.
+  if (!ext.qualifiedSigner) enabled.delete('qes-csc');
   // LAST: the operator's off switch. After the config gates, so that it also applies when a
   // Pro module contributed a capability via ext.enabledFeatures — the operator's decision
   // takes precedence over everything else. UNSWITCHABLE is already filtered out in
@@ -740,12 +745,12 @@ app.get('/signature-providers', publicCors, (_req, res) => {
   res.json({ providers: publicSignatureProviders(enabledFeatures().has('qes-csc')) });
 });
 
-// Room size: 1:1 in Community; full mesh with the SERVER-ENFORCED `multi-party`
-// capability (Pro). See src/rooms.ts + maxParticipants() in src/server.ts for realistic limits per call mode.
-const MAX_PARTICIPANTS_PRO = Math.max(2, Number(process.env.EUDI_MAX_PARTICIPANTS || 5));
+// Room size: full mesh with the `multi-party` capability (Community since 2026-09-25);
+// 1:1 when the operator switches it off. See src/rooms.ts + maxParticipants() in src/server.ts for realistic limits per call mode.
+const MAX_PARTICIPANTS_MESH = Math.max(2, Number(process.env.EUDI_MAX_PARTICIPANTS || 5));
 function isMultiParty(): boolean { return enabledFeatures().has('multi-party'); }
 function maxParticipants(): number {
-  return isMultiParty() ? MAX_PARTICIPANTS_PRO : 2;
+  return isMultiParty() ? MAX_PARTICIPANTS_MESH : 2;
 }
 
 // Audit event for an in-call credential request (claim KEYS only, never values).

@@ -10,9 +10,10 @@
  * single built-in mock entry so the demo ceremony works out of the box.
  *
  * Edition gate: GET /signature-providers only ever ships 'csc'/'wallet-native'
- * entries when the server-enforced `qes-csc` feature is active (Pro) — the CSC
+ * entries when the server-enforced `qes-csc` feature is active — the CSC
  * OAuth/client configuration never reaches a Community client (hard gate, mirrors
- * the credential-catalog pattern).
+ * the credential-catalog pattern). `qes-csc` needs the Pro edition AND the Pro module's
+ * `qualifiedSigner` (pro/qes-csc.ts): the signing itself is not part of the AGPL core.
  */
 import fs from 'fs';
 import path from 'path';
@@ -89,7 +90,7 @@ export function loadSignatureProviders(): SignatureProviderEntry[] {
 
 /**
  * The client-facing list, filtered by edition: non-mock providers require the
- * server-enforced `qes-csc` feature (Pro). `qualified` is derived, never configured —
+ * server-enforced `qes-csc` feature (Pro edition + Pro module). `qualified` is derived, never configured —
  * a mock can't claim to be qualified.
  */
 export function publicSignatureProviders(cscEnabled: boolean): Array<
