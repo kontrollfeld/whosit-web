@@ -99,6 +99,16 @@ const CLIENT_SECRET = process.env.EUDIPLO_CLIENT_SECRET || '';
 export interface Offer {
   uri: string; // same-device (tap to open the wallet on this phone)
   crossDeviceUri: string; // cross-device (render as QR, scan with a separate phone)
+  /**
+   * EUDIPLO's own session id for this offer — the handle needed to DELETE the session once
+   * we are done with it (see ./verifier-session). NOT our `participant.sessionId`: that one
+   * is ours, appears in the webhook URL, and means nothing to the verifier.
+   *
+   * Optional because an older instance (or the dummy) may not report it. Without it the
+   * session cannot be purged early and falls back to the instance's TTL — which is why the
+   * startup checks name it.
+   */
+  sessionId?: string;
 }
 
 let cachedToken: string | null = null;
@@ -180,7 +190,12 @@ function extractOffer(data: any): Offer {
   const uri: string =
     data.uri || data.bootstrapAuthorizationRequestUrl || data.authorizationRequestUri || data.url || '';
   const crossDeviceUri: string = data.crossDeviceUri || uri;
-  return { uri, crossDeviceUri };
+  // `session` is what EUDIPLO 8 calls it (OfferResponse in offer-request.dto.ts) and what
+  // the webhook payload repeats. `sessionId` is accepted as well so a renaming upstream does
+  // not silently switch the purge off — losing the id costs zero-retention, not the call,
+  // and a failure that quiet would never be noticed.
+  const sessionId: unknown = data.session ?? data.sessionId;
+  return { uri, crossDeviceUri, ...(typeof sessionId === 'string' && sessionId ? { sessionId } : {}) };
 }
 
 const registeredConfigs = new Set<string>();
@@ -284,7 +299,9 @@ export async function createVerifierOffer(
     const token = await getToken(attempt === 1); // force a fresh rotation on retry
     try {
       const data = await postJson('/api/verifier/offer', payload, token);
-      return extractOffer(data);
+      const offer = extractOffer(data);
+      warnIfUnpurgeable(offer);
+      return offer;
     } catch (e: any) {
       if (e.status === 401 && attempt === 0) {
         cachedToken = null; // token went stale → retry with a rotated secret
@@ -294,6 +311,65 @@ export async function createVerifierOffer(
     }
   }
   throw new Error('createVerifierOffer: unreachable');
+}
+
+/**
+ * One warning, once, when an offer comes back without a session id.
+ *
+ * Without the id the session cannot be deleted early and stays at the verifier until its TTL
+ * sweep — the zero-retention promise then holds only as far as the instance's own
+ * configuration reaches. That is a genuine degradation and must be visible; but it is a
+ * property of the instance, not of the call, so it is said once rather than on every offer.
+ */
+let warnedNoSessionId = false;
+function warnIfUnpurgeable(offer: Offer): void {
+  if (offer.sessionId || warnedNoSessionId || !BASE) return;
+  warnedNoSessionId = true;
+  console.warn(
+    '[eudiplo] the verifier reports no session id with its offers — presented claims can ' +
+    'then NOT be deleted right after the call and remain at the verifier until its own ' +
+    'SESSION_TTL sweep. Expected with EUDIPLO 8 (field `session` of the offer response); ' +
+    'check the version, and lower SESSION_TTL / SESSION_TIDY_UP_INTERVAL there in the meantime.',
+  );
+}
+
+/**
+ * Delete a verifier session at EUDIPLO — hard, not "mark as done".
+ *
+ * `DELETE /api/session/:id` (session.controller.ts) removes the row that holds the
+ * presented claims and cascades to that session's log entries. It is scoped to our tenant
+ * and answers 204 even for an id that does not exist, so a double call is harmless and a
+ * foreign id is not an information leak either.
+ *
+ * Callers should go through `verifier-session.purgeVerifierSession`, which owns the policy
+ * (when, how loudly to complain, no double calls). This function is the transport only —
+ * consistent with the rest of this module.
+ *
+ * Without a configured instance (dev against the dummy) there is nothing to delete and
+ * nothing to complain about.
+ */
+export async function deleteVerifierSession(sessionId: string): Promise<void> {
+  if (!BASE || !sessionId) return;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getToken(attempt === 1);
+    const res = await fetch(`${BASE}/api/session/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok || res.status === 404) return; // 204 expected; 404 = already gone, same outcome
+    if (res.status === 401 && attempt === 0) {
+      cachedToken = null; // token went stale → retry once with a fresh one
+      continue;
+    }
+    const err: any = new Error(
+      res.status === 403
+        ? 'EUDIPLO refuses DELETE /api/session/:id (403) — the tenant client needs the role ' +
+          'presentation:request (the same one that creates the offer)'
+        : `EUDIPLO DELETE /api/session/:id -> ${res.status}`,
+    );
+    err.status = res.status;
+    throw err;
+  }
 }
 
 /** Names from a webhook payload (thin wrapper over the format-aware normalizer). */

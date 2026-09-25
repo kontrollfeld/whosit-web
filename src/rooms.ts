@@ -14,6 +14,11 @@
 import { randomUUID } from 'crypto';
 import type { WebSocket } from 'ws';
 import type { SemanticAttr } from './credential-profiles';
+import type { Offer } from './eudiplo';
+// The one outbound call this in-memory store makes. It belongs here because this is where a
+// participant loses their verifier session, and a purge that depends on a caller remembering
+// to make it is not a guarantee.
+import { purgeVerifierSession } from './verifier-session';
 
 export type Role = 'caller' | 'callee';
 export type Mode = 'video' | 'audio' | 'chat';
@@ -32,7 +37,12 @@ export interface Participant {
   givenName?: string;
   familyName?: string;
   claims?: Record<string, any>; // PID claims this participant presented
-  offer?: { uri: string; crossDeviceUri: string };
+  offer?: Offer;
+  /** EUDIPLO's session id for the CURRENT offer — the handle used to delete the session
+   *  (and the claims it holds) at the verifier as soon as we are done. Kept next to the
+   *  offer rather than inside it because an offer is replaced on every retry while the old
+   *  session still has to be purged. See ./verifier-session. */
+  verifierSessionId?: string;
   /** DTLS fingerprint of the certificate this participant WILL use for the WebRTC
    *  connection — generated and reported by the client before joining, so it still fits into
    *  the wallet request. Absent for clients without channel binding. */
@@ -97,6 +107,11 @@ function resetIdentity(p: Participant): void {
   p.offer = undefined;
   p.dtlsFingerprint = undefined;
   p.presentedCredentials = undefined;
+  // The predecessor's session at the verifier still holds their claims — dropping the id
+  // here without deleting it would leave exactly the record this architecture promises not
+  // to keep, and nobody would ever ask for it again.
+  purgeVerifierSession(p.verifierSessionId, 'left');
+  p.verifierSessionId = undefined;
   p.sessionId = randomUUID();      // die alte Verifier-Sitzung darf nicht weiterlaufen
   p.webhookToken = randomUUID();
 }

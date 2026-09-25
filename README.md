@@ -385,6 +385,21 @@ works with no further effort.
 - **No replay:** the webhook token is consumed after a successful check — an intercepted callback
   cannot be replayed. Otherwise the verification record would be forgeable, and a record showing
   more events than actually happened is worthless as evidence.
+- **Zero retention at the verifier:** EUDIPLO keeps the result of a presentation in a session
+  row of its own so a relying party can poll for it. This application never polls — the result
+  arrives at its webhook — and therefore deletes that session (`DELETE /api/session/:id`)
+  immediately: after a successful presentation, after a failed one, and when a participant
+  leaves with the QR code still unused. Without it the claims would stay at the verifier until
+  its time-based sweep (`SESSION_TTL`, 24 h by default) removed them. See
+  [`src/verifier-session.ts`](src/verifier-session.ts) and `npm run test:purge`.
+
+  Two things to know when operating this:
+  - the tenant client needs the role **`presentation:request`** — the same one that creates the
+    offer. Without it EUDIPLO answers the delete with 403; the call still works, the log then
+    says `PURGE FAILED`, and the instance's TTL is all that is left.
+  - the purge is a safeguard, not the only one. Keep the verifier's own retention short as
+    well (`SESSION_TTL`, `SESSION_TIDY_UP_INTERVAL`, or `sessionConfig.ttlSeconds` per tenant),
+    so an instance that is unreachable for a moment does not quietly become an archive.
 - **No framing** without explicit configuration (no wildcard default).
 - **Startup check:** in production the server refuses to start when required values are missing or
   recognised placeholders are present — naming only variables, never values.

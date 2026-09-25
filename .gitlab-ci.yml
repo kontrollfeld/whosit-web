@@ -80,6 +80,8 @@ test:
     - npm run test:startup
     - npm run test:editions
     - npm run test:webhook
+    # Zero retention at the verifier: the session holding the claims is deleted right after use.
+    - npm run test:purge
     # Reciprocity in an open room: nobody receives values before they have agreed themselves.
     - npm run test:openroom
     # Operator pages: the imprint belongs to whoever runs the instance.

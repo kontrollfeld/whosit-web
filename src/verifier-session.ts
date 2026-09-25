@@ -1,0 +1,93 @@
+// SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/**
+ * Immediate purge of the verifier session at EUDIPLO.
+ *
+ * WHY THIS EXISTS. EUDIPLO keeps the result of a presentation — the disclosed PID claims —
+ * in a session row of its own, so that a relying party can poll for it. We never poll:
+ * EUDIPLO pushes the result to our webhook (see `eudiplo.createVerifierOffer`). From the
+ * moment that webhook has been processed, the row serves nobody but an attacker. It is the
+ * ONLY place in this architecture where PID values outlive a single request — everything on
+ * our side lives in process memory (see ./rooms) and the audit trail is PII-free by
+ * construction (see ./audit).
+ *
+ * Measured against EUDIPLO 8.0.2 (apps/backend/src/session/):
+ *   - the claims sit in `Session.credentials`, encrypted at rest with AES-256-GCM
+ *     (`EncryptedJsonTransformer`, key derived from MASTER_SECRET unless a KMS is
+ *     configured). That makes a stolen database dump unreadable — and does nothing against
+ *     a compromised verifier, which holds the key. Encryption is therefore not an answer to
+ *     the question this module answers.
+ *   - without an explicit delete the row is removed only by a TIME-BASED sweep:
+ *     `SESSION_TTL` (default 24 h) plus `SESSION_TIDY_UP_INTERVAL` (default 1 h). There is
+ *     no on-completion hook, and no in-memory storage backend — the only two database types
+ *     EUDIPLO supports are PostgreSQL and a file-backed SQLite.
+ *   - `DELETE /api/session/:id` is a hard delete, scoped to our tenant, cascading to the
+ *     session's log entries. The token we already hold for creating offers carries the role
+ *     it requires (`presentation:request`).
+ *
+ * So the retention window is ours to choose, and we choose "as soon as we are done".
+ *
+ * FIRE AND FORGET, deliberately. A failed purge must never fail a verification: the person
+ * in front of the camera has done nothing wrong, and refusing the call would not delete
+ * anything either. A failure is logged loudly and the instance's own TTL remains the safety
+ * net. This is why every function here returns `void` and swallows its errors.
+ *
+ * NEVER LOGS A SESSION ID IN THE CLEAR. A verifier session id is one half of an access
+ * credential; the log shows the same salted short hash the join line uses (`auditHash`).
+ */
+import { deleteVerifierSession } from './eudiplo';
+import { auditHash } from './pseudonym';
+
+/**
+ * Why a session is being abandoned. Appears in the log line and nowhere else — but it is
+ * what makes the line worth reading: a stream of `left` says people hang up before
+ * presenting, a stream of `failed` says presentations are breaking.
+ */
+export type PurgeReason =
+  | 'verified'            // presentation succeeded, result consumed from the webhook payload
+  | 'failed'              // presentation failed; a fresh offer (and session) follows
+  | 'reissued'            // a new offer replaces an older one for the same participant
+  | 'left'                // participant gone (hang-up, grace expiry, seat reclaimed, refused)
+  | 'credential-request'; // in-call credential request reached a terminal state (Pro)
+
+/**
+ * Ids already handed to EUDIPLO for deletion.
+ *
+ * Several paths legitimately purge the same session — the webhook marks it done, the
+ * participant then leaves — and a second DELETE would be answered with 204 just the same,
+ * since EUDIPLO does not check existence. The set is not about correctness but about not
+ * generating traffic and log lines for work already done. Bounded, because it must not
+ * become the memory leak in a module whose whole purpose is not keeping things.
+ */
+const RECENT_LIMIT = 500;
+const recentlyPurged = new Set<string>();
+
+/**
+ * Delete a verifier session at EUDIPLO — now, not when its TTL runs out.
+ *
+ * Tolerates `undefined` so callers do not have to branch: an instance running against the
+ * EUDIPLO dummy, or an offer from a version that did not report its session id, simply has
+ * nothing to purge.
+ */
+export function purgeVerifierSession(sessionId: string | undefined, reason: PurgeReason): void {
+  if (!sessionId) return;
+  if (recentlyPurged.has(sessionId)) return;
+  recentlyPurged.add(sessionId);
+  if (recentlyPurged.size > RECENT_LIMIT) {
+    const oldest = recentlyPurged.values().next().value;
+    if (oldest !== undefined) recentlyPurged.delete(oldest);
+  }
+  const tag = auditHash('session', sessionId);
+  void deleteVerifierSession(sessionId).then(
+    () => console.log(`[eudiplo] verifier session purged ${tag} (${reason})`),
+    (e: any) => {
+      // Loud, because the promise of this architecture is on the line: the claims are then
+      // still at the verifier until its TTL sweep removes them.
+      console.warn(
+        `[eudiplo] PURGE FAILED for verifier session ${tag} (${reason}): ` +
+        `${e?.status ? `HTTP ${e.status} ` : ''}${e?.message || e}. The presented claims stay ` +
+        `at the verifier until its own SESSION_TTL sweep removes them.`,
+      );
+    },
+  );
+}

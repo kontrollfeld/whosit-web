@@ -64,6 +64,7 @@ import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
+import { purgeVerifierSession } from './verifier-session';
 import { COMMUNITY_FEATURE_IDS, PRO_FEATURE_IDS, parseFeaturesOff } from './core/features';
 import { configuredEdition, effectiveEdition, promoAllPro } from './core/edition';
 import { assertProductionConfig } from './core/startup-checks';
@@ -140,6 +141,11 @@ function configId(profileIds: string[], attrs: string[]): string {
 async function reissueAuthOffer(participant: Participant, room: Room, origin: string): Promise<void> {
   participant.offer = undefined;
   participant.pendingBinding = undefined;
+  // The consumed session is of no further use to anyone — least of all to the person who
+  // just failed to present. Purged here rather than in ensureAuthOffer alone, because the
+  // early return below (nothing left to present) skips that path entirely.
+  purgeVerifierSession(participant.verifierSessionId, 'failed');
+  participant.verifierSessionId = undefined;
   const attrs = attrsFor(room, participant);
   if (!requiresWalletPresentation(attrs)) return;
   try {
@@ -174,7 +180,12 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   // support the check. Both must hold — see ./channel-binding.
   const txData = bindingFor(participant, profiles, roomId);
   participant.channelBound = undefined;          // only becomes true through verification
+  // Whatever session this participant held before is now unreachable — overwriting the id
+  // without deleting it would strand the claims at the verifier until its TTL sweep.
+  purgeVerifierSession(participant.verifierSessionId, 'reissued');
+  participant.verifierSessionId = undefined;
   participant.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri, txData);
+  participant.verifierSessionId = participant.offer.sessionId;
   participant.pendingBinding = txData.length > 0;
 }
 
@@ -226,6 +237,7 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
   const webhookUrl = `${origin}/webhook/${r.sessionId}?t=${r.webhookToken}`;
   const redirectUri = roomId ? `${origin}/?room=${encodeURIComponent(roomId)}` : undefined;
   r.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
+  r.verifierSessionId = r.offer.sessionId;
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -779,6 +791,7 @@ function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res
     return;
   }
   const payload = req.body || {};
+  if (typeof payload.session === 'string' && payload.session) r.verifierSessionId = payload.session;
   const claims = extractCatalogClaims(r.credential, payload);
   // Success needs a positive signal AND every mandatory claim — a partial presentation
   // the requester can't use must not light up a green badge.
@@ -856,8 +869,19 @@ app.post('/webhook/:sessionId', (req, res) => {
   const success = isVerificationSuccess(payload);
   // Attributes this participant was asked to present (for the audit event).
   const attrs = attrsFor(room, participant);
+  // EUDIPLO names its own session in the payload. Preferred over the id we noted when the
+  // offer was created: it is the authoritative one, and it keeps the purge working even for
+  // an offer whose response carried no id.
+  if (typeof payload.session === 'string' && payload.session) participant.verifierSessionId = payload.session;
 
   if (success) {
+    // ZERO RETENTION, and this is the line that makes the phrase true: everything this
+    // service will ever know about the presentation has just been read out of `payload`.
+    // The verifier's copy — the only persisted one anywhere in this architecture — goes
+    // now, not when its TTL expires. Before the host gate below, because a refused host
+    // must not leave their claims behind either. See ./verifier-session.
+    purgeVerifierSession(participant.verifierSessionId, 'verified');
+    participant.verifierSessionId = undefined;
     // REPLAY PROTECTION: the token is consumed from here on. Previously both sessionId AND
     // webhookToken stayed valid indefinitely after a successful check — an intercepted
     // callback could be replayed any number of times. The attribute values would have stayed
@@ -908,6 +932,7 @@ app.post('/webhook/:sessionId', (req, res) => {
       });
       send(participant.ws, { type: 'host-denied' });
       const peers = ext.roomStore.peersOf(room, participant);
+      purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
       for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
       if (peers.length) broadcastStatus(room);
@@ -1456,6 +1481,7 @@ wss.on('connection', (ws, request) => {
       }
       firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'hangup' }));
       if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
+      purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
     }
   });
@@ -1478,6 +1504,7 @@ wss.on('connection', (ws, request) => {
         send(other.ws, { type: 'credential-expired', requestId: r.requestId, from: participant.peerId, label: r.credential.label });
       }
       const peers = ext.roomStore.peersOf(room, participant);
+      purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
       for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
       if (peers.length) broadcastStatus(room);
