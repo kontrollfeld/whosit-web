@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       and the project's **commercial licence**. I understand that I am not giving up any rights —
       I remain the author and may keep using my own code.
 
-<!-- Without that agreement we cannot merge; the reason is in .gitlab/CONTRIBUTING.md. It is not a
+<!-- Without that agreement we cannot merge; the reason is in .github/CONTRIBUTING.md. It is not a
      formality: a single uncovered contribution would block the dual licensing of the whole
      project. There is no bot checking this — the tick above IS the record, so please be accurate.
 -->

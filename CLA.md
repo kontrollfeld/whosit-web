@@ -17,8 +17,8 @@ the project rights to use it — you do not transfer it.
 > these grants would make it unlawful, which means we could not merge it. We would rather
 > explain that up front than turn down finished work.
 
-You accept these terms by confirming them for your pull request (via the CLA Assistant) and by
-signing off your commits with `git commit -s` (Developer Certificate of Origin).
+You accept these terms by ticking the CLA confirmation in your pull request and by signing off
+your commits with `git commit -s` (Developer Certificate of Origin).
 
 ---
 
@@ -103,8 +103,11 @@ would make these representations inaccurate in any respect.
 
     git commit -s -m "fix: …"     # DCO sign-off on every commit
 
-Open your pull request; the CLA Assistant will ask you to confirm this document once. Your
-confirmation is recorded with your GitHub account, the date, and the version of this text.
+Open your pull request and tick the CLA box in its template; the `PR checks` workflow tells you if
+the box or a sign-off is missing. When your commits are ported into the project, the maintainer
+records your agreement in the commit message (`CLA-Accepted: CLA 1.0, @<you>, <pull request>`), so
+the record is part of the public history — with your GitHub account, the pull request and the
+version of this text.
 
 Questions: `administration@kontrollfeld.de`
 

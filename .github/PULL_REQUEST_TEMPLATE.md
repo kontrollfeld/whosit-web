@@ -45,4 +45,5 @@ mirror is force-updated on every sync, so a merge commit created on GitHub would
 
 <!-- Without that agreement we cannot use the contribution; the reason is in CONTRIBUTING.md.
      It is not a formality: a single uncovered contribution would block the dual licensing of the
-     whole project. CLA Assistant also records this automatically on the PR. -->
+     whole project. The `legal` check in PR checks fails until this box is ticked and every commit
+     is signed off; when the PR is ported, the agreement is recorded in the commit message. -->
