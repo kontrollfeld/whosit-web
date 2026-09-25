@@ -45,8 +45,10 @@ export async function loadExtensions(): Promise<Extensions> {
       verificationSink: ext?.verificationSink ?? defaults.verificationSink,
       plugins: [...defaults.plugins, ...(ext?.plugins ?? [])],
       enabledFeatures: [...defaults.enabledFeatures, ...(ext?.enabledFeatures ?? [])],
+      qualifiedSigner: ext?.qualifiedSigner ?? defaults.qualifiedSigner,
     };
-    console.log(`[pro] loaded "${spec}" — plugins: [${merged.plugins.map((p) => p.name).join(', ') || 'none'}]`);
+    console.log(`[pro] loaded "${spec}" — plugins: [${merged.plugins.map((p) => p.name).join(', ') || 'none'}]`
+      + `, qualified signer: ${merged.qualifiedSigner ? 'yes' : 'no'}`);
     return merged;
   } catch (e: any) {
     // A module that is CONFIGURED but fails to load is a configuration error, not Community

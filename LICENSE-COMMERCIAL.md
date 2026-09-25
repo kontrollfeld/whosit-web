@@ -16,8 +16,8 @@ Dual licensing is possible because the rights are held in one place and contribu
 **CLA** ([`CLA.md`](CLA.md)) granting the sublicensing right. The CLA is a licence, not an
 assignment: contributors keep ownership of their work.
 
-Interested in a commercial licence, in the Pro features (multi-party calls, retainable
-verification audit trail with export, qualified CSC/QTSP signatures), or in hosted operation
+Interested in a commercial licence, in the Pro features (retainable verification audit trail
+with export, qualified CSC/QTSP signatures), or in hosted operation
 and SLA support? → **<administration@kontrollfeld.de>**
 
 Which features belong to which edition: the registry in

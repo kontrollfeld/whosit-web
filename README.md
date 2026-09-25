@@ -404,7 +404,7 @@ works with no further effort.
 
 ## What is included
 
-The **complete 1:1 call** and **all** security and privacy properties — nothing is cut back
+The **complete call — 1:1 and multi-party (mesh)** — and **all** security and privacy properties — nothing is cut back
 there, and neither is the convenience: video, audio, chat, EUDI PID verification with a
 mutual privacy gate, attribute allowlist and purpose limitation, an ephemeral pseudonym, a
 PII-free verification record, channel binding, both wallet formats (mdoc + SD-JWT VC),
@@ -412,13 +412,13 @@ microphone and camera toggles, screen sharing, stage layout, hand raising, file 
 calendar entries, an Apple Wallet pass, document sharing and signing, iframe embedding,
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
-**Three features are commercially licensed** — where there is a real obligation behind them:
+**Two features are commercially licensed** — where there is a real obligation behind them, and
+the code lives in [`pro/`](pro/):
 
 | Feature | Why |
 |---|---|
 | Verification trail with retention and export | Responsibility for retained evidence: deadlines, export, liability |
-| Multi-party calls (mesh) | Group calls scale bandwidth, relay load and support |
-| Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost |
+| Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
 
 The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative — it is the
 single source of truth for the split and gives a reason for every entry. `GET /capabilities`

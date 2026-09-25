@@ -413,7 +413,7 @@ function buildSetup() {
   requestSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.request === requestMode));
   discloseListEl.hidden = discloseMode === 'anon';
   requestExtra.hidden = requestMode === 'anon';
-  // "Allow more guests later" — only meaningful with the multi-party capability (Pro).
+  // "Allow more guests later" — only meaningful with the multi-party capability.
   openroomRow.hidden = !capOn('multi-party');
   openroomToggle.addEventListener('change', onConfigChange);
   const c = currentAttrs();

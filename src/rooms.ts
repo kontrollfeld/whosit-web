@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * In-memory room state. A room holds up to `maxParticipants` (community: 2; pro with
- * the `multi-party` capability: more — full mesh, see src/rooms.ts + maxParticipants() in src/server.ts). The first to join
+ * In-memory room state. A room holds up to `maxParticipants` (2 without the
+ * `multi-party` capability; with it — the Community default — more — full mesh, see src/rooms.ts + maxParticipants() in src/server.ts). The first to join
  * is the `caller` (host: configures mode + attributes), all others are `callee` guests
  * who present the host-requested PID attributes.
  *
