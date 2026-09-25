@@ -96,6 +96,8 @@ jobs:
         run: npm run test:editions
       - name: Verification callback (auth, replay)
         run: npm run test:webhook
+      - name: Verifier session deleted right after use (zero retention)
+        run: npm run test:purge
       - name: Open room — no values before your own consent
         run: npm run test:openroom
       - name: Operator pages (imprint, privacy notice, press)

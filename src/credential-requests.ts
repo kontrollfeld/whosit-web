@@ -15,6 +15,7 @@ import { randomUUID } from 'crypto';
 import type { Room, Participant } from './rooms';
 import type { CatalogCredential } from './credential-catalog';
 import type { Offer } from './eudiplo';
+import { purgeVerifierSession } from './verifier-session';
 
 export type CredentialRequestStatus =
   | 'pending' | 'accepted'
@@ -32,6 +33,9 @@ export interface CredentialRequest {
   status: CredentialRequestStatus;
   sessionId: string;      // fresh EUDIPLO session, NOT the participant's gate session
   webhookToken: string;   // unguessable secret embedded in the webhook URL
+  /** EUDIPLO's own session id for this request's offer — deleted at the verifier when the
+   *  request reaches a terminal state (see finishRequest and ./verifier-session). */
+  verifierSessionId?: string;
   offer?: Offer;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -85,10 +89,15 @@ export function openRequestsInvolving(p: Participant): CredentialRequest[] {
   return [...byId.values()].filter((r) => !TERMINAL.has(r.status) && (r.requester === p || r.target === p));
 }
 
-/** Move a request to a terminal state: stop the timer, drop it from the registry. */
+/** Move a request to a terminal state: stop the timer, drop it from the registry, and delete
+ *  the verifier session that was created for it. Terminal means terminal — a presented (or
+ *  declined, or expired) in-call credential leaves nothing at the verifier either, on the
+ *  same reasoning as the PID gate (see ./verifier-session). */
 export function finishRequest(r: CredentialRequest, status: CredentialRequestStatus): void {
   r.status = status;
   clearTimeout(r.timer);
   bySession.delete(r.sessionId);
   byId.delete(r.requestId);
+  purgeVerifierSession(r.verifierSessionId, 'credential-request');
+  r.verifierSessionId = undefined;
 }

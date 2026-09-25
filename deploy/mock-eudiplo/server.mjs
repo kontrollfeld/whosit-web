@@ -39,6 +39,14 @@ const SELF_URL = (process.env.SELF_URL || `http://localhost:${PORT}`).replace(/\
 
 /** offerId → { webhook, requestId } the app asked us to call back. */
 const offers = new Map();
+/**
+ * The dummy's session store — the thing the real EUDIPLO keeps, and the reason
+ * `src/verifier-session.ts` exists: after a presentation the claims sit HERE until someone
+ * deletes them. `GET /api/session/:id` shows them, `DELETE /api/session/:id` removes them.
+ * The app calls that DELETE the moment it has read the webhook, so against this dummy the
+ * GET is already a 404 by the time you try it by hand.
+ */
+const sessions = new Map();
 /** verifier config id → dcql_query (so the mock wallet can render matching claim forms). */
 const configs = new Map();
 
@@ -115,7 +123,26 @@ const server = http.createServer(async (req, res) => {
     offers.set(id, { webhook, requestId: body?.requestId });
     const uri = `${SELF_URL}/simulate/${id}`;
     console.log(`[mock] offer ${id} (config ${body?.requestId}) → webhook ${webhook}`);
-    return json(res, 200, { uri, crossDeviceUri: uri });
+    // `session` is what EUDIPLO 8 returns (OfferResponse) and what the app needs in order to
+    // delete the session afterwards. A dummy that withheld it would make the purge look
+    // untested while it silently did nothing.
+    return json(res, 200, { uri, crossDeviceUri: uri, session: id });
+  }
+
+  // --- session store (what the app purges) ---
+  const sess = p.match(/^\/api\/session\/([0-9a-f-]+)$/i);
+  if (sess && req.method === 'GET') {
+    const row = sessions.get(sess[1]);
+    return row ? json(res, 200, row) : json(res, 404, { error: 'session not found' });
+  }
+  if (sess && req.method === 'DELETE') {
+    // EUDIPLO answers 204 either way — it does not check existence, so a repeated purge is
+    // not an error. The dummy behaves the same, otherwise the app would learn a lesson here
+    // that the real instance does not teach.
+    const existed = sessions.delete(sess[1]);
+    console.log(`[mock] session ${sess[1]} deleted (${existed ? 'had claims' : 'was empty'})`);
+    res.writeHead(204);
+    return res.end();
   }
 
   // --- the "mock wallet" the tester opens instead of scanning a real QR ---
@@ -181,7 +208,8 @@ small{color:#5d6b85}</style>
     if (String(offer.requestId || '').startsWith('cred_')) {
       const values = {};
       for (const [k, v] of form.entries()) values[k] = v;
-      const payload = { status: 'completed', credentials: [{ values: [values] }] };
+      const payload = { status: 'completed', session: id, credentials: [{ values: [values] }] };
+      sessions.set(id, payload);
       try {
         const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         console.log(`[mock] posted credential presentation for ${id} → ${r.status}`);
@@ -213,7 +241,8 @@ small{color:#5d6b85}</style>
           age_over_18: true, birth_date: '1984-01-26', issuing_country: 'DE',
           resident_street: 'Musterstr. 1', resident_postal_code: '10115', resident_city: 'Berlin', resident_country: 'DE',
         };
-    const payload = { status: 'completed', credentials: [{ values: [values] }] };
+    const payload = { status: 'completed', session: id, credentials: [{ values: [values] }] };
+    sessions.set(id, payload);
     try {
       const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       console.log(`[mock] posted verification for ${id} → ${r.status}`);
