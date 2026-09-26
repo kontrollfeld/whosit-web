@@ -26,7 +26,7 @@
 const tr = (s, v) => (typeof t === 'function' ? t(s, v) : s);
 
 let pki = null; // lazy { pkijs, asn1js } from the self-hosted vendor bundle
-async function loadPki() {
+export async function loadPki() {
   if (!pki) pki = await import(new URL('../vendor/pkijs/pkijs.bundle.mjs', import.meta.url).href);
   return pki;
 }
@@ -217,6 +217,13 @@ async function contributedProvider(entry, getIdentity, ctx) {
   return mod.createProvider(entry, {
     loadPki, buildDetachedCmsWith, getIdentity, native,
     requestCertificate: ctx && ctx.requestDeviceCertificate,
+    // For a provider that signs on ANOTHER device (paired phone): pairing over the signalling
+    // connection, WebRTC to the phone, the QR library the page already has, the PAdES module.
+    server: ctx && ctx.server,
+    getIceServers: ctx && ctx.getIceServers,
+    QRCode: window.QRCode,
+    loadPades: () => import(new URL('./pades.js', import.meta.url).href),
+    t: typeof t === 'function' ? t : (s) => s,
   });
 }
 

@@ -65,6 +65,7 @@ import type { Extensions, SignalingPlugin, VerificationEvent, VerificationEventT
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
+import { createPairing, joinPairing, pairingOfOwner, pairingOfPhone, endPairing } from './device-pairing';
 import { COMMUNITY_FEATURE_IDS, PRO_FEATURE_IDS, parseFeaturesOff } from './core/features';
 import { configuredEdition, effectiveEdition, promoAllPro } from './core/edition';
 import { assertProductionConfig } from './core/startup-checks';
@@ -357,6 +358,13 @@ app.get('/.well-known/apple-app-site-association', (_req, res) => {
           // Only room links open the app — the marketing pages stay in the browser.
           { '/': '/', '?': { room: '?*' } },
           { '/': '/index.html', '?': { room: '?*' } },
+          // Pairing a phone to sign for a browser participant (qes-device, ./device-pairing).
+          // Unlike `inv` below this is safe to route to the app before every installed build
+          // understands it: an older build would open a fresh room, but a pairing QR code is
+          // only ever scanned right after it is shown — the user notices at once, and a browser
+          // could not do anything with the link either (the key has to be in the app).
+          { '/': '/', '?': { pair: '?*' } },
+          { '/': '/index.html', '?': { pair: '?*' } },
           // DELIBERATELY NOT YET: `?inv=` (scheduled call). The shipped app only understands
           // the parameter from the next build onwards — an older app would capture the
           // appointment link, ignore the parameter and open a FRESH ad-hoc room. Without this
@@ -1371,6 +1379,51 @@ wss.on('connection', (ws, request) => {
       return;
     }
 
+    // ---- Pairing a phone to sign for a browser participant (Pro, qes-device) ---------
+    // See ./device-pairing. The browser (owner) asks for a one-time token and shows it as a QR
+    // code; the phone presents it; afterwards this server only relays their WebRTC signalling —
+    // the document goes peer to peer and never passes through here.
+    if (msg.type === 'pair-create') {
+      const reqId = typeof msg.reqId === 'string' ? msg.reqId.slice(0, 64) : '';
+      const hit = ext.roomStore.findByWs(ws);
+      if (!enabledFeatures().has('qes-device') || !ext.certificateIssuer) return send(ws, { type: 'pair-error', reqId, message: 'unavailable' });
+      if (!hit || !hit.participant.verified) return send(ws, { type: 'pair-error', reqId, message: 'not verified' });
+      const owner = hit.participant;
+      const pairing = createPairing(owner, () => send(owner.ws, { type: 'pair-closed', reason: 'expired' }));
+      send(ws, { type: 'pair-created', reqId, token: pairing.token, url: `${PUBLIC_URL}/?pair=${pairing.token}` });
+      return;
+    }
+    if (msg.type === 'pair-join') {
+      // A phone, not a participant: it must not be in a room over this connection.
+      if (ext.roomStore.findByWs(ws) || pairingOfPhone(ws)) return;
+      const token = typeof msg.token === 'string' ? msg.token.slice(0, 128) : '';
+      const pairing = token ? joinPairing(token, ws, (p) => {
+        send(p.owner.ws, { type: 'pair-closed', reason: 'expired' });
+        if (p.phone) send(p.phone, { type: 'pair-closed', reason: 'expired' });
+      }) : undefined;
+      if (!pairing) return send(ws, { type: 'pair-error', message: 'invalid or used token' });
+      send(ws, { type: 'pair-joined', name: fullName(pairing.owner) });
+      send(pairing.owner.ws, { type: 'pair-phone-joined' });
+      return;
+    }
+    if (msg.type === 'pair-signal' || msg.type === 'pair-close') {
+      const asPhone = pairingOfPhone(ws);
+      const hit = asPhone ? undefined : ext.roomStore.findByWs(ws);
+      const pairing = asPhone || (hit && pairingOfOwner(hit.participant));
+      if (!pairing || !pairing.phone) return;
+      const other = asPhone ? pairing.owner.ws : pairing.phone;
+      if (msg.type === 'pair-close') {
+        endPairing(pairing);
+        send(other, { type: 'pair-closed', reason: 'ended' });
+        return;
+      }
+      // Opaque to us: SDP and ICE candidates. Bounded, because relaying is all we do.
+      const data = msg.data;
+      if (JSON.stringify(data ?? null).length > 65_536) return;
+      send(other, { type: 'pair-signal', data });
+      return;
+    }
+
     // ---- Certificate for a device-held signing key (Pro, qes-device) ----------------
     // The device generated its key in the secure element and sends a CSR signed with it. We
     // decide WHO may ask: only a participant verified in THIS call, over their own signalling
@@ -1380,9 +1433,14 @@ wss.on('connection', (ws, request) => {
       const reqId = typeof msg.reqId === 'string' ? msg.reqId.slice(0, 64) : '';
       const fail = (message: string) => send(ws, { type: 'device-cert-error', reqId, message });
       if (!enabledFeatures().has('qes-device') || !ext.certificateIssuer) return fail('unavailable');
-      const hit = ext.roomStore.findByWs(ws);
-      if (!hit || !hit.participant.verified) return fail('not verified');
-      const { participant } = hit;
+      // Either the participant's own device (the app, in the call) or a phone paired to them
+      // (./device-pairing) — then the phone signs FOR the owner, and only while the owner is
+      // still in the call.
+      const pairing = pairingOfPhone(ws);
+      const participant = pairing
+        ? (ext.roomStore.findBySession(pairing.owner.sessionId) ? pairing.owner : undefined)
+        : ext.roomStore.findByWs(ws)?.participant;
+      if (!participant || !participant.verified) return fail('not verified');
       if (!participant.givenName && !participant.familyName) return fail('no name presented');
       // A P-256 CSR is a few hundred bytes; anything far larger is not one.
       const csrB64 = typeof msg.csr === 'string' && msg.csr.length <= 8192 ? msg.csr : '';
@@ -1539,6 +1597,14 @@ wss.on('connection', (ws, request) => {
   });
 
   ws.on('close', () => {
+    // A paired phone that goes away ends its pairing; the browser learns it at once, rather than
+    // waiting for a signature that will not come.
+    const asPhone = pairingOfPhone(ws);
+    if (asPhone) {
+      endPairing(asPhone);
+      send(asPhone.owner.ws, { type: 'pair-closed', reason: 'phone-left' });
+      return;
+    }
     const hit = ext.roomStore.findByWs(ws);
     if (!hit) return;
     const { room, participant } = hit;

@@ -114,3 +114,5 @@ jobs:
         run: npm run test:qes
       - name: Device-bound signature (demo CA, proof of possession)
         run: npm run test:qes-device
+      - name: Phone pairing for browser signatures (token, owner's certificate, relay)
+        run: npm run test:qes-pairing
