@@ -63,9 +63,11 @@ const verifier = http.createServer(async (req, res) => {
 });
 
 // ------------------------------------------------------------------- Clients ----
-function socket(onOpen) {
+function socket(onOpen, port = APP_PORT) {
   const seen = [];
-  const ws = new WebSocket(`ws://127.0.0.1:${APP_PORT}`);
+  // Without PUBLIC_URL the server derives its origin from the proxy headers, as behind Coolify.
+  // Here there is no proxy, so say what one would: plain http.
+  const ws = new WebSocket(`ws://127.0.0.1:${port}`, { headers: { 'x-forwarded-proto': 'http' } });
   const c = {
     ws, seen,
     send: (o) => ws.send(JSON.stringify(o)),
@@ -91,14 +93,15 @@ function socket(onOpen) {
 }
 const opened = (c) => new Promise((r) => (c.ws.readyState === 1 ? r() : c.ws.once('open', r)));
 
-async function verifiedParticipant(roomId, names) {
-  const p = socket((c) => c.send({ type: 'join', roomId, clientId: randomUUID(), wantAuth: true }));
+async function verifiedParticipant(roomId, names, port = APP_PORT) {
+  const p = socket((c) => c.send({ type: 'join', roomId, clientId: randomUUID(), wantAuth: true }), port);
   const auth = await p.wait('auth');
   const sessionId = String(auth.uri).split('/').pop();
-  await fetch(offers.get(sessionId), {
+  const r = await fetch(offers.get(sessionId), {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ session: sessionId, status: 'completed', credentials: [{ values: [names] }] }),
   });
+  if (!r.ok) throw new Error(`webhook ${offers.get(sessionId)} -> ${r.status} ${await r.text()}`);
   await p.wait('status', (m) => m.self?.verified === true);
   return p;
 }
@@ -300,6 +303,33 @@ try {
   }
 
   check('no token in the server log', !appLog.join('').includes(created.token));
+
+  console.log('\nThe QR link points at the instance, also without PUBLIC_URL');
+  {
+    // The normal case behind Coolify: PUBLIC_URL unset. Until 2026-09-26 the link was built from
+    // the PUBLIC_URL constant, whose fallback is localhost — the phone's camera opened
+    // localhost:3000. It now comes from the request, like the wallet's webhook.
+    const PORT2 = APP_PORT + 10;
+    const env2 = { ...process.env,
+      PORT: String(PORT2), EUDI_EDITION: 'pro', EUDI_PRO_MODULE: './pro/index.ts',
+      EUDI_AUDIT_FILE: join(work, 'audit2.jsonl'), EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
+      EUDIPLO_CLIENT_ID: 'test-tenant', EUDIPLO_CLIENT_SECRET: 'test-tenant-secret', EUDI_PROMO_ALL_PRO: '' };
+    // Empty, not deleted: a deleted variable would be filled from a local .env by dotenv.
+    env2.PUBLIC_URL = '';
+    const app2 = spawn('npx', ['tsx', 'src/server.ts'], { detached: true, env: env2, stdio: ['ignore', 'pipe', 'pipe'] });
+    const log2 = []; app2.stdout.on('data', (d) => log2.push(d.toString())); app2.stderr.on('data', (d) => log2.push(d.toString()));
+    try {
+      for (let t0 = Date.now(); ; ) {
+        try { if ((await fetch(`http://127.0.0.1:${PORT2}/health`)).ok) break; } catch {}
+        if (Date.now() - t0 > 25000) throw new Error('second instance unreachable');
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const o2 = await verifiedParticipant(randomUUID(), { given_name: 'Erika', family_name: 'Mustermann' }, PORT2);
+      clients.push(o2);
+      const c2 = await pairCreate(o2);
+      check('the link uses the requested host, not localhost', c2.url?.startsWith(`http://127.0.0.1:${PORT2}/?pair=`) && !c2.url.includes('localhost'), c2.url);
+    } catch (e) { console.error(log2.join('')); throw e; } finally { try { process.kill(-app2.pid, 'SIGTERM'); } catch {} }
+  }
 } catch (e) {
   console.error(`\n✗ Test failed: ${e.stack || e.message}\n${appLog.join('')}`);
   failures++;
