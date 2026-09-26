@@ -475,6 +475,12 @@ What operators need to know:
   would claim a custody it does not have.
 - **Universal link:** `?pair=` is in the apple-app-site-association (`EUDI_IOS_APP_ID`); an app
   build older than the pairing support opens a fresh room instead, which the user notices at once.
+- **When the link opens Safari anyway** — and it will: iOS reads the association file from
+  **Apple's CDN**, which serves a changed file only hours later (`max-age` 6 h, check with
+  `curl https://app-site-association.cdn-apple.com/a/v1/<host>`), and a user who once chose "open
+  in Safari" stays in Safari for the whole domain. The page then does **not** present the token
+  (that would use it up) but offers "In der id-call-App öffnen" via the app's own scheme
+  `idcall://open?pair=…`.
 - **The CA key** lives in `EUDI_QES_CA_FILE` (mode 0600); by default `qes-demo-ca.json` next to
   the audit trail (`EUDI_AUDIT_FILE`), i.e. on the volume that already has to be persistent. A
   new CA after a restart makes every earlier signature unverifiable against the current one.

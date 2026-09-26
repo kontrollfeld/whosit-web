@@ -3267,7 +3267,9 @@ function startPairedSigner(token) {
   if (CapApp) {
     const openRoomUrl = (url) => {
       try {
-        // A pairing QR code scanned with the camera: sign for the browser that shows it.
+        // A pairing QR code scanned with the camera: sign for the browser that shows it. Arrives as
+        // https://…/?pair= (universal link) or idcall://open?pair= (the page's fallback button,
+        // when the universal link opened Safari instead) — same parameter either way.
         const pair = new URL(url).searchParams.get('pair');
         if (pair) { if (pair !== pairToken) location.href = `index.html?pair=${encodeURIComponent(pair)}`; return; }
         const target = new URL(url).searchParams.get('room');
