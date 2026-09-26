@@ -69,37 +69,89 @@ export async function makeDemoCert(identity) {
   return { keys, cert, certDer: cert.toSchema(true).toBER(false), subject: cn };
 }
 
+/** ECDSA signature: IEEE P1363 (r‖s, what WebCrypto returns) → DER Ecdsa-Sig-Value (what CMS
+ *  carries, and what the secure elements return natively). */
+export function p1363ToDer(sig) {
+  const u = new Uint8Array(sig);
+  const half = u.length / 2;
+  const int = (b) => {
+    let i = 0;
+    while (i < b.length - 1 && b[i] === 0) i++;
+    b = b.subarray(i);
+    return b[0] & 0x80 ? Uint8Array.of(0x02, b.length + 1, 0, ...b) : Uint8Array.of(0x02, b.length, ...b);
+  };
+  const r = int(u.subarray(0, half)), s = int(u.subarray(half));
+  return Uint8Array.of(0x30, r.length + s.length, ...r, ...s);
+}
+
 /**
- * Detached CAdES-ish CMS over `data`: SignedData v1 with the demo certificate and
- * signed attributes contentType + signingTime + messageDigest. (signingCertificateV2
- * and a qualified timestamp are QTSP/Phase-6 territory — this is the demo shape.)
+ * Detached CAdES CMS over `data`, signed by an EXTERNAL signer — PAdES baseline B-B shape
+ * (ETSI EN 319 142-1): signed attributes contentType, messageDigest and signingCertificateV2.
+ *
+ * `certsDer` is the chain, leaf first. `signFn(signedAttrsDer)` receives exactly the bytes that
+ * get signed (the DER SET OF signed attributes) and must return a DER ECDSA-with-SHA-256
+ * signature over them. That is the whole contract, so the key can live anywhere: in WebCrypto
+ * for the demo, in the phone's secure element for the device provider — whose code then never
+ * needs the private key, only a function that asks the hardware.
+ *
+ * NO signing-time attribute: PAdES forbids it; the signing time is the /M entry of the
+ * signature dictionary (set by the placeholder, read back by identity.js).
+ * signingCertificateV2 binds the signature to ITS certificate — without it a validator cannot
+ * rule out a certificate substituted afterwards, and EU DSS does not accept the container as
+ * baseline.
  */
-export async function buildDetachedCms(data, cert, privateKey) {
+export async function buildDetachedCmsWith(data, certsDer, signFn) {
   const { pkijs, asn1js } = await loadPki();
-  const digest = await self.crypto.subtle.digest('SHA-256', data);
+  const sha256 = (b) => self.crypto.subtle.digest('SHA-256', b);
+  const toAb = (u) => { const v = new Uint8Array(u); return v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength); };
+  const certs = certsDer.map((d) => pkijs.Certificate.fromBER(toAb(d)));
+  const leaf = certs[0];
+  const digest = await sha256(data);
+  const leafHash = await sha256(toAb(certsDer[0]));
+
+  const signerInfo = new pkijs.SignerInfo({
+    version: 1,
+    sid: new pkijs.IssuerAndSerialNumber({ issuer: leaf.issuer, serialNumber: leaf.serialNumber }),
+    digestAlgorithm: new pkijs.AlgorithmIdentifier({ algorithmId: '2.16.840.1.101.3.4.2.1' }),      // SHA-256
+    signatureAlgorithm: new pkijs.AlgorithmIdentifier({ algorithmId: '1.2.840.10045.4.3.2' }),     // ecdsa-with-SHA256
+    signedAttrs: new pkijs.SignedAndUnsignedAttributes({
+      type: 0,
+      attributes: [
+        new pkijs.Attribute({ type: '1.2.840.113549.1.9.3', values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })] }),
+        new pkijs.Attribute({ type: '1.2.840.113549.1.9.4', values: [new asn1js.OctetString({ valueHex: digest })] }),
+        // id-aa-signingCertificateV2 (RFC 5035): SEQUENCE { SEQUENCE OF ESSCertIDv2 { certHash } }.
+        // hashAlgorithm is omitted because SHA-256 is its DEFAULT; issuerSerial is optional.
+        new pkijs.Attribute({ type: '1.2.840.113549.1.9.16.2.47', values: [
+          new asn1js.Sequence({ value: [new asn1js.Sequence({ value: [
+            new asn1js.Sequence({ value: [new asn1js.OctetString({ valueHex: leafHash })] }),
+          ] })] }),
+        ] }),
+      ],
+    }),
+  });
+  // What is signed is the DER encoding of the attributes as a SET OF (RFC 5652 §5.4) — the same
+  // bytes as the [0] IMPLICIT field in the container, with the tag byte replaced.
+  const signedAttrs = new Uint8Array(signerInfo.signedAttrs.toSchema().toBER(false));
+  signedAttrs[0] = 0x31;
+  const signature = await signFn(signedAttrs);
+  signerInfo.signature = new asn1js.OctetString({ valueHex: toAb(signature) });
+
   const signedData = new pkijs.SignedData({
     version: 1,
+    digestAlgorithms: [new pkijs.AlgorithmIdentifier({ algorithmId: '2.16.840.1.101.3.4.2.1' })],
     encapContentInfo: new pkijs.EncapsulatedContentInfo({ eContentType: '1.2.840.113549.1.7.1' }),
-    certificates: [cert],
-    signerInfos: [new pkijs.SignerInfo({
-      version: 1,
-      sid: new pkijs.IssuerAndSerialNumber({ issuer: cert.issuer, serialNumber: cert.serialNumber }),
-      signedAttrs: new pkijs.SignedAndUnsignedAttributes({
-        type: 0,
-        attributes: [
-          new pkijs.Attribute({ type: '1.2.840.113549.1.9.3', values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })] }),
-          new pkijs.Attribute({ type: '1.2.840.113549.1.9.5', values: [new asn1js.UTCTime({ valueDate: new Date() })] }),
-          new pkijs.Attribute({ type: '1.2.840.113549.1.9.4', values: [new asn1js.OctetString({ valueHex: digest })] }),
-        ],
-      }),
-    })],
+    certificates: certs,
+    signerInfos: [signerInfo],
   });
-  await signedData.sign(privateKey, 0, 'SHA-256');
-  const cms = new pkijs.ContentInfo({
-    contentType: '1.2.840.113549.1.7.2',
-    content: signedData.toSchema(true),
-  });
+  const cms = new pkijs.ContentInfo({ contentType: '1.2.840.113549.1.7.2', content: signedData.toSchema(true) });
   return cms.toSchema().toBER(false);
+}
+
+/** The demo shape of the above: a WebCrypto key signs. (Kept under its old name for the
+ *  mock and scripts/test-qes.mjs; goes with the mock once the device provider has proven out.) */
+export async function buildDetachedCms(data, cert, privateKey) {
+  return buildDetachedCmsWith(data, [cert.toSchema(true).toBER(false)], async (bytes) =>
+    p1363ToDer(await self.crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, bytes)));
 }
 
 /** The Community demo provider — see the header note: NOT qualified, NOT binding. */
@@ -148,19 +200,52 @@ function walletNativeProvider(entry) {
 }
 
 /**
+ * A provider a Pro module contributes (kind 'device-local'). Its implementation is NOT part of
+ * this client: the server names a module under /pro-client/ and we load it from there — so an
+ * AGPL build without the Pro module never even receives the code. Everything the module needs
+ * from here is handed over, rather than imported: in the app the module comes from the server
+ * origin while this file comes from the local bundle, and a relative import would cross that
+ * boundary.
+ *
+ * The module exports `createProvider(entry, deps)` and returns a provider, or null when this
+ * device cannot sign (e.g. a browser: WebCrypto cannot reach the secure element).
+ */
+async function contributedProvider(entry, getIdentity, ctx) {
+  const url = (window.apiUrl || ((p) => p))(entry.module);
+  const mod = await import(new URL(url, location.href).href);
+  const native = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceSigner) || null;
+  return mod.createProvider(entry, {
+    loadPki, buildDetachedCmsWith, getIdentity, native,
+    requestCertificate: ctx && ctx.requestDeviceCertificate,
+  });
+}
+
+/**
  * Fetch the operator's provider list (server-filtered by edition — Community only
  * ever receives 'mock') and wrap each entry in its implementation.
- * `getIdentity(): { givenName, familyName }` supplies the PID names for the demo cert.
+ * `getIdentity(): { givenName, familyName }` supplies the PID names for the demo cert;
+ * `ctx.requestDeviceCertificate(csrB64)` lets a device provider ask the server for its
+ * certificate over the signalling connection.
  */
-export async function loadSignatureProviders(getIdentity) {
+export async function loadSignatureProviders(getIdentity, ctx) {
   let entries = [];
   try {
     // window.apiUrl (app.js) rebases the call in the native app; identity in the browser.
     const r = await fetch((window.apiUrl || ((p) => p))('signature-providers'), { cache: 'no-store' });
     if (r.ok) { const j = await r.json(); entries = Array.isArray(j.providers) ? j.providers : []; }
   } catch { /* offline → no providers, signing UI stays hidden */ }
-  return entries.map((e) =>
-    e.kind === 'mock' ? mockProvider(e, getIdentity)
-    : e.kind === 'csc' ? cscProvider(e)
-    : walletNativeProvider(e));
+  const out = [];
+  for (const e of entries) {
+    if (e.kind === 'device-local') {
+      // A provider that cannot load or does not fit this device is left out, not shown broken.
+      try { const p = await contributedProvider(e, getIdentity, ctx); if (p) out.push(p); }
+      catch (err) { console.warn('signature provider ' + e.id + ' unavailable:', err && err.message); }
+      continue;
+    }
+    out.push(e.kind === 'mock' ? mockProvider(e, getIdentity)
+      : e.kind === 'csc' ? cscProvider(e)
+      : walletNativeProvider(e));
+  }
+  // The device provider first: when the hardware can sign, that is the signature to offer.
+  return out.sort((a, b) => (b.kind === 'device-local') - (a.kind === 'device-local'));
 }

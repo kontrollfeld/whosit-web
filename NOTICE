@@ -58,6 +58,9 @@ Installed via `npm ci`; licence texts land in node_modules/.
   node-forge  BSD-3-Clause / GPL-2.0 (dual) — X.509/PKCS handling for Wallet passes
   dotenv      BSD-2-Clause  — loading .env in development
 Development only: typescript (Apache-2.0), tsx (MIT), @types/* (MIT).
+The Pro module (pro/, only in Pro images) additionally installs:
+  pkijs       BSD-3-Clause  — certificates of the demo CA for device-bound signatures
+  asn1js      BSD-3-Clause  — ASN.1 encoding for the above
 
 --- Public certificate ---
 

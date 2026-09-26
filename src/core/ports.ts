@@ -170,6 +170,51 @@ export interface QualifiedSignResult {
   certificateChain: string[];
 }
 
+/**
+ * Certificates for signing keys that live on the participant's DEVICE — the `qes-device`
+ * capability. **Pro only, no Community implementation**, for the same reason as
+ * `QualifiedSigner`.
+ *
+ * The model is the one a QTSP will follow once it certifies wallet-held keys: the key pair is
+ * generated in the phone's secure element (Secure Enclave / StrongBox) and never leaves it; the
+ * certificate authority identifies the holder ONCE — here through the PID they just presented
+ * in this call — and certifies the public key. Every signature afterwards happens on the device,
+ * behind biometrics, with no further call to anyone.
+ *
+ * The core's part is deliberately narrow: it decides WHO may ask (a participant verified in this
+ * call, over their own signalling connection) and hands over the names the verifier reported.
+ * The issuer decides everything else. It must never take the subject from the CSR: a CSR is
+ * written by the client, the PID was checked by the verifier.
+ */
+export interface CertificateIssuer {
+  issue(req: CertificateRequest): Promise<IssuedCertificate>;
+}
+
+export interface CertificateRequest {
+  /** DER PKCS#10, signed with the device key — the proof that the requester holds it. */
+  csrDer: Uint8Array;
+  /** From the PID this participant presented in this call — never from the CSR. */
+  subject: { givenName: string; familyName: string };
+}
+
+export interface IssuedCertificate {
+  /** Base64 DER, leaf first, then the issuing CA. */
+  certificateChain: string[];
+}
+
+/**
+ * A signature provider a Pro module contributes to GET /signature-providers. `module` is the file
+ * in `clientAssetsDir` that implements it in the browser; the client loads it from there, so the
+ * code never ships with the AGPL client.
+ */
+export interface ContributedSignatureProvider {
+  id: string;
+  kind: 'device-local';
+  label: string;
+  maxLevel: 'B-B' | 'B-T' | 'B-LT' | 'B-LTA';
+  module: string;
+}
+
 /** The pluggable pieces the server resolves once at startup. */
 export interface Extensions {
   roomStore: RoomStore;
@@ -180,4 +225,10 @@ export interface Extensions {
   /** Qualified remote signing — only a Pro module provides one. Optional, so a Pro build
    *  compiled against an earlier version of this port still satisfies the interface. */
   qualifiedSigner?: QualifiedSigner;
+  /** Certificates for device-held signing keys (`qes-device`). Optional, as above. */
+  certificateIssuer?: CertificateIssuer;
+  /** Signature providers the Pro module adds; offered only while their feature is enabled. */
+  signatureProviders?: ContributedSignatureProvider[];
+  /** Directory of browser modules the Pro module ships, served under /pro-client/. */
+  clientAssetsDir?: string;
 }

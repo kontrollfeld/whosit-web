@@ -18,7 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 
-export type SignatureProviderKind = 'mock' | 'csc' | 'wallet-native';
+export type SignatureProviderKind = 'mock' | 'csc' | 'wallet-native' | 'device-local';
 export type SignatureLevel = 'B-B' | 'B-T' | 'B-LT' | 'B-LTA';
 
 export interface SignatureProviderEntry {
@@ -27,6 +27,9 @@ export interface SignatureProviderEntry {
   label: string;
   /** Highest PAdES level this provider can produce (mock: B-B). */
   maxLevel: SignatureLevel;
+  /** Browser module implementing the provider (kind 'device-local', contributed by the Pro
+   *  module, never configured by file), relative to the server root: `pro-client/<file>`. */
+  module?: string;
   /** CSC API v2 connection data (kind 'csc' only) — passed to the Pro client as-is. */
   csc?: {
     baseUrl: string;
@@ -89,14 +92,17 @@ export function loadSignatureProviders(): SignatureProviderEntry[] {
 }
 
 /**
- * The client-facing list, filtered by edition: non-mock providers require the
- * server-enforced `qes-csc` feature (Pro edition + Pro module). `qualified` is derived, never configured —
- * a mock can't claim to be qualified.
+ * The client-facing list, filtered by edition: configured non-mock providers require the
+ * server-enforced `qes-csc` feature (Pro edition + Pro module); contributed ones (the Pro
+ * module's device provider) are passed in only while `qes-device` is enabled. `qualified` is
+ * derived, never configured — neither a mock nor a demo CA can claim to be qualified.
  */
-export function publicSignatureProviders(cscEnabled: boolean): Array<
-  SignatureProviderEntry & { qualified: boolean }
-> {
-  return loadSignatureProviders()
-    .filter((p) => p.kind === 'mock' || cscEnabled)
-    .map((p) => ({ ...p, qualified: p.kind === 'csc' }));
+export function publicSignatureProviders(
+  cscEnabled: boolean,
+  contributed: ReadonlyArray<Omit<SignatureProviderEntry, 'csc'>> = [],
+): Array<SignatureProviderEntry & { qualified: boolean }> {
+  const configured = loadSignatureProviders().filter((p) => p.kind === 'mock' || cscEnabled);
+  // A contributed id never shadows a configured one: the operator's file wins.
+  const extra = contributed.filter((c) => !configured.some((p) => p.id === c.id));
+  return [...configured, ...extra].map((p) => ({ ...p, qualified: p.kind === 'csc' }));
 }

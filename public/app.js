@@ -1208,6 +1208,8 @@ function handle(msg) {
       addChat('System', '🪪 ' + t('Nachweis angefordert:') + ' ' + msg.label + ' …');
       break;
     case 'credential-requested': showCredPrompt(msg); break;
+    case 'device-cert': settleDeviceCert(msg, true); break;
+    case 'device-cert-error': settleDeviceCert(msg, false); break;
     case 'credential-auth': showCredAuth(msg); break;
     case 'credential-presented':
       credRequestOver(msg, peerName(msg.from) + ' — ' + msg.label + ' ' + t('geteilt ✓'));
@@ -3049,8 +3051,30 @@ let qesLoading = null;
 // every step) — observe it so the tile "document active" badge stays in sync without
 // threading a new hook through the module.
 new MutationObserver(refreshAllBadges).observe(qesBox, { attributes: true, attributeFilter: ['hidden'] });
+// Certificate requests of the device signature provider (Pro, qes-device): the CSR goes over
+// the signalling connection, because that is what ties it to the participant the server verified
+// in this call. reqId → { resolve, reject, timer }.
+const deviceCertPending = new Map();
+function requestDeviceCertificate(csrB64) {
+  return new Promise((resolve, reject) => {
+    const reqId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random();
+    const timer = setTimeout(() => { deviceCertPending.delete(reqId); reject(new Error('certificate request timed out')); }, 20000);
+    deviceCertPending.set(reqId, { resolve, reject, timer });
+    wsSend({ type: 'device-cert-request', reqId, csr: csrB64 });
+  });
+}
+function settleDeviceCert(msg, ok) {
+  const p = deviceCertPending.get(msg.reqId);
+  if (!p) return;
+  deviceCertPending.delete(msg.reqId);
+  clearTimeout(p.timer);
+  if (ok && Array.isArray(msg.chain) && msg.chain.length) p.resolve(msg.chain);
+  else p.reject(new Error('certificate refused: ' + (msg.message || 'unknown')));
+}
+
 function qesCtx() {
   return {
+    requestDeviceCertificate,
     // v1: exactly one peer (the button is hidden otherwise); mesh order comes later.
     getPeer: () => {
       const [entry] = [...peers.entries()];

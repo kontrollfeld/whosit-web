@@ -594,6 +594,21 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
 }));
 
+// Browser modules shipped by the Pro module (ext.clientAssetsDir), e.g. the device signature
+// provider. Served from pro/, never from public/: that is what keeps them out of the AGPL client.
+// Resolved per request because the extensions load after the routes are registered. CORS open,
+// because the native app imports them from its local bundle origin — a module script is subject
+// to CORS, a classic one would not be.
+let proClientStatic: express.RequestHandler | null = null;
+app.use('/pro-client', (req, res, next) => {
+  if (!ext.clientAssetsDir) return next();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  proClientStatic ??= express.static(ext.clientAssetsDir, {
+    setHeaders: (r) => r.setHeader('Cache-Control', 'no-cache'),
+  });
+  proClientStatic(req, res, next);
+});
+
 // The native app fetches these read-only, credential-free endpoints from its local
 // bundle origin (e.g. https://localhost) — allow that cross-origin read. `*` is safe
 // here: no cookies, no per-user data, everything below is public to any web visitor.
@@ -685,6 +700,8 @@ function enabledFeatures(): Set<string> {
   // must not advertise CSC/QTSP providers, whatever EUDI_EDITION says. This is what makes
   // `qes-csc` a Pro feature in substance rather than a switch in open code.
   if (!ext.qualifiedSigner) enabled.delete('qes-csc');
+  // Same reasoning for device-bound signatures: the certificate authority lives in pro/.
+  if (!ext.certificateIssuer) enabled.delete('qes-device');
   // LAST: the operator's off switch. After the config gates, so that it also applies when a
   // Pro module contributed a capability via ext.enabledFeatures — the operator's decision
   // takes precedence over everything else. UNSWITCHABLE is already filtered out in
@@ -754,7 +771,13 @@ app.get('/credential-catalog', publicCors, (_req, res) => {
 // always gets the mock provider only (demo signature, not legally binding).
 app.get('/signature-providers', publicCors, (_req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ providers: publicSignatureProviders(enabledFeatures().has('qes-csc')) });
+  const features = enabledFeatures();
+  res.json({
+    providers: publicSignatureProviders(
+      features.has('qes-csc'),
+      features.has('qes-device') ? (ext.signatureProviders ?? []) : [],
+    ),
+  });
 });
 
 // Room size: full mesh with the `multi-party` capability (Community since 2026-09-25);
@@ -1345,6 +1368,35 @@ wss.on('connection', (ws, request) => {
       });
       for (const peer of ext.roomStore.peersOf(hit.room, hit.participant)) send(peer.ws, { type: 'declined' });
       firePlugins((p) => p.onHangup?.({ roomId: hit.room.id, role: hit.participant.role, clientId: hit.participant.clientId, reason: 'decline' }));
+      return;
+    }
+
+    // ---- Certificate for a device-held signing key (Pro, qes-device) ----------------
+    // The device generated its key in the secure element and sends a CSR signed with it. We
+    // decide WHO may ask: only a participant verified in THIS call, over their own signalling
+    // connection. The names come from their PID as the verifier reported it, never from the
+    // CSR. See CertificateIssuer in ./core/ports.
+    if (msg.type === 'device-cert-request') {
+      const reqId = typeof msg.reqId === 'string' ? msg.reqId.slice(0, 64) : '';
+      const fail = (message: string) => send(ws, { type: 'device-cert-error', reqId, message });
+      if (!enabledFeatures().has('qes-device') || !ext.certificateIssuer) return fail('unavailable');
+      const hit = ext.roomStore.findByWs(ws);
+      if (!hit || !hit.participant.verified) return fail('not verified');
+      const { participant } = hit;
+      if (!participant.givenName && !participant.familyName) return fail('no name presented');
+      // A P-256 CSR is a few hundred bytes; anything far larger is not one.
+      const csrB64 = typeof msg.csr === 'string' && msg.csr.length <= 8192 ? msg.csr : '';
+      if (!csrB64) return fail('bad request');
+      try {
+        const issued = await ext.certificateIssuer.issue({
+          csrDer: new Uint8Array(Buffer.from(csrB64, 'base64')),
+          subject: { givenName: participant.givenName || '', familyName: participant.familyName || '' },
+        });
+        send(ws, { type: 'device-cert', reqId, chain: issued.certificateChain });
+      } catch (e: any) {
+        console.warn(`[qes-device] certificate refused: ${e?.message || e}`);
+        fail('refused');
+      }
       return;
     }
 

@@ -427,13 +427,42 @@ microphone and camera toggles, screen sharing, stage layout, hand raising, file 
 calendar entries, an Apple Wallet pass, document sharing and signing, iframe embedding,
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
-**Two features are commercially licensed** — where there is a real obligation behind them, and
+**Three features are commercially licensed** — where there is a real obligation behind them, and
 the code lives in [`pro/`](pro/):
 
 | Feature | Why |
 |---|---|
 | Verification trail with retention and export | Responsibility for retained evidence: deadlines, export, liability |
 | Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
+| Device-bound signatures (Secure Enclave / StrongBox) | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
+
+### Device-bound signatures
+
+The model a trust service provider will follow once it certifies wallet-held keys, built now so
+the key custody can be proven out before one does:
+
+1. The app's native `DeviceSigner` plugin (in the proprietary app repository) creates a P-256 key
+   in the **Secure Enclave** (iOS) or **StrongBox** (Android), usable only after biometric
+   authentication, and exports nothing but the public key. Without StrongBox the Android app
+   offers no device signature at all — it does not fall back to the weaker TEE.
+2. The browser module `pro/client/device-local.js` (served under `/pro-client/`, never part of
+   the AGPL client) builds a CSR and has the device sign it — the first biometric prompt.
+3. The server hands it to the demo CA (`pro/qes-device.ts`) — only for a participant verified in
+   this call, over their own signalling connection. The CA checks the proof of possession and
+   certifies the key with the **names from the PID**, not from the CSR.
+4. Every document signature is made on the device, one biometric prompt each, and embedded as
+   PAdES baseline B-B (signingCertificateV2, no signing-time attribute).
+
+What operators need to know:
+- **Only in the app.** WebCrypto cannot reach the secure element, so a browser is offered no
+  device provider — rather than a software key that would claim a custody it does not have.
+- **The CA key** lives in `EUDI_QES_CA_FILE` (mode 0600); by default `qes-demo-ca.json` next to
+  the audit trail (`EUDI_AUDIT_FILE`), i.e. on the volume that already has to be persistent. A
+  new CA after a restart makes every earlier signature unverifiable against the current one.
+- **Not yet proven:** that the key really sits in hardware. The next step is key attestation
+  (Android key attestation, Apple App Attest), checked by the CA before it certifies.
+- `npm run test:qes-device` covers everything but the chip, with a software key behind the
+  plugin's contract.
 
 The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative — it is the
 single source of truth for the split and gives a reason for every entry. `GET /capabilities`
