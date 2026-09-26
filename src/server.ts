@@ -1390,7 +1390,10 @@ wss.on('connection', (ws, request) => {
       if (!hit || !hit.participant.verified) return send(ws, { type: 'pair-error', reqId, message: 'not verified' });
       const owner = hit.participant;
       const pairing = createPairing(owner, () => send(owner.ws, { type: 'pair-closed', reason: 'expired' }));
-      send(ws, { type: 'pair-created', reqId, token: pairing.token, url: `${PUBLIC_URL}/?pair=${pairing.token}` });
+      // The link's origin comes from THIS request (like the wallet's webhook), not from
+      // PUBLIC_URL: that constant falls back to localhost when the variable is unset, which is
+      // the normal case behind Coolify — the phone's camera then opened localhost:3000.
+      send(ws, { type: 'pair-created', reqId, token: pairing.token, url: `${origin}/?pair=${pairing.token}` });
       return;
     }
     if (msg.type === 'pair-join') {

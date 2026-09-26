@@ -172,9 +172,21 @@ export function createDocShare(ctx) {
   }
   function send(obj) { if (dc && dc.readyState === 'open') { try { dc.send(JSON.stringify(obj)); } catch {} } }
 
+  /**
+   * Nothing in flight: no transfer half-way, no ceremony still running. A FINISHED document
+   * session (both see the document, or a completed ceremony) does not block the next share —
+   * the new document replaces it on both sides. Until 2026-09-26 any open view blocked it, so
+   * whoever had RECEIVED a document could not share one back without closing the view first,
+   * and the button gave no hint why nothing happened: sharing looked like it worked one way only.
+   */
+  function settled() {
+    return (!cer || cer.state === 'done') && (!out || out.done) && (!inc || inc.done);
+  }
+
   // ---- outgoing: share a PDF ----
   async function share(file) {
-    if (out || inc) { setStatus('Es läuft bereits eine Dokumentansicht.'); show(); return; }
+    if (!settled()) { setStatus('Es läuft bereits eine Übertragung oder Signatur — bitte warten oder die Ansicht schließen.'); show(); return; }
+    if (out || inc || pdfDoc) teardown(/*silent*/ true); // the peer replaces its view on our offer
     if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { show(); setStatus('Nur PDF-Dateien werden unterstützt.'); return; }
     if (file.size > MAX_DOC_BYTES) { show(); setStatus('Datei zu groß (max. {mb} MB).', { mb: MAX_DOC_BYTES / 1024 / 1024 }); return; }
     show();
@@ -244,9 +256,10 @@ export function createDocShare(ctx) {
       return;
     }
     const step = versionStep(m.docId);
-    // Busy check: ceremony versions may REPLACE a finished transfer slot; anything else
-    // must wait until the current document session is closed.
-    if (!step && (out || inc)) { send({ q: 'doc-error', docId: m.docId, reason: 'busy' }); return; }
+    // Busy check: ceremony versions may REPLACE a finished transfer slot; a new document may
+    // replace a finished session (see settled()); anything in flight must finish first.
+    if (!step && !settled()) { send({ q: 'doc-error', docId: m.docId, reason: 'busy' }); return; }
+    if (!step && (out || inc || pdfDoc)) teardown(/*silent*/ true);
     if (step && inc && !inc.done) { send({ q: 'doc-error', docId: m.docId, reason: 'busy' }); return; }
     if (!Number.isFinite(m.size) || m.size <= 0 || m.size > MAX_DOC_BYTES || !Number.isFinite(m.chunks) || m.chunks !== Math.ceil(m.size / m.chunkSize)) {
       send({ q: 'doc-error', docId: m.docId, reason: 'invalid-offer' }); return;
