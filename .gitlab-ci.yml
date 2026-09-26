@@ -95,6 +95,8 @@ test:
     # Device-bound signatures: certificate only for a verified participant, subject from the PID,
     # proof of possession, and a PAdES signature that chains to the demo CA.
     - npm run test:qes-device
+    # Signing with a paired phone: single-use token, certificate in the owner's name, relay only.
+    - npm run test:qes-pairing
 
 # Secret scanning: the mistake that happens most often when open-sourcing, and the most expensive
 # one. Runs over the WHOLE history, not just the diff — a secret in an old commit is just as public

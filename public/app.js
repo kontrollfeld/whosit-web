@@ -574,8 +574,14 @@ function parseInviteCfg(tok) {
 }
 const inviteCfg = inviteToken ? parseInviteCfg(inviteToken) : null;
 
+// ---- phone paired to sign for a browser participant (Pro, qes-device) -------------
+// `?pair=<token>` comes from the QR code a browser shows under "Mit dem Smartphone signieren".
+// This page then is not a call at all: no room, no join — the Pro module takes over the screen
+// (see startPairedSigner below and pro/client/paired-signer.js).
+const pairToken = params.get('pair');
+
 let roomId = inviteCfg ? inviteCfg.room : params.get('room');
-if (!roomId && !inviteToken) {
+if (!roomId && !inviteToken && !pairToken) {
   roomId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
   params.delete('new'); // entry flag from a start page's CTA — not part of the room URL
   params.set('room', roomId);
@@ -974,6 +980,15 @@ let loopbackPeers = [];
 function isHost() { return myRole === 'caller' && !soloMode; }
 function wsSend(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 
+// Server messages a lazily loaded module listens to (e.g. the pairing of the phone signature,
+// pro/client/paired-phone.js), so this switch does not have to know every one of them.
+const serverListeners = new Map(); // type → Set<fn>
+function onServer(type, fn) {
+  if (!serverListeners.has(type)) serverListeners.set(type, new Set());
+  serverListeners.get(type).add(fn);
+  return () => serverListeners.get(type).delete(fn);
+}
+
 // ---- channel binding ----
 // The DTLS fingerprint has to be fixed BEFORE the wallet request, otherwise it cannot be signed
 // along with it. Normally it only comes into being with the SDP offer — so we bring the
@@ -1157,6 +1172,8 @@ function connect() {
 }
 
 function handle(msg) {
+  const listeners = serverListeners.get(msg.type);
+  if (listeners) for (const fn of [...listeners]) { try { fn(msg); } catch (e) { console.warn('listener failed:', e && e.message); } }
   switch (msg.type) {
     case 'joined':
       myRole = msg.role;
@@ -3075,6 +3092,9 @@ function settleDeviceCert(msg, ok) {
 function qesCtx() {
   return {
     requestDeviceCertificate,
+    // For the phone-signature provider: pair over this connection, then WebRTC with the phone.
+    server: { send: wsSend, on: onServer },
+    getIceServers: async () => { await refreshIce(); return iceServers; },
     // v1: exactly one peer (the button is hidden otherwise); mesh order comes later.
     getPeer: () => {
       const [entry] = [...peers.entries()];
@@ -3156,7 +3176,8 @@ restartBtn.addEventListener('click', startFreshCall);
 // An unreadable ?inv=… : do not even connect (there is no room we could enter) — otherwise the
 // roomId derivation above would silently create a FRESH ad-hoc room, and the invitee would stand
 // there as host in an empty call.
-if (inviteToken && !inviteCfg) showInviteProblem('malformed');
+if (pairToken) startPairedSigner(pairToken);
+else if (inviteToken && !inviteCfg) showInviteProblem('malformed');
 else connect();
 // Warm up the ICE configuration and then check ONCE whether this network can carry a call at all.
 // The check gets exactly these iceServers — if it kept its own, it would be testing something
@@ -3180,6 +3201,34 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
     })
     .catch(() => { el.hidden = true; });
 })();
+
+// ---- phone signature: this device signs for a browser participant (Pro, qes-device) ----
+// Loaded from the server (pro/client/paired-signer.js), like every Pro client module; what it
+// needs from this bundle is handed over, because a relative import from there would reach the
+// server rather than this bundle. Without the Pro module (or offline) the page says so plainly.
+function startPairedSigner(token) {
+  // The token is a bearer credential for one signing step: out of the address bar, history and
+  // any screenshot as soon as it has been read.
+  history.replaceState(null, '', location.pathname);
+  document.body.classList.add('pair-mode');
+  const native = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceSigner) || null;
+  import(new URL(apiUrl('pro-client/paired-signer.js'), location.href).href)
+    .then((m) => m.start({
+      token, native, apiUrl, wsUrl: wsUrl(), t,
+      getIceServers: async () => { await refreshIce(); return iceServers; },
+      loadPades: () => import('./qes/pades.js'),
+      loadProviders: () => import('./qes/providers.js'),
+      loadPdfjs: async () => {
+        const lib = await import('./vendor/pdfjs/pdf.min.mjs');
+        lib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdfjs/pdf.worker.min.mjs', location.href).href;
+        return lib;
+      },
+    }))
+    .catch((e) => {
+      console.warn('phone signature unavailable:', e && e.message);
+      setStatus('Signieren mit dem Smartphone ist auf diesem Server nicht verfügbar.');
+    });
+}
 
 // ---- native app shell: bottom tab bar (Anruf / Einstellungen) --------------
 // Only in the Capacitor app (isNativeApp()); the website keeps its footer pills.
@@ -3218,6 +3267,9 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
   if (CapApp) {
     const openRoomUrl = (url) => {
       try {
+        // A pairing QR code scanned with the camera: sign for the browser that shows it.
+        const pair = new URL(url).searchParams.get('pair');
+        if (pair) { if (pair !== pairToken) location.href = `index.html?pair=${encodeURIComponent(pair)}`; return; }
         const target = new URL(url).searchParams.get('room');
         if (target && target !== roomId) location.href = `index.html?room=${encodeURIComponent(target)}`;
       } catch { /* not a room link — ignore */ }

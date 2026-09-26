@@ -133,8 +133,9 @@ export const FEATURES: Feature[] = [
   // certifies it once, from the PID the participant presented in this call. This is the model
   // a QTSP will follow for wallet-held keys — until one does, the authority is a DEMO CA and the
   // signature is NOT legally binding. Needs the Pro edition AND the Pro module's
-  // `certificateIssuer`, like qes-csc. Only reachable from the app: WebCrypto cannot reach the
-  // secure element, so a browser gets no device provider at all.
+  // `certificateIssuer`, like qes-csc. The key is only reachable from the app — WebCrypto cannot
+  // reach the secure element — so a browser participant signs with their PAIRED phone instead
+  // (QR code, ../device-pairing.ts, pro/client/paired-phone.js).
   { id: 'qes-device', title: 'Device-bound signature (Secure Enclave / StrongBox, biometric) with a demo CA', edition: 'pro', clientGated: false },
 ];
 

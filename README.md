@@ -453,16 +453,36 @@ the key custody can be proven out before one does:
 4. Every document signature is made on the device, one biometric prompt each, and embedded as
    PAdES baseline B-B (signingCertificateV2, no signing-time attribute).
 
+**In a browser, the phone signs.** WebCrypto cannot reach the secure element, so a browser is
+offered "Mit dem Smartphone signieren" instead (`pro/client/paired-phone.js`):
+
+1. The browser asks for a one-time pairing token — only a participant verified in this call gets
+   one — and shows it as a QR code (`https://<host>/?pair=<token>`).
+2. The phone's camera opens it in the app (universal link). The two ends open a WebRTC
+   DataChannel of their own; the server relays only SDP and ICE (`src/device-pairing.ts`). The
+   document goes peer to peer — the server never sees it, the same promise as in the call.
+3. The phone shows **every page** of the document (`pro/client/paired-signer.js`), the person
+   confirms with Face ID, and the phone adds the signature to exactly those bytes and returns the
+   grown PDF. Deliberately not "send the hash": a phone signing a hash handed to it signs whatever
+   the browser claims.
+4. The certificate is issued in the name of the participant who **created** the pairing — the
+   phone has no identity of its own in the call. Holding the token is what makes it theirs, so the
+   token is single-use, expires unscanned after 5 minutes, is never logged, and the phone's
+   certificate request is refused once its owner has left the call.
+
 What operators need to know:
-- **Only in the app.** WebCrypto cannot reach the secure element, so a browser is offered no
-  device provider — rather than a software key that would claim a custody it does not have.
+- **No software key anywhere.** A browser is never offered a provider that signs locally — it
+  would claim a custody it does not have.
+- **Universal link:** `?pair=` is in the apple-app-site-association (`EUDI_IOS_APP_ID`); an app
+  build older than the pairing support opens a fresh room instead, which the user notices at once.
 - **The CA key** lives in `EUDI_QES_CA_FILE` (mode 0600); by default `qes-demo-ca.json` next to
   the audit trail (`EUDI_AUDIT_FILE`), i.e. on the volume that already has to be persistent. A
   new CA after a restart makes every earlier signature unverifiable against the current one.
 - **Not yet proven:** that the key really sits in hardware. The next step is key attestation
   (Android key attestation, Apple App Attest), checked by the CA before it certifies.
 - `npm run test:qes-device` covers everything but the chip, with a software key behind the
-  plugin's contract.
+  plugin's contract; `npm run test:qes-pairing` the pairing (token, relay, the owner's
+  certificate, the DataChannel framing).
 
 The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative — it is the
 single source of truth for the split and gives a reason for every entry. `GET /capabilities`
