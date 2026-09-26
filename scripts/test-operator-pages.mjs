@@ -128,7 +128,7 @@ try {
     check('with start.html "/" serves it — without a restart',
       home.text.includes('PROVIDED-BY-OPERATOR-START'), `got: ${home.text.slice(0, 90)}`);
 
-    for (const q of ['?room=abc123', '?inv=xyz', '?new=1', '?solo=1']) {
+    for (const q of ['?room=abc123', '?inv=xyz', '?pair=tok', '?new=1', '?solo=1']) {
       const app = await body(PORT_WITH, `/${q}`);
       check(`"${q}" still opens the application, not the start page`,
         !app.text.includes('PROVIDED-BY-OPERATOR-START'), 'an invitation link landed on the start page');
