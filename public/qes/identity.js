@@ -47,9 +47,27 @@ export function extractSignatureRanges(bytes) {
   while ((m = re.exec(s))) {
     const [b0, l0, b1, l1] = m.slice(1).map(Number);
     const hexStr = s.slice(b0 + l0, b1).replace(/[<>]/g, '').replace(/(00)+$/, '');
-    if (hexStr.length && hexStr.length % 2 === 0) out.push({ ranges: [b0, l0, b1, l1], cmsDer: hexToU8(hexStr) });
+    if (hexStr.length && hexStr.length % 2 === 0) {
+      out.push({ ranges: [b0, l0, b1, l1], cmsDer: hexToU8(hexStr), pdfTime: sigDictTime(s, m.index, b1) });
+    }
   }
   return out;
+}
+
+/**
+ * The /M (signing time) of the signature dictionary around a /ByteRange. PAdES forbids the CMS
+ * signing-time attribute, so this is where the claimed time lives. The dictionary's entries sit
+ * around the /Contents gap: looked for right after the gap first, then just before /ByteRange.
+ * A claimed time, like the CMS attribute was — not a timestamp.
+ */
+function sigDictTime(s, byteRangeAt, contentsEnd) {
+  const re = /\/M\s*\(D:(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?(Z|[+-]\d{2}'?\d{2}'?)?\)/;
+  const m = re.exec(s.slice(contentsEnd, contentsEnd + 1024)) || re.exec(s.slice(Math.max(0, byteRangeAt - 1024), byteRangeAt));
+  if (!m) return null;
+  const [, y, mo, d, h = '00', mi = '00', se = '00', tz = 'Z'] = m;
+  const zone = tz === 'Z' ? 'Z' : tz.replace(/'/g, '').replace(/^([+-]\d{2})(\d{2})$/, '$1:$2');
+  const t = new Date(`${y}-${mo}-${d}T${h}:${mi}:${se}${zone}`);
+  return Number.isNaN(t.getTime()) ? null : t;
 }
 
 export function subjectAttrs(cert) {
@@ -88,13 +106,15 @@ export async function verifyExtractedSignature(bytes, sig) {
       selfSigned,
     };
   }
-  // Signing time from the signed attributes (OID 1.2.840.113549.1.9.5), if present.
+  // Signing time: the signed attribute (OID 1.2.840.113549.1.9.5) of older demo signatures,
+  // otherwise the /M of the signature dictionary (see sigDictTime).
   let signingTime = null;
   try {
     const attrs = sd.signerInfos[0].signedAttrs && sd.signerInfos[0].signedAttrs.attributes;
     const st = attrs && attrs.find((a) => a.type === '1.2.840.113549.1.9.5');
     if (st) signingTime = st.values[0].toDate();
   } catch { /* optional */ }
+  if (!signingTime && sig.pdfTime) signingTime = sig.pdfTime;
   return { verified, details, signingTime };
 }
 function hexOf(buf) { return [...toU8(buf)].map((b) => b.toString(16).padStart(2, '0')).join(''); }

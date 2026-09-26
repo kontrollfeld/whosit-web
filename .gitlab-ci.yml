@@ -71,6 +71,9 @@ test:
     - npm run build
     - test -f dist/server.js || { echo "Build without pro/ is incomplete"; exit 1; }
     - git checkout -- pro
+    # Only now: the tests load the Pro module from source, and it needs its own dependencies
+    # (pkijs for the demo CA). Installed after the step above, which deletes pro/ wholesale.
+    - npm ci --prefix pro --cache .npm --prefer-offline
 
     # Listed individually rather than via `npm test`, so the job log shows immediately WHICH check
     # failed — a chained command line only says that something did.
@@ -89,6 +92,9 @@ test:
     - npm run test:invite
     - npm run test:hostlogin
     - npm run test:qes
+    # Device-bound signatures: certificate only for a verified participant, subject from the PID,
+    # proof of possession, and a PAdES signature that chains to the demo CA.
+    - npm run test:qes-device
 
 # Secret scanning: the mistake that happens most often when open-sourcing, and the most expensive
 # one. Runs over the WHOLE history, not just the diff — a secret in an old commit is just as public

@@ -127,6 +127,15 @@ export const FEATURES: Feature[] = [
   // labelled as not legally binding. Qualified remote signing requires a contract with a trust
   // service provider and costs money per signature.
   { id: 'qes-csc', title: 'Qualified remote signature via CSC/QTSP (QES ceremony, Phase 6)', edition: 'pro', clientGated: false },
+  // Pro, server-ENFORCED, implemented in ./pro (pro/qes-device.ts + pro/client/device-local.js)
+  // and in the proprietary app (native DeviceSigner plugin). The signing key is generated in the
+  // phone's secure element behind biometrics and never leaves it; a certificate authority
+  // certifies it once, from the PID the participant presented in this call. This is the model
+  // a QTSP will follow for wallet-held keys — until one does, the authority is a DEMO CA and the
+  // signature is NOT legally binding. Needs the Pro edition AND the Pro module's
+  // `certificateIssuer`, like qes-csc. Only reachable from the app: WebCrypto cannot reach the
+  // secure element, so a browser gets no device provider at all.
+  { id: 'qes-device', title: 'Device-bound signature (Secure Enclave / StrongBox, biometric) with a demo CA', edition: 'pro', clientGated: false },
 ];
 
 export const COMMUNITY_FEATURE_IDS = FEATURES.filter((f) => f.edition === 'community').map((f) => f.id);

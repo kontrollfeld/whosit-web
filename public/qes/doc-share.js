@@ -424,7 +424,7 @@ export function createDocShare(ctx) {
     try {
       if (!providers) {
         const mod = await import(new URL('./providers.js', import.meta.url).href);
-        providers = await mod.loadSignatureProviders(ctx.getSelfIdentity);
+        providers = await mod.loadSignatureProviders(ctx.getSelfIdentity, ctx);
       }
     } catch (e) { console.warn('signature providers unavailable:', e && e.message); return; }
     if (!providers.length) return; // no providers configured → no signing UI

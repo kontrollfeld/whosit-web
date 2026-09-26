@@ -110,6 +110,18 @@ check(results[0].binding.status === 'match' && results[0].binding.label === 'Ann
 check(results[1].binding.status === 'match' && results[1].binding.label === 'Gustav', 'signature 2 bound to Gustav', results[1].binding.label);
 check(results[1].coverage.wholeFile, 'newest signature covers the whole file');
 check(results.every((r) => r.details.selfSigned), 'demo certs flagged self-signed');
+check(results.every((r) => r.signingTime instanceof Date && Math.abs(Date.now() - r.signingTime) < 10 * 60_000),
+  'signing time read from the signature dictionary (/M)', results.map((r) => r.signingTime).join(', '));
+
+// PAdES baseline shape of the CMS: signingCertificateV2 present, signing-time absent.
+{
+  const identityMod = await qes('identity.js');
+  const [sig] = identityMod.extractSignatureRanges(v2.bytes);
+  const ci = pkijs.ContentInfo.fromBER(sig.cmsDer.buffer.slice(sig.cmsDer.byteOffset, sig.cmsDer.byteOffset + sig.cmsDer.byteLength));
+  const attrs = new pkijs.SignedData({ schema: ci.content }).signerInfos[0].signedAttrs.attributes.map((a) => a.type);
+  check(attrs.includes('1.2.840.113549.1.9.16.2.47'), 'signingCertificateV2 attribute present', attrs.join(','));
+  check(!attrs.includes('1.2.840.113549.1.9.5'), 'no signing-time attribute (PAdES forbids it)');
+}
 
 // Tamper check: flip one byte inside the signed area → newest signature must fail.
 const tampered = v2.bytes.slice();

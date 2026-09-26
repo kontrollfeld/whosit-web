@@ -83,6 +83,10 @@ jobs:
           test -f dist/server.js || { echo "::error::Build without pro/ is incomplete"; exit 1; }
           git checkout -- pro
 
+      # The tests load the Pro module from source; it needs its own dependencies (pkijs).
+      - name: Pro module dependencies
+        run: npm ci --prefix pro
+
       # Listed individually so the summary shows WHICH check failed.
       - name: WRP policy (attribute allowlist, purpose limitation)
         run: npm run test:wrp
@@ -108,3 +112,5 @@ jobs:
         run: npm run test:hostlogin
       - name: QES signing ceremony
         run: npm run test:qes
+      - name: Device-bound signature (demo CA, proof of possession)
+        run: npm run test:qes-device

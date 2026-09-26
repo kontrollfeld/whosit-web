@@ -28,7 +28,7 @@ const PORT_PROMO = 3773;
 const PORT_PRO_MODULE = 3775;
 
 /** The two Pro features — where we genuinely provide something in return, with the code in pro/. */
-const PRO_IDS = ['audit-trail', 'qes-csc'];
+const PRO_IDS = ['audit-trail', 'qes-csc', 'qes-device'];
 
 /** Community features whose loss MUST be noticed immediately (the 2026-08-19 split, plus
  *  multi-party on 2026-09-25: its code is all AGPL, so a Pro label was only a switch). */
@@ -42,7 +42,7 @@ const MOVED_TO_COMMUNITY = [
 // test needs no `npm run build:pro` first. Its audit trail writes into a throwaway directory.
 const PRO_MODULE = './pro/index.ts';
 const auditDir = mkdtempSync(join(tmpdir(), 'id-call-editions-'));
-const withProModule = { EUDI_PRO_MODULE: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl') };
+const withProModule = { EUDI_PRO_MODULE: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl'), EUDI_QES_CA_FILE: join(auditDir, 'ca.json') };
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -146,6 +146,10 @@ try {
   check('audit-trail included (edition gate)', pro.enabled.includes('audit-trail'));
   check('qes-csc NOT included', !pro.enabled.includes('qes-csc'),
     'advertised without the Pro module — the AGPL core cannot sign qualified');
+  check('qes-device NOT included', !pro.enabled.includes('qes-device'),
+    'advertised without the Pro module — the AGPL core has no certificate authority');
+  check('/pro-client/ serves nothing without the Pro module',
+    (await fetch(`http://127.0.0.1:${PORT_PRO}/pro-client/device-local.js`)).status === 404);
   const providers = await (await fetch(`http://127.0.0.1:${PORT_PRO}/signature-providers`)).json();
   check('/signature-providers ships the demo provider only',
     providers.providers.every((p) => p.kind === 'mock'), JSON.stringify(providers.providers));
@@ -179,8 +183,8 @@ try {
       'a privacy guarantee that can be switched off is not a guarantee');
   }
   check('features not listed stay untouched', off.enabled.includes('emoji'), JSON.stringify(off.enabled));
-  check('the remaining Pro feature stays active in Pro',
-    off.enabled.includes('qes-csc'), JSON.stringify(off.enabled));
+  check('the remaining Pro features stay active in Pro',
+    off.enabled.includes('qes-csc') && off.enabled.includes('qes-device'), JSON.stringify(off.enabled));
 
   console.log('\nThe launch promo raises the features but does not disguise where they came from');
   check('the effective edition is pro', promo.edition === 'pro', JSON.stringify(promo.edition));
