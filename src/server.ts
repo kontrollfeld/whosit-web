@@ -538,8 +538,10 @@ app.get('/', (req, res, next) => {
     return next(); // serve the app (index.html)
   }
   // `inv` marks a scheduled call: the room id sits inside the signed invitation, not in the
-  // URL — so this parameter must open the app, not an operator's start page.
-  if ('room' in req.query || 'inv' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
+  // URL — so this parameter must open the app, not an operator's start page. `pair` is the
+  // phone-signature QR code (./device-pairing): missing here, a phone whose link was not taken
+  // by the app landed on the operator's start page, and the pairing page never appeared.
+  if ('room' in req.query || 'inv' in req.query || 'pair' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
     return BRANDING ? sendBranded(res, 'index.html') : next();
   }
   // Where the operator supplies a start page, it owns "/" — see ./operator-pages. Without one
