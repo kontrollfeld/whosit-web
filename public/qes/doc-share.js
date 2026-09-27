@@ -455,8 +455,21 @@ export function createDocShare(ctx) {
   function selectedProvider() {
     return providers.find((p) => p.id === providerSel.value) || providers[0];
   }
+  // A provider may explain what it needs (e.g. the phone signature: where to get the app). Its
+  // own module renders that — this file only offers the place, under the provider choice.
+  let providerHint = null;
   function updateSignUi() {
     const p = selectedProvider();
+    if (!providerHint) {
+      providerHint = document.createElement('div');
+      providerHint.style.cssText = 'margin:8px 0;';
+      // Below the row holding the choice and the sign button, not inside it: in that flex row it
+      // would squeeze the choice to nothing.
+      (providerSel.closest('.row') || providerSel).insertAdjacentElement('afterend', providerHint);
+    }
+    providerHint.innerHTML = '';
+    if (p && typeof p.renderHint === 'function') { try { p.renderHint(providerHint); } catch { /* a hint must not break signing */ } }
+    providerHint.hidden = !providerHint.firstChild;
     // The banner is permanent and non-dismissable while a non-qualified provider is
     // selected — the user asked for an unmissable "not legally binding yet" notice.
     $('qes-demo-banner').hidden = !!(p && p.qualified);

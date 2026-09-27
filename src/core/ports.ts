@@ -213,6 +213,8 @@ export interface ContributedSignatureProvider {
   label: string;
   maxLevel: 'B-B' | 'B-T' | 'B-LT' | 'B-LTA';
   module: string;
+  /** Where to get the app this provider needs (App Store / TestFlight), shown to those without it. */
+  appUrl?: string;
 }
 
 /** The pluggable pieces the server resolves once at startup. */
