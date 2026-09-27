@@ -471,6 +471,10 @@ offered "Mit dem Smartphone signieren" instead (`pro/client/paired-phone.js`):
    certificate request is refused once its owner has left the call.
 
 What operators need to know:
+- **"Get the app":** wherever someone meets the phone signature without the app — under the
+  provider choice in the call, in the QR dialog, on the page a browser opens instead of the app —
+  a card links to it: `EUDI_IOS_APP_URL`, by default the public TestFlight link. After the App
+  Store release, set it to `https://apps.apple.com/app/id6792466540`; no client change needed.
 - **No software key anywhere.** A browser is never offered a provider that signs locally — it
   would claim a custody it does not have.
 - **Universal link:** `?pair=` is in the apple-app-site-association (`EUDI_IOS_APP_ID`); an app

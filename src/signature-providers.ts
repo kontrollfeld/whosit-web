@@ -30,6 +30,8 @@ export interface SignatureProviderEntry {
   /** Browser module implementing the provider (kind 'device-local', contributed by the Pro
    *  module, never configured by file), relative to the server root: `pro-client/<file>`. */
   module?: string;
+  /** Where to get the app a contributed provider needs (App Store / TestFlight). */
+  appUrl?: string;
   /** CSC API v2 connection data (kind 'csc' only) — passed to the Pro client as-is. */
   csc?: {
     baseUrl: string;
