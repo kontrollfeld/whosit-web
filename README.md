@@ -1,4 +1,29 @@
+<p align="center">
+  <a href="https://id-call.eu">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://id-call.eu/operator/logo/logo-horizontal-white.svg">
+      <img src="https://id-call.eu/operator/logo/logo-horizontal-colour.svg" alt="EUDI Verified Call" width="380">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://id-call.eu"><strong>▶&nbsp;Try&nbsp;the&nbsp;live&nbsp;demo&nbsp;at&nbsp;id-call.eu</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://testflight.apple.com/join/PfYx2MhR">iPhone app (TestFlight)</a>
+  &nbsp;·&nbsp;
+  <a href="#self-hosting-in-5-steps">Self-host it</a>
+</p>
+
 # EUDI Verified Call — Community Edition
+
+> **See it before you set it up:** [**id-call.eu**](https://id-call.eu) is our hosted instance of
+> this code, with a registered verifier. Open it, share the invitation link, and you are in a call
+> within a minute — with an EUDI wallet, including the identity check before connecting.
+> Signing a document with the key in your iPhone's security chip needs the
+> [iPhone app](https://testflight.apple.com/join/PfYx2MhR). It is a demo instance, not a service
+> with guarantees — for your own deployment, see [Self-hosting](#self-hosting-in-5-steps); to try
+> it locally without any registration, [Running without a verifier](#running-without-a-verifier).
 
 **Identity-verified peer-to-peer calls (video · audio · chat).** Both sides can identify
 themselves with an **EUDI wallet (PID, the EU digital identity)** and see **before connecting**
