@@ -30,7 +30,7 @@ mirror is force-updated on every sync, so a merge commit created on GitHub would
 
 ## Verification
 
-- [ ] `npm test` passes (typecheck, licence boundary, all nine integration suites)
+- [ ] `npm test` passes (typecheck, licence boundary, all integration suites)
 - [ ] For a bug fix: a test fails **without** the fix
 - [ ] For security-relevant changes: the guarantee is stated as a comment on the code that
       enforces it
