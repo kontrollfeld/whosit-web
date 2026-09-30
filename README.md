@@ -13,6 +13,8 @@
   <a href="https://testflight.apple.com/join/PfYx2MhR">iPhone app (TestFlight)</a>
   &nbsp;·&nbsp;
   <a href="#self-hosting-in-5-steps">Self-host it</a>
+  &nbsp;·&nbsp;
+  <a href="#help-with-eidas-20-and-the-eudi-wallet">eIDAS&nbsp;2.0 integration help</a>
 </p>
 
 # EUDI Verified Call — Community Edition
@@ -53,6 +55,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
   - ["/" is the application, not a website](#-is-the-application-not-a-website)
   - [Trust lists expire after 30 days](#trust-lists-expire-after-30-days)
 - [Running without a verifier](#running-without-a-verifier)
+- [Help with eIDAS 2.0 and the EUDI wallet](#help-with-eidas-20-and-the-eudi-wallet)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
 - [Wiring up TURN properly](#wiring-up-turn-properly)
 - [Configuration (ENV)](#configuration-env)
@@ -243,6 +246,17 @@ anonymous one.
 
 `npm run test:verifier-none` checks all of this against a server started in production mode
 with no verifier variable at all.
+
+## Help with eIDAS 2.0 and the EUDI wallet
+
+Going from level 1 to level 3 is mostly not code: the relying-party registration, the access
+certificate, a verifier that has to be pinned and maintained, trust lists that expire, and the
+question of which attributes a use case may ask for at all. **Kontrollfeld GmbH**, who maintain
+this project, help organisations integrate eIDAS 2.0 identity flows and the EUDI wallet into their
+own applications — with this software or without it.
+
+→ [kontrollfeld.de/leistungen/eudi-wallet](https://www.kontrollfeld.de/leistungen/eudi-wallet/)
+(in German) · **administration@kontrollfeld.de**
 
 ## Local development with the EUDIPLO mock
 
