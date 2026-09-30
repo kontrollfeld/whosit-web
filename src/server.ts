@@ -68,6 +68,7 @@ import { purgeVerifierSession } from './verifier-session';
 import { createPairing, joinPairing, pairingOfOwner, pairingOfPhone, endPairing } from './device-pairing';
 import { COMMUNITY_FEATURE_IDS, PRO_FEATURE_IDS, parseFeaturesOff } from './core/features';
 import { configuredEdition, effectiveEdition, promoAllPro } from './core/edition';
+import { verifierMode, NEEDS_VERIFIER } from './core/verifier-mode';
 import { assertProductionConfig } from './core/startup-checks';
 import { buildTerminPass, walletPassConfigured } from './wallet-pass';
 import { publicSignatureProviders } from './signature-providers';
@@ -254,6 +255,8 @@ let ext: Extensions = { roomStore: communityRoomStore, verificationSink: noopVer
 // launch promo (EUDI_PROMO_ALL_PRO) forces the EFFECTIVE edition to `pro` for everyone —
 // see ./core/edition. CONFIGURED_EDITION keeps the real, licensed edition for transparency.
 const CONFIGURED_EDITION = configuredEdition();
+// EUDI_VERIFIER=none: evaluation without a verifier — every call anonymous (./core/verifier-mode).
+const VERIFIER_OFF = verifierMode() === 'none';
 const PROMO_ALL_PRO = promoAllPro();
 const EDITION: 'community' | 'pro' = effectiveEdition();
 // Capabilities switched off by the operator. Resolved ONCE at startup, so the startup message
@@ -712,6 +715,8 @@ function enabledFeatures(): Set<string> {
   if (!ext.qualifiedSigner) enabled.delete('qes-csc');
   // Same reasoning for device-bound signatures: the certificate authority lives in pro/.
   if (!ext.certificateIssuer) enabled.delete('qes-device');
+  // Without a verifier nothing that rests on a verified identity exists (./core/verifier-mode).
+  if (VERIFIER_OFF) for (const id of NEEDS_VERIFIER) enabled.delete(id);
   // LAST: the operator's off switch. After the config gates, so that it also applies when a
   // Pro module contributed a capability via ext.enabledFeatures — the operator's decision
   // takes precedence over everything else. UNSWITCHABLE is already filtered out in
@@ -731,6 +736,9 @@ app.get('/capabilities', publicCors, (_req, res) => {
   res.json({
     edition: EDITION, configuredEdition: CONFIGURED_EDITION, promo: PROMO_ALL_PRO,
     enabled: [...enabledFeatures()],
+    // 'none' = no wallet verification on this instance (EUDI_VERIFIER=none): the client fixes
+    // both sides to anonymous and shows a permanent "test mode" banner. Enforced here, not there.
+    verifier: VERIFIER_OFF ? 'none' : 'eudiplo',
     // Does this instance require sign-in before someone can host? The client then shows a
     // SIGN-IN page instead of the setup form. Without this it would keep showing a "what do I
     // share" choice that does not exist — the attributes are enforced, and anyone unticking
@@ -1267,6 +1275,15 @@ wss.on('connection', (ws, request) => {
       // the host can shift it any more (see ./invite-token). The client therefore renders the
       // setup read-only (configPinned in the status).
       if (room.configPinned) return;
+      // Without a verifier there is nothing to request or disclose — not even a derived
+      // attribute, since pseudonym_id is derived FROM the PID. Refused outright rather than
+      // narrowed: a client that asks for attributes here has misread the instance, and should
+      // hear so instead of believing its request went through.
+      const asks = (v: unknown) => Array.isArray(v) && v.length > 0;
+      if (VERIFIER_OFF && (asks(msg.requestedAttrs) || asks(msg.disclosedAttrs))) {
+        send(ws, { type: 'error', code: 'verifier-disabled', message: 'this instance runs without a verifier — calls are anonymous' });
+        return;
+      }
       // Policy gate BEFORE anything is applied, so a violation can never leave the room
       // config half-updated. Both directions go through it together: in strict mode a
       // violation in either one rejects the whole change; in transitional mode both are
@@ -1766,6 +1783,9 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   if (participant.role === 'caller') {
     room.disclosedAttrs = enforceHostDisclosure(room.disclosedAttrs) as SemanticAttr[];
   }
+  // Without a verifier the room's defaults (family name both ways) cannot be met: nobody is
+  // asked for anything, so every participant counts as verified-anonymous right below.
+  if (VERIFIER_OFF) { room.requestedAttrs = []; room.disclosedAttrs = []; }
   const requiredAttrs = wantAuth
     ? room.requestedAttrs
     : participant.role === 'callee'
@@ -1816,7 +1836,9 @@ loadExtensions().then((resolved) => {
     // public-authority operation is a subdomain requesting under someone else's identity — it
     // would otherwise go unnoticed, because the interface would be branded and the request
     // would work.
-    console.log(`Verifier: eudiplo-tenant=${verifierTenantId()}${isDefaultVerifierTenant() ? ' (Standard)' : ''}`);
+    console.log(VERIFIER_OFF
+      ? 'Verifier: NONE (EUDI_VERIFIER=none) — no wallet verification, every call is anonymous'
+      : `Verifier: eudiplo-tenant=${verifierTenantId()}${isDefaultVerifierTenant() ? ' (Standard)' : ''}`);
     // Who the person being asked will be told is asking. Unlike the warning further down, this
     // one is not about a misconfiguration — it reports a property of a white-labelled instance
     // that the operator should be able to confirm at a glance.

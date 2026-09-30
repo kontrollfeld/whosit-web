@@ -51,6 +51,8 @@ async function refreshIce() {
 // capability can be absent because it is Pro, because its configuration is missing, or because
 // the operator switched it off via EUDI_FEATURES_OFF — to the client those are the same.
 let caps = new Set();
+/** EUDI_VERIFIER=none on the server: nobody is verified, both sides stay anonymous. */
+let verifierOff = false;
 /** A tenant instance with a host gate: setup is preceded by a sign-in. */
 let hostLoginRequired = false;
 /**
@@ -100,10 +102,12 @@ async function refreshCaps() {
       if (Array.isArray(j.enabled)) caps = new Set(j.enabled);
       if (j.policy && typeof j.policy === 'object') wrpPolicy = j.policy;
       hostLoginRequired = j.hostLogin === true;
+      verifierOff = j.verifier === 'none';
       if (j.relyingParty && typeof j.relyingParty === 'object') rpDisclosure = j.relyingParty;
     }
   } catch { /* keep defaults (all off, local whitelist mirror) */ }
   applyCapabilities();
+  applyVerifierMode();
   applyPolicyTexts();
   applyRelyingPartyDisclosure();
   refreshCredCatalog(); // Nachweis-Katalog — no-op, wenn kein Katalog konfiguriert ist
@@ -426,8 +430,42 @@ function buildSetup() {
   // Scheduled call: pinned. No set-config — the server refuses it for this room anyway (the
   // agreed scope is in the invitation, which the guest consented to).
   if (inviteCfg) lockSetup();
+  applyVerifierMode(); // /capabilities may have answered before the setup existed
+
+}
+/**
+ * An instance without a verifier (EUDI_VERIFIER=none): both directions fixed to anonymous, the
+ * "share data" choices locked with the reason next to them, and the test-mode banner on the page
+ * for host AND guest. Presentation only — the server refuses any attribute on such an instance
+ * (set-config, src/server.ts) and empties the room's defaults itself.
+ */
+function applyVerifierMode() {
+  const banner = document.getElementById('testmode-banner');
+  if (banner) banner.hidden = !verifierOff;
+  // Texts that claim a wallet check swap for their test-mode counterpart (index.html).
+  document.querySelectorAll('[data-verified-only]').forEach((el) => { el.hidden = verifierOff; });
+  document.querySelectorAll('[data-testmode-only]').forEach((el) => { el.hidden = !verifierOff; });
+  const hint = document.getElementById('noverifier-hint');
+  if (hint) hint.hidden = !verifierOff || !setupBuilt;
+  if (!verifierOff || !setupBuilt) return;
+  for (const btn of [discloseSeg.querySelector('[data-disclose="data"]'), requestSeg.querySelector('[data-request="data"]')]) {
+    if (!btn) continue;
+    btn.setAttribute('data-locked', '');
+    btn.setAttribute('aria-disabled', 'true');
+    btn.title = t('Ohne Ausweisprüfung auf dieser Instanz nicht verfügbar');
+  }
+  presetsEl.querySelectorAll('[data-preset]').forEach((b) => { b.disabled = true; });
+  if (discloseMode !== 'anon' || requestMode !== 'anon') {
+    discloseMode = 'anon'; requestMode = 'anon';
+    discloseSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.disclose === 'anon'));
+    requestSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.request === 'anon'));
+    discloseListEl.hidden = true;
+    requestExtra.hidden = true;
+    onConfigChange();
+  }
 }
 function setDiscloseMode(m) {
+  if (verifierOff && m !== 'anon') return; // locked: see applyVerifierMode
   discloseMode = m;
   discloseSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.disclose === m));
   discloseListEl.hidden = m === 'anon';
@@ -435,6 +473,7 @@ function setDiscloseMode(m) {
   onConfigChange();
 }
 function setRequestMode(m) {
+  if (verifierOff && m !== 'anon') return;
   requestMode = m;
   requestSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.request === m));
   requestExtra.hidden = m === 'anon';
@@ -443,6 +482,7 @@ function setRequestMode(m) {
 }
 function attrsChecked(prefix) { return ATTRIBUTES.map((a) => a.key).filter((k) => { const cb = document.getElementById(prefix + '-' + k); return cb && cb.checked; }); }
 function applyPreset(name) {
+  if (verifierOff) return;
   const keys = PRESETS[name] || [];
   for (const a of ATTRIBUTES) { const cb = document.getElementById('request-' + a.key); if (cb) cb.checked = keys.includes(a.key); }
   requestMode = 'data';
@@ -1377,6 +1417,9 @@ function renderSteps(chip, flags) {
 function chipState(name, verified, confirmed) {
   if (name) return { text: `${titleCase(name)} ✓`, identified: true };
   if (confirmed) return { text: t('bestätigt ✓'), identified: true };
+  // Without a verifier "verified" only means "nothing to present" — saying "ausgewiesen ✓"
+  // would read as an ID check that never happened.
+  if (verified && verifierOff) return { text: t('anonym — ungeprüft'), identified: true };
   if (verified) return { text: t('ausgewiesen ✓'), identified: true };
   return { text: t('noch nicht ausgewiesen'), identified: false };
 }
@@ -3288,7 +3331,7 @@ function startPairedSigner(token) {
     const junk = () => new Set([
       t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
       // The chip states, so a state never ends up in the trust bar as if it were a name.
-      t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'),
+      t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
     ]);
     const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
     const refreshTrust = () => {

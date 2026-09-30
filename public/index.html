@@ -16,6 +16,13 @@
 </head>
 <body>
   <main>
+    <!-- EUDI_VERIFIER=none: this instance verifies nobody. Permanent while that holds — the
+         product's promise ("you know who you are talking to") does not, and a test call must
+         never pass for a verified one. Shown by app.js from /capabilities (verifier: 'none'). -->
+    <div id="testmode-banner" class="testmode-banner" role="status" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>
+      <span data-i18n-html><strong>Testbetrieb ohne Ausweisprüfung.</strong> Niemand in diesem Anruf ist per EUDI-Wallet verifiziert — Namen und Angaben werden nicht geprüft.</span>
+    </div>
     <!-- Setup-Phase auf breiten Screens zweispaltig: Erklärtext links (sticky), die
          eigentlichen Formulare/Anzeigen rechts. Bricht unter setup-columns-Breakpoint
          zur gewohnten Einspalte zusammen (siehe CSS). -->
@@ -143,6 +150,13 @@
           <div class="attr-list" id="request-list"></div>
           <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
         </div>
+      </div>
+
+      <!-- Why "Daten teilen" is locked on an instance without a verifier, and how to get one. -->
+      <div id="noverifier-hint" class="noverifier-hint" hidden>
+        <p data-i18n>Auf dieser Instanz ist keine Ausweisprüfung eingerichtet — deshalb bleiben du und dein Gast anonym. Anruf, Chat, Bildschirm teilen und Dokumente funktionieren trotzdem.</p>
+        <p class="field-note" data-i18n>Für echte Prüfungen braucht es einen eigenen Verifier (EUDIPLO) mit Zugangszertifikat aus der Sandbox. Zum Ausprobieren des Ablaufs reicht der mitgelieferte EUDIPLO-Mock.</p>
+        <a id="noverifier-link" href="https://github.com/kontrollfeld/id-call-web#running-without-a-verifier" target="_blank" rel="noopener" data-i18n>So richtest du die Ausweisprüfung ein →</a>
       </div>
 
       <label id="openroom-row" class="openroom" hidden>
@@ -314,10 +328,11 @@
          Statuszeile und Teilnehmer-Chips darüber. -->
     <!-- Geprüfte Angaben: Werte, erst sichtbar nach beidseitiger Zustimmung -->
     <section id="result" class="card" hidden>
-      <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n>Geprüfte Angaben</span>
+      <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n data-verified-only>Geprüfte Angaben</span><span data-i18n data-testmode-only hidden>Angaben im Anruf</span>
         <button id="result-toggle" class="collapse-btn" type="button" aria-expanded="true" hidden><span id="result-toggle-label" data-i18n>Ausblenden</span></button>
       </h2>
-      <p class="hint" data-i18n-html>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
+      <p class="hint" data-i18n-html data-verified-only>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
+      <p class="hint" data-i18n data-testmode-only hidden>Testbetrieb: Auf dieser Instanz wird nichts geprüft — beide bleiben anonym.</p>
       <div class="review-grid">
         <div class="review-col you"><span class="field-label" data-i18n>Du teilst</span><div class="result-list" id="result-self"></div></div>
         <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="result-peer"></div></div>

@@ -151,5 +151,22 @@ check('development + a gap -> exit code 0', devBroken.status === 0, `status=${de
 check('development + a gap -> continues', String(devBroken.stdout).includes('CONTINUED'), devBroken.stdout);
 check('development warns anyway', /startup would abort here/i.test(devBroken.stderr || ''), devBroken.stderr);
 
+console.log('\nRunning without a verifier: explicit, and only then');
+{
+  // EUDI_VERIFIER=none replaces the verifier variables. It must be ASKED for: missing verifier
+  // values without the switch still abort, or a typo would turn a real deployment anonymous.
+  const none = problems({ EUDI_VERIFIER: 'none' });
+  check('none without any EUDIPLO_* -> nothing fatal', fatalNames(none).length === 0, JSON.stringify(none));
+  check('none is announced, as a warning', none.some((p) => p.variable === 'EUDI_VERIFIER' && !p.fatal), JSON.stringify(none));
+  check('without the switch the gap is still fatal', fatalNames(problems({})).includes('EUDIPLO_BASE_URL'));
+  check('an unknown value is fatal', fatalNames(problems({ ...OK_ENV, EUDI_VERIFIER: 'off' })).includes('EUDI_VERIFIER'));
+  check('"eudiplo" is the explicit default', fatalNames(problems({ ...OK_ENV, EUDI_VERIFIER: 'eudiplo' })).length === 0);
+  check('none + a host gate is fatal', fatalNames(problems({ EUDI_VERIFIER: 'none', EUDI_HOST_ALLOWLIST: 'Erika Mustermann' })).some((v) => /EUDI_HOST_ALLOWLIST/.test(v)));
+  check('the other checks still run with none', fatalNames(problems({ EUDI_VERIFIER: 'none', TURN_SECRET: '__set_me__' })).includes('TURN_SECRET'));
+  const prodNone = runAssert('production', { EUDI_VERIFIER: 'none' });
+  check('production + none -> starts', prodNone.status === 0 && String(prodNone.stdout).includes('CONTINUED'), `status=${prodNone.status} ${prodNone.stderr}`);
+  check('the missing-verifier message names the way out', /EUDI_VERIFIER=none/.test(problems({}).find((p) => p.variable === 'EUDIPLO_BASE_URL')?.problem || ''));
+}
+
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
