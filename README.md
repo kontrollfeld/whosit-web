@@ -92,6 +92,8 @@ git clone https://github.com/kontrollfeld/id-call-web.git
 cd id-call-web
 
 # 2) Create and fill in the env file (DOMAIN, ACME_EMAIL, TURN_SECRET, TURN_EXTERNAL_IP, EUDIPLO_*)
+#    No verifier yet? Set EUDI_VERIFIER=none instead of the EUDIPLO_* lines — see
+#    "Running without a verifier" below.
 cp .env.selfhost.example .env
 $EDITOR .env
 
@@ -213,6 +215,9 @@ levels, and you can move up one at a time:
 Explicit on purpose. Missing `EUDIPLO_*` values **without** the switch still refuse to start in
 production: a real deployment with a typo in `EUDIPLO_CLIENT_ID` must not quietly turn into an
 anonymous one.
+
+`npm run test:verifier-none` checks all of this against a server started in production mode
+with no verifier variable at all.
 
 ## Local development with the EUDIPLO mock
 
@@ -391,6 +396,7 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `ACME_EMAIL` | Let's Encrypt contact address |
 | `TURN_SECRET` | Shared secret for TURN REST (`openssl rand -hex 32`) |
 | `TURN_EXTERNAL_IP` | Public IP that coturn advertises as its relay address |
+| `EUDI_VERIFIER` | `eudiplo` (default) or `none` — run without any verifier: anonymous calls only, with a permanent test-mode banner. See [Running without a verifier](#running-without-a-verifier) |
 | `EUDIPLO_BASE_URL` | EUDIPLO endpoint (real, or `http://mock-eudiplo:8080`) |
 | `EUDIPLO_CLIENT_ID` | EUDIPLO tenant |
 | `EUDIPLO_CLIENT_SECRET` | Tenant client secret — the recommended route |
@@ -401,6 +407,8 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDI_EDITION` | `community` (default) or `pro` — unlocks the three commercially licensed features |
 | `EUDI_PRO_MODULE` | Path to the Pro module, e.g. `./pro`. Only with a valid licence. Set but not loadable → startup aborts in production, instead of silently running without retention |
 | `EUDI_FEATURES_OFF` | Comma-separated list of features to switch off, e.g. `file-transfer,screen-share` |
+| `EUDI_QES_CA_FILE` | *(Pro)* Key and certificate of the demo CA for device-bound signatures; default `qes-demo-ca.json` next to `EUDI_AUDIT_FILE`. Must be on a persistent volume |
+| `EUDI_IOS_APP_URL` | *(Pro)* Where browser users get the iPhone app for "Mit dem Smartphone signieren"; default the public TestFlight link |
 
 Otherwise the application derives its public origin from the proxy headers — behind Traefik that
 works with no further effort.

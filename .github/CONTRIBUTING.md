@@ -56,7 +56,7 @@ merge it — and having to turn down finished work is worse for everyone than sa
 
 ## Before you open a pull request
 
-- Run `npm test` — typecheck, licence boundary and all nine integration suites must pass. The
+- Run `npm test` — typecheck, licence boundary and all integration suites must pass. The
   `PR checks` workflow runs the same commands, so a green run locally means a green PR.
 - Keep the diff focused; match the existing style: **English** for code, comments and
   documentation, **German** for the user interface (with English and French translations in
