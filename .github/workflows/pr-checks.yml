@@ -116,3 +116,5 @@ jobs:
         run: npm run test:qes-device
       - name: Phone pairing for browser signatures (token, owner's certificate, relay)
         run: npm run test:qes-pairing
+      - name: Running without a verifier (anonymous calls, attributes refused)
+        run: npm run test:verifier-none

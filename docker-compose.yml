@@ -57,10 +57,14 @@ services:
       # community (default) is the full product, group calls included; pro adds audit-trail and
       # qes-csc and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
       EUDI_EDITION: "${EUDI_EDITION:-community}"
-      EUDIPLO_BASE_URL: "${EUDIPLO_BASE_URL}"
-      EUDIPLO_ROOT_ID: "${EUDIPLO_ROOT_ID}"
-      EUDIPLO_ROOT_SECRET: "${EUDIPLO_ROOT_SECRET}"
-      EUDIPLO_CLIENT_ID: "${EUDIPLO_CLIENT_ID}"
+      # EUDI_VERIFIER=none: no verifier at all, anonymous calls only (see .env.selfhost.example).
+      EUDI_VERIFIER: "${EUDI_VERIFIER:-}"
+      EUDIPLO_BASE_URL: "${EUDIPLO_BASE_URL:-}"
+      EUDIPLO_ROOT_ID: "${EUDIPLO_ROOT_ID:-}"
+      EUDIPLO_ROOT_SECRET: "${EUDIPLO_ROOT_SECRET:-}"
+      EUDIPLO_CLIENT_ID: "${EUDIPLO_CLIENT_ID:-}"
+      # The recommended access path (a fixed tenant client); the ROOT pair above is legacy.
+      EUDIPLO_CLIENT_SECRET: "${EUDIPLO_CLIENT_SECRET:-}"
       VERIFIER_REQUEST_ID: "${VERIFIER_REQUEST_ID}"
       # Without a trust list EUDIPLO rejects every presentation (see .env.example).
       EUDI_TRUST_LIST_IDS: "${EUDI_TRUST_LIST_IDS:-}"

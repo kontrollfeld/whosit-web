@@ -493,7 +493,15 @@
     "id-call für iPhone": "id-call for iPhone",
     "… und {n} weitere Seiten. Öffne das Dokument im Browser, um sie zu lesen.": "… and {n} more pages. Open the document in the browser to read them.",
     "Es läuft bereits eine Übertragung oder Signatur — bitte warten oder die Ansicht schließen.": "A transfer or signature is already in progress — please wait or close the view.",
-    "Signieren mit dem Smartphone ist auf diesem Server nicht verfügbar.": "Signing with a phone is not available on this server."
+    "Signieren mit dem Smartphone ist auf diesem Server nicht verfügbar.": "Signing with a phone is not available on this server.",
+    "<strong>Testbetrieb ohne Ausweisprüfung.</strong> Niemand in diesem Anruf ist per EUDI-Wallet verifiziert — Namen und Angaben werden nicht geprüft.": "<strong>Test mode without ID verification.</strong> Nobody in this call is verified with an EUDI Wallet — names and details are not checked.",
+    "Auf dieser Instanz ist keine Ausweisprüfung eingerichtet — deshalb bleiben du und dein Gast anonym. Anruf, Chat, Bildschirm teilen und Dokumente funktionieren trotzdem.": "This instance has no ID verification set up — so you and your guest stay anonymous. Calls, chat, screen sharing and documents still work.",
+    "Für echte Prüfungen braucht es einen eigenen Verifier (EUDIPLO) mit Zugangszertifikat aus der Sandbox. Zum Ausprobieren des Ablaufs reicht der mitgelieferte EUDIPLO-Mock.": "Real verification needs your own verifier (EUDIPLO) with an access certificate from the sandbox. To try the flow, the bundled EUDIPLO mock is enough.",
+    "So richtest du die Ausweisprüfung ein →": "How to set up ID verification →",
+    "Ohne Ausweisprüfung auf dieser Instanz nicht verfügbar": "Not available on this instance without ID verification",
+    "anonym — ungeprüft": "anonymous — unverified",
+    "Angaben im Anruf": "Details in this call",
+    "Testbetrieb: Auf dieser Instanz wird nichts geprüft — beide bleiben anonym.": "Test mode: nothing is verified on this instance — both stay anonymous."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> (identité numérique) — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -989,6 +997,14 @@
     "id-call für iPhone": "id-call pour iPhone",
     "… und {n} weitere Seiten. Öffne das Dokument im Browser, um sie zu lesen.": "… et {n} pages de plus. Ouvre le document dans le navigateur pour les lire.",
     "Es läuft bereits eine Übertragung oder Signatur — bitte warten oder die Ansicht schließen.": "Un transfert ou une signature est déjà en cours — patiente ou ferme l’affichage.",
-    "Signieren mit dem Smartphone ist auf diesem Server nicht verfügbar.": "La signature avec un smartphone n’est pas disponible sur ce serveur."
+    "Signieren mit dem Smartphone ist auf diesem Server nicht verfügbar.": "La signature avec un smartphone n’est pas disponible sur ce serveur.",
+    "<strong>Testbetrieb ohne Ausweisprüfung.</strong> Niemand in diesem Anruf ist per EUDI-Wallet verifiziert — Namen und Angaben werden nicht geprüft.": "<strong>Mode test sans vérification d’identité.</strong> Personne dans cet appel n’est vérifié par un portefeuille EUDI — les noms et informations ne sont pas contrôlés.",
+    "Auf dieser Instanz ist keine Ausweisprüfung eingerichtet — deshalb bleiben du und dein Gast anonym. Anruf, Chat, Bildschirm teilen und Dokumente funktionieren trotzdem.": "Aucune vérification d’identité n’est configurée sur cette instance — toi et ton invité restez donc anonymes. L’appel, le chat, le partage d’écran et les documents fonctionnent quand même.",
+    "Für echte Prüfungen braucht es einen eigenen Verifier (EUDIPLO) mit Zugangszertifikat aus der Sandbox. Zum Ausprobieren des Ablaufs reicht der mitgelieferte EUDIPLO-Mock.": "Une vraie vérification nécessite ton propre vérificateur (EUDIPLO) avec un certificat d’accès du bac à sable. Pour essayer le parcours, le mock EUDIPLO fourni suffit.",
+    "So richtest du die Ausweisprüfung ein →": "Comment configurer la vérification d’identité →",
+    "Ohne Ausweisprüfung auf dieser Instanz nicht verfügbar": "Indisponible sur cette instance sans vérification d’identité",
+    "anonym — ungeprüft": "anonyme — non vérifié",
+    "Angaben im Anruf": "Informations dans cet appel",
+    "Testbetrieb: Auf dieser Instanz wird nichts geprüft — beide bleiben anonym.": "Mode test : rien n’est vérifié sur cette instance — les deux restent anonymes."
   }
 }

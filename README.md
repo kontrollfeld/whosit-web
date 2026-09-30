@@ -27,6 +27,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 - [EUDIPLO: the verifier you run yourself](#eudiplo-the-verifier-you-run-yourself)
   - ["/" is the application, not a website](#-is-the-application-not-a-website)
   - [Trust lists expire after 30 days](#trust-lists-expire-after-30-days)
+- [Running without a verifier](#running-without-a-verifier)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
 - [Wiring up TURN properly](#wiring-up-turn-properly)
 - [Configuration (ENV)](#configuration-env)
@@ -185,6 +186,34 @@ expect.
 The renewal needs a client with the `presentation:manage` or `issuance:manage` role. A root
 client will not do — it only carries `tenants:manage`.
 
+## Running without a verifier
+
+Wallet verification needs a verifier of your own and a relying-party registration — weeks of
+paperwork before the first verified call. To look at the software before that, there are three
+levels, and you can move up one at a time:
+
+| | What works | What you need |
+|---|---|---|
+| **1. Anonymous test** | Video, audio, chat, screen sharing, files, document sharing, the security code | `EUDI_VERIFIER=none`, nothing else |
+| **2. Verification flow with the mock** | Everything above, plus "share data": the review, the consent screen, names in the call | The bundled EUDIPLO mock (below) — no cryptography, it believes any name typed into it |
+| **3. Real operation** | Real wallets, real PID, the signature features | Your own EUDIPLO instance and an access certificate from a registration authority (usually a sandbox registration first), see [EUDIPLO](#eudiplo-the-verifier-you-run-yourself) |
+
+**Level 1** — set `EUDI_VERIFIER=none` and leave the `EUDIPLO_*` variables out:
+
+- Host and guest are fixed to "Anonym bleiben"; "Daten teilen" is locked, with a short note and a
+  link to this section. The server enforces it: a `set-config` carrying attributes is refused
+  (`verifier-disabled`) and the room's defaults are emptied.
+- A permanent **"Testbetrieb ohne Ausweisprüfung"** banner is shown to everyone. The product's
+  promise is that you know who you are talking to; a test call must never pass for a verified one.
+- Not offered, because each rests on a verified identity: host login (a host gate refuses to
+  start together with `none`), in-call credentials, scheduled invitations, the Apple Wallet pass,
+  the qualified and the device/phone signature.
+- `GET /capabilities` reports `"verifier": "none"`.
+
+Explicit on purpose. Missing `EUDIPLO_*` values **without** the switch still refuse to start in
+production: a real deployment with a typo in `EUDIPLO_CLIENT_ID` must not quietly turn into an
+anonymous one.
+
 ## Local development with the EUDIPLO mock
 
 The bundled mock (`deploy/mock-eudiplo/server.mjs`, **no dependencies**) implements exactly those
@@ -216,8 +245,9 @@ fires the webhook → both confirm the review → the P2P connection is up.
 > `good first issue`.
 
 **Via compose instead of npm** (on a server with a domain): `docker compose --profile mock up -d`
-and set `EUDIPLO_BASE_URL=http://mock-eudiplo:8080` in `.env`; the mock wallet is then reachable
-at `https://<DOMAIN>/mock` (`SELF_URL` is set accordingly).
+and set `EUDIPLO_BASE_URL=http://mock-eudiplo:8080` in `.env`, plus any non-placeholder values for
+`EUDIPLO_CLIENT_ID` and `EUDIPLO_CLIENT_SECRET` — the mock ignores them, the startup check does
+not. The mock wallet is then reachable at `https://<DOMAIN>/mock` (`SELF_URL` is set accordingly).
 
 ## Wiring up TURN properly
 

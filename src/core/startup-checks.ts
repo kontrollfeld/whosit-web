@@ -31,6 +31,8 @@
  *   off, not insecure. See `enabledFeatures()` in ../server.
  */
 
+import { verifierModeRaw } from './verifier-mode';
+
 /** A configuration problem found. `variable` is the name, never the value. */
 export interface ConfigProblem {
   variable: string;
@@ -86,6 +88,32 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
   const env = ctx.env ?? process.env;
   const out: ConfigProblem[] = [];
 
+  // --- running without a verifier (EUDI_VERIFIER=none, see ./verifier-mode) ---------
+  // Explicit, so a missing verifier variable is never mistaken for the wish to run without one.
+  const mode = verifierModeRaw(env);
+  if (mode && mode !== 'none' && mode !== 'eudiplo') {
+    out.push({ variable: 'EUDI_VERIFIER', problem: 'unknown value — use "eudiplo" (default) or "none"', fatal: true });
+  }
+  if (mode === 'none') {
+    out.push({
+      variable: 'EUDI_VERIFIER',
+      problem: 'is "none": NO wallet verification. Every call is anonymous and the interface '
+        + 'says so. For evaluation only — see the README, "Running without a verifier".',
+      fatal: false,
+    });
+    // A host gate admits people by their verified name — without a verifier it could admit
+    // nobody, or (worse, if it were ever bypassed) everybody.
+    if (isSet(env.EUDI_HOST_ALLOWLIST) || isSet(env.EUDI_HOST_FILE)) {
+      out.push({
+        variable: 'EUDI_HOST_ALLOWLIST / EUDI_HOST_FILE',
+        problem: 'set together with EUDI_VERIFIER=none. The host gate admits hosts by their '
+          + 'verified name, which does not exist without a verifier. Remove one of the two.',
+        fatal: true,
+      });
+    }
+    return [...out, ...collectRemaining(env, ctx)];
+  }
+
   // --- verifier address -------------------------------------------------------------
   if (!isSet(env.EUDIPLO_BASE_URL)) {
     out.push({
@@ -93,7 +121,8 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
       problem: 'missing — no wallet verification can happen without a verifier. This '
         + 'application ships NO verifier: you need your own EUDIPLO instance (pin 8.0.2, its '
         + 'own subdomain with TLS, an access certificate from a registration authority). '
-        + 'See the README.',
+        + 'See the README. To try the software without one, set EUDI_VERIFIER=none '
+        + '(anonymous calls only).',
       fatal: true,
     });
   } else if (looksLikePlaceholder(env.EUDIPLO_BASE_URL!)) {
@@ -141,6 +170,12 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     }
   }
 
+  return [...out, ...collectRemaining(env, ctx)];
+}
+
+/** Checks that apply with and without a verifier. */
+function collectRemaining(env: Record<string, string | undefined>, ctx: CheckContext): ConfigProblem[] {
+  const out: ConfigProblem[] = [];
   // --- trust lists in the pre-7.0 form ----------------------------------------------
   // EUDIPLO 7 accepts an `etsi_tl` reference only as an object. A URL string still registers,
   // so nothing complains until a citizen presents their PID and every verification comes back
