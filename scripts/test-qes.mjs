@@ -123,6 +123,34 @@ check(results.every((r) => r.signingTime instanceof Date && Math.abs(Date.now() 
   check(!attrs.includes('1.2.840.113549.1.9.5'), 'no signing-time attribute (PAdES forbids it)');
 }
 
+// Structure as a STRICT reader sees it. Our own validation finds signatures by their
+// /ByteRange; PDFBox (Stirling PDF), Acrobat and EU DSS find them through the catalog's AcroForm.
+// Until 2026-10-01 the catalog of every signed PDF closed before /AcroForm (a Buffer-shim bug,
+// see fixLastIndexOf in public/qes/pades.js) and those tools saw no signature at all — while
+// every check above was green.
+console.log('structure as strict readers see it:');
+{
+  const { PDFDocument } = await import(join(root, 'public', 'vendor', 'signpdf', 'signpdf.bundle.mjs'));
+  const fields = async (bytes) => (await PDFDocument.load(bytes)).getForm().getFields().map((f) => f.getName());
+  const f2 = await fields(v2.bytes);
+  check(f2.length === 2, 'both signature fields reachable from the catalog', JSON.stringify(f2));
+
+  // The format Word and LibreOffice write: xref stream + object streams. The plain parser cannot
+  // read it, so the first signature rewrites it once; both signatures must still be there.
+  const doc = await PDFDocument.create();
+  doc.addPage([595, 842]);
+  const modern = await doc.save({ useObjectStreams: true });
+  check(new TextDecoder('latin1').decode(modern).includes('/XRef'), 'fixture really uses an xref stream');
+  const m1 = await pades.addSignature(modern, { provider: pA, signerName: 'Anna Host', reason: 'test', firstSignature: true });
+  const m2 = await pades.addSignature(m1.bytes, { provider: pB, signerName: 'Gustav Guest', reason: 'test', firstSignature: false });
+  check(pades.isPrefixOf(m1.bytes, m2.bytes), 'xref-stream PDF: signature 1 untouched by step 2');
+  const fm = await fields(m2.bytes);
+  check(fm.length === 2, 'xref-stream PDF: both signature fields reachable', JSON.stringify(fm));
+  const rm = await verify.analyzeAllSignatures(m2.bytes, []);
+  check(rm.length === 2 && rm.every((r) => r.verified), 'xref-stream PDF: both signatures verify', rm.map((r) => r.verified).join(','));
+  check(!new TextDecoder('latin1').decode(v2.bytes).includes('(undefined)'), 'no "(undefined)" entries in the signature dictionary');
+}
+
 // Tamper check: flip one byte inside the signed area → newest signature must fail.
 const tampered = v2.bytes.slice();
 tampered[200] ^= 0xff;
