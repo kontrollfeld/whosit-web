@@ -567,6 +567,10 @@ What operators need to know:
   new CA after a restart makes every earlier signature unverifiable against the current one.
 - **Not yet proven:** that the key really sits in hardware. The next step is key attestation
   (Android key attestation, Apple App Attest), checked by the CA before it certifies.
+- **Checking a signed PDF elsewhere:** the signatures are standard PAdES (baseline B-B), so any
+  validator reads them — checked with Stirling PDF 3.0 (PDFBox). Expect "signature valid, covers
+  the whole document" and "no trusted certification path": the issuer is the demo CA. Give the
+  validator the demo CA certificate as a trusted root and the chain validates as well.
 - `npm run test:qes-device` covers everything but the chip, with a software key behind the
   plugin's contract; `npm run test:qes-pairing` the pairing (token, relay, the owner's
   certificate, the DataChannel framing).
