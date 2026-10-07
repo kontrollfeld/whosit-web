@@ -113,3 +113,91 @@ export function resolveOperatorHome(cfg: OperatorPagesConfig): string | null {
   const full = path.join(cfg.dir, 'start.html');
   try { return fs.statSync(full).isFile() ? full : null; } catch { return null; }
 }
+
+/**
+ * The operator's own site next to the application: pages under short paths, a few files at the
+ * root, redirects and a 404 page — all from the same directory.
+ *
+ * Why this exists: until now an operator could only provide the three pages above plus files
+ * below /operator/. Every further page (an FAQ, an article, a product page) ended up at an address
+ * like /operator/faq.html, there was no way to answer /robots.txt or /sitemap.xml, and renaming a
+ * page broke every link to it. Each of those would otherwise have needed a change to this code,
+ * and a website must not need a release of the application to grow.
+ *
+ * The rule that keeps this safe: it is consulted LAST, after every route of the application (see
+ * the fallback at the end of the routes in ./server). A file in the directory can therefore never
+ * hide a function of the application — `health.html` does not shadow /health. Without
+ * EUDI_OPERATOR_PAGES nothing here is registered and the response stays what it was.
+ *
+ *   /faq                 → <dir>/faq.html
+ *   /artikel/eins        → <dir>/artikel/eins.html, else <dir>/artikel/eins/index.html
+ *   /robots.txt          → <dir>/robots.txt  (root files: .txt, .xml, .ico only)
+ *   redirects.json       → { "/alt": "/neu", "/operator/x.html": "/x" }, answered with 301
+ *   404.html             → shown with status 404 for any path nothing else answered
+ */
+
+/** A path segment an operator page may use: lower-case letters, digits, hyphens. No dots, so no
+ *  `..` and no file extensions — `/faq.html` is not an alias of `/faq`, one address per page. */
+const PAGE_SEGMENT = /^[a-z0-9][a-z0-9-]*$/;
+/** Files allowed at the root: robots.txt, sitemap.xml, llms.txt, favicon.ico and the verification
+ *  files of search engines. Deliberately NOT .html or .js — pages go through the short paths. */
+const ROOT_FILE = /^[a-z0-9][a-z0-9._-]*\.(txt|xml|ico)$/i;
+/** Names that already have a meaning: start.html is "/" and 404.html is the error page. Serving
+ *  them under /start and /404 as well would publish the same page twice. */
+const RESERVED = new Set(['start', '404']);
+const MAX_DEPTH = 4;
+
+function isFile(full: string): boolean {
+  try { return fs.statSync(full).isFile(); } catch { return false; }
+}
+
+/** Resolve a request path to a page or root file of the operator's site, or null. */
+export function resolveOperatorSitePath(cfg: OperatorPagesConfig, urlPath: string): string | null {
+  let p: string;
+  try { p = decodeURIComponent(urlPath); } catch { return null; }
+  const segments = p.replace(/^\/+/, '').replace(/\/+$/, '').split('/');
+  if (segments.length === 1 && segments[0] === '') return null;   // "/" belongs to the start page
+  if (segments.length === 1 && ROOT_FILE.test(segments[0])) {
+    const full = path.join(cfg.dir, segments[0]);
+    return isFile(full) ? full : null;
+  }
+  if (segments.length > MAX_DEPTH || !segments.every((s) => PAGE_SEGMENT.test(s))) return null;
+  if (segments.length === 1 && RESERVED.has(segments[0])) return null;
+  const base = path.join(cfg.dir, ...segments);
+  if (isFile(`${base}.html`)) return `${base}.html`;
+  const index = path.join(base, 'index.html');
+  return isFile(index) ? index : null;
+}
+
+/** The operator's 404 page, if there is one. */
+export function resolveOperatorNotFound(cfg: OperatorPagesConfig): string | null {
+  const full = path.join(cfg.dir, '404.html');
+  return isFile(full) ? full : null;
+}
+
+/** redirects.json, re-read only when the file changes. A broken file is reported once and then
+ *  treated as empty — a typo must not take the site down, and it must not go unnoticed either. */
+let redirectCache: { mtimeMs: number; map: Map<string, string> } | null = null;
+
+/** Where a path should be redirected to, or null. Targets must be a path on this site ("/…") or
+ *  an https:// address; anything else in the file is ignored. */
+export function resolveOperatorRedirect(cfg: OperatorPagesConfig, urlPath: string): string | null {
+  const file = path.join(cfg.dir, 'redirects.json');
+  let mtimeMs: number;
+  try { mtimeMs = fs.statSync(file).mtimeMs; } catch { redirectCache = null; return null; }
+  if (!redirectCache || redirectCache.mtimeMs !== mtimeMs) {
+    const map = new Map<string, string>();
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      for (const [from, to] of Object.entries(raw ?? {})) {
+        if (typeof to !== 'string' || !from.startsWith('/')) continue;
+        if (!(to.startsWith('/') && !to.startsWith('//')) && !to.startsWith('https://')) continue;
+        map.set(from, to);
+      }
+    } catch (e) {
+      console.warn(`[operator-pages] redirects.json ignored: ${(e as Error).message}`);
+    }
+    redirectCache = { mtimeMs, map };
+  }
+  return redirectCache.map.get(urlPath) ?? null;
+}

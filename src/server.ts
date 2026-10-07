@@ -20,7 +20,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
-import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES } from './operator-pages';
+import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
+  resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
@@ -585,6 +586,15 @@ if (OPERATOR) {
     if (!file) return next();                       // not provided → placeholder from public/
     res.set('Cache-Control', 'no-cache').sendFile(file);
   });
+  // Redirects AWAY from /operator/… have to be answered before the static mount below, which
+  // would otherwise serve the old file and the redirect could never fire. Only for /operator/
+  // sources: that prefix belongs to the operator, so nothing of the application can be shadowed.
+  // Every other redirect is answered by the fallback after the application's routes.
+  app.get(/^\/operator\//, (req, res, next) => {
+    const to = resolveOperatorRedirect(OPERATOR, req.path);
+    if (to) { res.redirect(301, to); return; }
+    next();
+  });
   // Everything else in the directory: images, the logo package, downloads. Read-only, and only
   // below /operator/ so it can never collide with a route of the application.
   app.use('/operator', express.static(OPERATOR.dir, {
@@ -1010,6 +1020,27 @@ app.post('/webhook/:sessionId', (req, res) => {
 
   res.status(200).send('OK');
 });
+
+// The operator's own site (see ./operator-pages): short paths, root files, redirects, 404 page.
+// Registered AFTER every route of the application on purpose — a file in the operator's directory
+// must never hide a function of the application, and placed here it cannot: anything the
+// application answers never reaches this point. Without EUDI_OPERATOR_PAGES it is not registered
+// and an unknown path ends in Express's plain 404, exactly as before.
+if (OPERATOR) {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const to = resolveOperatorRedirect(OPERATOR, req.path);
+    if (to) { res.redirect(301, to); return; }
+    const page = resolveOperatorSitePath(OPERATOR, req.path);
+    if (page) { res.set('Cache-Control', 'no-cache').sendFile(page); return; }
+    const notFound = resolveOperatorNotFound(OPERATOR);
+    if (notFound && req.accepts('html')) {
+      res.status(404).set('Cache-Control', 'no-cache').sendFile(notFound);
+      return;
+    }
+    next();
+  });
+}
 
 const server = http.createServer(app);
 

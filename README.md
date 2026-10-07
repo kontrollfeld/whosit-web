@@ -182,6 +182,16 @@ instance you run should not greet visitors with marketing for a service that is 
 If you want your own front page, put a `start.html` into `EUDI_OPERATOR_PAGES`. It then owns "/",
 and anything beside it — stylesheet, images, a film — is served from `/operator/…`.
 
+**Your own site beside the application.** The same directory can hold a whole website without
+any change to this code. Pages are served under short paths, `faq.html` at `/faq` and
+`artikel/eins.html` (or `artikel/eins/index.html`) at `/artikel/eins`. `robots.txt`, `sitemap.xml`,
+`llms.txt` and similar `.txt`/`.xml`/`.ico` files are answered at the root. `redirects.json`
+(`{"/old": "/new"}`, targets `/…` or `https://…`) answers with 301, also for old `/operator/…`
+addresses. `404.html` is shown with status 404 for any path nothing else answered. All of this is
+consulted only **after** every route of the application, so a file can never hide one: a
+`health.html` does not shadow `/health`. Files are looked up per request, so a new page needs no
+restart.
+
 **Invitation links always reach the application**, start page or not: `/?room=…`, `?inv=`, `?new=`
 and `?solo=` bypass it. That fork is covered by `npm run test:operatorpages`, because breaking it
 would break every link ever sent, every QR code and the mobile app's universal links.
