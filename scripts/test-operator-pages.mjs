@@ -210,6 +210,93 @@ try {
     check('and served below /operator', film.status === 200, `HTTP ${film.status}`);
   }
 
+  console.log('\nThe operator\'s own site: short paths, root files, redirects, 404');
+  {
+    // Added 2026-10-07 so an operator's website can grow (FAQ, articles, sitemap) without a
+    // release of this application. Everything here is consulted only after the application's own
+    // routes — the check with health.html below is the one that must never break.
+    mkdirSync(join(dir, 'artikel', 'zwei'), { recursive: true });
+    writeFileSync(join(dir, 'technik.html'), '<!doctype html><title>x</title>SITE-TECHNIK');
+    writeFileSync(join(dir, 'artikel', 'eins.html'), '<!doctype html><title>x</title>SITE-ARTIKEL-EINS');
+    writeFileSync(join(dir, 'artikel', 'zwei', 'index.html'), '<!doctype html><title>x</title>SITE-ARTIKEL-ZWEI');
+    writeFileSync(join(dir, 'robots.txt'), 'User-agent: *\nAllow: /\n');
+    writeFileSync(join(dir, 'sitemap.xml'), '<?xml version="1.0"?><urlset/>');
+    writeFileSync(join(dir, '404.html'), '<!doctype html><title>x</title>SITE-NOT-FOUND');
+    writeFileSync(join(dir, 'health.html'), '<!doctype html><title>x</title>SITE-HEALTH-MUST-NOT-WIN');
+    writeFileSync(join(dir, 'redirects.json'), JSON.stringify({
+      '/alt': '/technik',
+      '/operator/technik.html': '/technik',
+      '/woanders': 'https://example.org/ziel',
+      '/kaputt': 'javascript:alert(1)',
+      '/protokoll-relativ': '//evil.example/',
+    }));
+
+    const short = await body(PORT_WITH, '/technik');
+    check('/technik serves technik.html', short.status === 200 && short.text.includes('SITE-TECHNIK'), `HTTP ${short.status}`);
+    const nested = await body(PORT_WITH, '/artikel/eins');
+    check('a page in a sub-directory is served', nested.text.includes('SITE-ARTIKEL-EINS'), `HTTP ${nested.status}`);
+    const index = await body(PORT_WITH, '/artikel/zwei');
+    check('a directory with index.html is served', index.text.includes('SITE-ARTIKEL-ZWEI'), `HTTP ${index.status}`);
+    const robots = await body(PORT_WITH, '/robots.txt');
+    check('robots.txt is served at the root', robots.status === 200 && robots.text.includes('User-agent'), `HTTP ${robots.status}`);
+    const sitemap = await body(PORT_WITH, '/sitemap.xml');
+    check('sitemap.xml is served at the root', sitemap.status === 200 && sitemap.text.includes('urlset'), `HTTP ${sitemap.status}`);
+
+    const health = await fetch(`http://127.0.0.1:${PORT_WITH}/health`);
+    const healthText = await health.text();
+    check('the application wins: health.html does NOT shadow /health',
+      health.ok && !healthText.includes('SITE-HEALTH-MUST-NOT-WIN'), `got: ${healthText.slice(0, 80)}`);
+    const caps = await fetch(`http://127.0.0.1:${PORT_WITH}/capabilities`);
+    check('and /capabilities is still the application', caps.ok && (caps.headers.get('content-type') || '').includes('json'),
+      `HTTP ${caps.status} ${caps.headers.get('content-type')}`);
+    for (const q of ['?room=abc123', '?new=1']) {
+      const app = await body(PORT_WITH, `/${q}`);
+      check(`"${q}" still opens the application`, !app.text.includes('SITE-'), 'reached the operator site');
+    }
+
+    const noAlias = await body(PORT_WITH, '/technik.html');
+    check('/technik.html is not a second address of the page', !noAlias.text.includes('SITE-TECHNIK'), `HTTP ${noAlias.status}`);
+    const start = await body(PORT_WITH, '/start');
+    check('/start does not publish the start page twice', !start.text.includes('PROVIDED-BY-OPERATOR-START'), `HTTP ${start.status}`);
+    for (const bad of ['/..%2Fpackage.json', '/artikel/..%2F..%2Fpackage.json', '/%2e%2e/package.json', '/.env']) {
+      const r = await body(PORT_WITH, bad);
+      check(`no way out of the directory: ${bad}`, !r.text.includes('"name"') && !r.text.includes('EUDIPLO'), `HTTP ${r.status}`);
+    }
+
+    const go = async (p) => fetch(`http://127.0.0.1:${PORT_WITH}${p}`, { redirect: 'manual' });
+    const alt = await go('/alt');
+    check('a redirect answers 301 to the new address', alt.status === 301 && alt.headers.get('location') === '/technik',
+      `HTTP ${alt.status} → ${alt.headers.get('location')}`);
+    const old = await go('/operator/technik.html');
+    check('a redirect away from /operator/ fires before the static files', old.status === 301 && old.headers.get('location') === '/technik',
+      `HTTP ${old.status} → ${old.headers.get('location')}`);
+    const ext = await go('/woanders');
+    check('an https:// target is allowed', ext.status === 301 && ext.headers.get('location') === 'https://example.org/ziel',
+      `HTTP ${ext.status}`);
+    const js = await go('/kaputt');
+    check('a javascript: target is ignored', js.status !== 301, `HTTP ${js.status} → ${js.headers.get('location')}`);
+    const pr = await go('/protokoll-relativ');
+    check('a protocol-relative target is ignored', pr.status !== 301, `HTTP ${pr.status} → ${pr.headers.get('location')}`);
+
+    const missing = await fetch(`http://127.0.0.1:${PORT_WITH}/gibt-es-nicht`, { headers: { accept: 'text/html' } });
+    const missingText = await missing.text();
+    check('an unknown path shows 404.html with status 404', missing.status === 404 && missingText.includes('SITE-NOT-FOUND'),
+      `HTTP ${missing.status}`);
+
+    writeFileSync(join(dir, 'faq.html'), '<!doctype html><title>x</title>SITE-FAQ-LATE');
+    const late = await body(PORT_WITH, '/faq');
+    check('a page added while running is served without a restart', late.text.includes('SITE-FAQ-LATE'), `HTTP ${late.status}`);
+
+    const brandedShort = await body(PORT_BRANDED, '/technik');
+    check('with branding switched on, /technik is served too', brandedShort.text.includes('SITE-TECHNIK'), `HTTP ${brandedShort.status}`);
+
+    const plainShort = await body(PORT_WITHOUT, '/technik');
+    check('without the variable /technik stays a plain 404', plainShort.status === 404 && !plainShort.text.includes('SITE-'),
+      `HTTP ${plainShort.status}`);
+    const plainRobots = await body(PORT_WITHOUT, '/robots.txt');
+    check('without the variable /robots.txt stays a 404', plainRobots.status === 404, `HTTP ${plainRobots.status}`);
+  }
+
   console.log('\nWithout the variable — nothing may change');
   {
     const imprint = await body(PORT_WITHOUT, '/impressum.html');
