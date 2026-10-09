@@ -13,7 +13,8 @@
  */
 import type { DcqlQuery } from './credential-profiles';
 import { normalizeClaims, permittedPidClaimPaths } from './credential-profiles';
-import { PolicyViolationError, WRP_PURPOSE_ID } from './wrp-policy';
+import { PolicyViolationError, WRP_PURPOSE_ID, WRP_PURPOSE_TEXT } from './wrp-policy';
+import { registrationCert, uncoveredCredentials } from './registration-cert';
 
 /**
  * WRP compliance: every PID presentation request leaves the process through
@@ -232,6 +233,79 @@ function assertPidQueryWithinPolicy(dcql: DcqlQuery): void {
   if (rejected.length) throw new PolicyViolationError([...new Set(rejected)]);
 }
 
+/** What goes into `registration_cert` of a verifier config (EUDIPLO 8.0.2 schema). */
+type RegistrationCertSpec =
+  | { jwt: string }
+  | { body: { purpose: { lang: string; content: string }[]; privacy_policy?: string; support_uri?: string } };
+
+/**
+ * The registration certificate spec for config `id`, or undefined.
+ *
+ * Two routes, see ./registration-cert:
+ *
+ * 1. IMPORTED — `EUDI_REGISTRATION_CERT(_FILE)` holds a JWT from the registrar. It must cover
+ *    the query exactly. For PID a certificate that does not is an error HERE, because EUDIPLO
+ *    would accept the config and then answer the wallet with HTTP 400. Catalog queries
+ *    (Pro, other credential types) are normally not covered by the PID registration, so they
+ *    get the certificate only when it does cover them.
+ * 2. ISSUED BY EUDIPLO (default, PID only) — we send only the purpose. EUDIPLO derives the
+ *    authorized credentials from this very DCQL query, has the registrar issue the
+ *    certificate, and caches it per config until the query or the spec changes. Privacy
+ *    policy and support contact come from the tenant's registrar defaults unless set here.
+ *    Without a registrar configuration EUDIPLO ignores the spec, so this is never worse than
+ *    sending nothing.
+ */
+function registrationCertFor(id: string, dcql: DcqlQuery, kind: VerifierConfigKind): RegistrationCertSpec | undefined {
+  const cert = registrationCert();
+  if (cert) {
+    const missing = uncoveredCredentials(dcql, cert.payload);
+    if (!missing.length) return { jwt: cert.jwt };
+    if (kind === 'catalog') return undefined;
+    throw new Error(
+      `Registration certificate (${cert.source}) does not cover verifier config ${id}: credential(s) ` +
+      `${missing.join(', ')} are not listed in its \`credentials\` claim with exactly these claims. ` +
+      'Run `npm run wrprc:credentials` for the entries the registration has to contain.',
+    );
+  }
+  if (kind !== 'pid') return undefined;
+  const privacy = (process.env.EUDI_PRIVACY_POLICY_URL || '').trim();
+  const support = (process.env.EUDI_SUPPORT_URI || '').trim();
+  return {
+    body: {
+      purpose: [{ lang: 'de', content: WRP_PURPOSE_TEXT }],
+      ...(privacy ? { privacy_policy: privacy } : {}),
+      ...(support ? { support_uri: support } : {}),
+    },
+  };
+}
+
+/**
+ * EUDIPLO forwards the certificate only when the tenant has a registrar configuration
+ * (8.0.2, oid4vp.service.ts: `isEnabledForTenant`). Without one it drops it silently and
+ * every wallet that enforces WRPRC refuses the request. Checked once per process, after
+ * the first config that carried a certificate; never throws.
+ */
+let registrarChecked = false;
+async function warnIfRegistrarMissing(token: string): Promise<void> {
+  if (registrarChecked) return;
+  registrarChecked = true;
+  try {
+    const res = await fetch(`${BASE}/api/registrar/config`, { headers: { Authorization: `Bearer ${token}` } });
+    const text = res.ok ? await res.text() : '';
+    if (res.status === 404 || (res.ok && (!text || text === 'null'))) {
+      console.error(
+        '[eudiplo] ⚠️ The tenant has NO registrar configuration. EUDIPLO then leaves the registration ' +
+        'certificate out of the request (verifier_info), and wallets that require it refuse every sign-in. ' +
+        'Set one up in the EUDIPLO UI (Registrar → Registrar Config) — see the README, "Registration certificate".',
+      );
+    } else if (!res.ok) {
+      console.warn(`[eudiplo] Could not check the registrar configuration (HTTP ${res.status}) — make sure one exists, see the README.`);
+    }
+  } catch (e: any) {
+    console.warn(`[eudiplo] Could not check the registrar configuration: ${e?.message || e}`);
+  }
+}
+
 /** Register (idempotently) a verifier config from a ready-made DCQL query. The query is
  *  built profile-aware by `credential-profiles.buildDcql` (mdoc and/or SD-JWT etc.).
  *  `kind: 'pid'` additionally enforces the WRP whitelist — see assertPidQueryWithinPolicy.
@@ -241,12 +315,21 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
   if (registeredConfigs.has(id)) return;
   const formats = [...new Set(dcql.credentials.map((c) => c.format))].join('+');
   const purpose = kind === 'pid' ? ` purpose=${WRP_PURPOSE_ID}` : '';
-  const body = { id, description: `OpenID4VP verifier (${formats})${purpose}`, lifeTime: 3600, dcql_query: dcql };
+  const regCert = registrationCertFor(id, dcql, kind);
+  const body = {
+    id,
+    description: `OpenID4VP verifier (${formats})${purpose}`,
+    lifeTime: 3600,
+    dcql_query: dcql,
+    // EUDIPLO puts it into the request object as `verifier_info` — see ./registration-cert.
+    ...(regCert ? { registration_cert: regCert } : {}),
+  };
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(attempt === 1);
     try {
       await postJson('/api/verifier/config', body, token);
       registeredConfigs.add(id);
+      if (regCert) void warnIfRegistrarMissing(token);
       return;
     } catch (e: any) {
       // POST is an upsert since EUDIPLO 7, so 409 no longer means "exists already": it means

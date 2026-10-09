@@ -54,6 +54,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 - [EUDIPLO: the verifier you run yourself](#eudiplo-the-verifier-you-run-yourself)
   - ["/" is the application, not a website](#-is-the-application-not-a-website)
   - [Trust lists expire after 30 days](#trust-lists-expire-after-30-days)
+  - [Registration certificate (WRPRC)](#registration-certificate-wrprc)
 - [Running without a verifier](#running-without-a-verifier)
 - [Help with eIDAS 2.0 and the EUDI wallet](#help-with-eidas-20-and-the-eudi-wallet)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
@@ -166,9 +167,10 @@ client's rights and needs no root access.
 previously, incompletely configured instances quietly ran against someone else's verifier, and
 the mistake only surfaced when a citizen opened their wallet.
 
-> What the application expects from EUDIPLO (the four endpoints the mock reproduces):
+> What the application expects from EUDIPLO (the endpoints the mock reproduces):
 > `POST /api/oauth2/token`, `POST /api/client/:tenant/rotate-secret`,
-> `POST /api/verifier/config`, `POST /api/verifier/offer` → returns an offer URI; after that
+> `POST /api/verifier/config`, `GET /api/registrar/config` (existence check only),
+> `POST /api/verifier/offer` → returns an offer URI; after that
 > **EUDIPLO POSTs the result to the application's webhook URL**
 > (`…/webhook/:sessionId?t=<token>` — the token is verified server-side).
 
@@ -225,6 +227,43 @@ expect.
 
 The renewal needs a client with the `presentation:manage` or `issuance:manage` role. A root
 client will not do — it only carries `tenants:manage`.
+
+### Registration certificate (WRPRC)
+
+The access certificate says **who** asks — it signs the request. The **registration
+certificate** says **what** this relying party is registered to ask for and **why**: a JWT
+(`typ: rc-wrp+jwt`, ETSI TS 119 475) from the registrar, whose `credentials` claim lists the
+permitted queries and whose `purpose` the wallet shows the user. It travels in the request
+object as `verifier_info`. Since the German wallet update of October 2026 a request without one
+is refused, and the wallet log says
+`WRPRC policy is configured but verifier_info is missing`. The person in front of the phone sees
+only a generic error.
+
+**Default route: EUDIPLO has the registrar issue it.** The app sends only the purpose
+(`registration_cert: { body: { purpose } }`). EUDIPLO derives the authorized credentials from the
+query, has the registrar issue a certificate for exactly that query, and caches it per verifier
+config until the query changes or the certificate expires. You need:
+
+1. **A registrar configuration on the EUDIPLO tenant**: in the EUDIPLO UI under
+   *Registrar → Registrar Config*, preset **German Sandbox**, plus your registrar login. EUDIPLO
+   validates the login against the registrar before saving. **Without that configuration EUDIPLO
+   quietly omits the certificate** (`isEnabledForTenant` in `oid4vp.service.ts`). The app checks
+   this once after the first verifier config and logs a warning when the configuration is missing.
+2. **A privacy policy URL and a support contact.** The registrar requires both. Enter them as
+   *Registration Certificate Defaults* in the same form, or set `EUDI_PRIVACY_POLICY_URL` /
+   `EUDI_SUPPORT_URI`. If either is missing, EUDIPLO fails the wallet's request with HTTP 400.
+
+**Alternative: import a certificate.** If you already have a JWT from the registrar, set
+`EUDI_REGISTRATION_CERT_FILE` (path) or `EUDI_REGISTRATION_CERT` (the JWT itself). This route
+still needs the registrar configuration from point 1, and the certificate must list **every**
+query exactly. EUDIPLO 8.0.2 compares the canonical JSON of `{ format, claims, meta }`, claims in
+order, including `intent_to_retain: false` on mdoc. `npm run wrprc:credentials` prints the list to
+apply for (run it on the server, because profiles and policy change it), and
+`npm run wrprc:credentials -- --check` names what is missing. The app refuses an uncovered PID
+query with a clear message instead of letting EUDIPLO answer the wallet with a bare 400. At
+startup, an unreadable or expired certificate is fatal, and less than 30 days left is a warning.
+
+The certificate expires. Put its `exp` in the same calendar as the trust list.
 
 ## Running without a verifier
 
@@ -451,6 +490,8 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDIPLO_CLIENT_SECRET` | Tenant client secret — the recommended route |
 | `EUDIPLO_ROOT_ID` / `EUDIPLO_ROOT_SECRET` | Legacy alternative: EUDIPLO root login (rotates the tenant secret) |
 | `VERIFIER_REQUEST_ID` | Fallback verifier ID (normally computed per attribute set) |
+| `EUDI_PRIVACY_POLICY_URL` / `EUDI_SUPPORT_URI` | *(optional)* Privacy policy and support contact for the registration certificate; otherwise the tenant's registrar defaults apply. See [Registration certificate](#registration-certificate-wrprc) |
+| `EUDI_REGISTRATION_CERT_FILE` / `EUDI_REGISTRATION_CERT` | *(optional)* Import a registration certificate (JWT) instead of having EUDIPLO issue one |
 | `EUDI_TRUST_LIST_IDS` | Id(s) of the trust list(s) on your EUDIPLO instance that decide which PID issuers are accepted — the last path segment of `…/issuers/<tenant>/trust-list/<id>` |
 | `ALLOWED_ORIGINS` | *(optional)* permitted WebSocket origins (CSWSH protection); default: same host |
 | `EUDI_EDITION` | `community` (default) or `pro` — unlocks the three commercially licensed features |
@@ -500,6 +541,7 @@ works with no further effort.
 | No certificate / "acme" error | DNS does not point at the host, or port 443 is closed. Check `dig +short $DOMAIN` and the firewall. |
 | The call only connects on the same Wi-Fi | TURN unreachable or not wired up. Open UDP 3478 + 49160–49200; is `TURN_EXTERNAL_IP` correct? See [TURN](#wiring-up-turn-properly). |
 | Every sign-in fails with a bare HTTP 400 | A trust list configured in EUDIPLO has expired. See [Trust lists expire](#trust-lists-expire-after-30-days). |
+| Wallet refuses with "verifier_info is missing" | No registration certificate reaches the wallet, usually because the EUDIPLO tenant has no registrar configuration. See [Registration certificate](#registration-certificate-wrprc). |
 | The mock verifies but the app does not react | `PUBLIC_URL` is wrong → the webhook URL is unreachable. It must be the URL at which the app is reachable *for the mock*. |
 | WebSocket 403 | `ALLOWED_ORIGINS` does not match the domain being used. |
 | Camera/microphone blocked | Only over HTTPS or `localhost` (secure context). |
