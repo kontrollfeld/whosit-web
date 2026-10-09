@@ -179,9 +179,8 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
 /**
  * Registration certificate (WRPRC), see ../registration-cert.
  *
- * Absent: a warning, not fatal — wallets outside the German sandbox may not require it yet,
- * and a self-hoster still waiting for the registrar should be able to start. But the German
- * wallet refuses every request without it since 2026-10, so it must be impossible to miss.
+ * Absent: fine — EUDIPLO then has the registrar issue one per config (the default route, see
+ * eudiplo.registrationCertFor); a missing registrar configuration is reported at runtime.
  * Present but unreadable or expired: fatal — that is a configuration that looks finished and
  * fails every single sign-in. Close to expiry: a warning, early enough to reapply.
  */
@@ -194,15 +193,8 @@ function registrationCertProblems(env: Record<string, string | undefined>): Conf
   } catch (e: any) {
     return [{ variable, problem: `unusable — ${e?.message || e}`, fatal: true }];
   }
-  if (!cert) {
-    return [{
-      variable,
-      problem: 'not set — requests carry no registration certificate (verifier_info). The German '
-        + 'EUDI wallet refuses them ("WRPRC policy is configured but verifier_info is missing"). '
-        + 'See the README, "Registration certificate".',
-      fatal: false,
-    }];
-  }
+  // Absent is the normal case: EUDIPLO has the registrar issue the certificate per config.
+  if (!cert) return [];
   const left = secondsUntilExpiry(cert.payload);
   if (left !== undefined && left <= 0) {
     return [{ variable: cert.source, problem: 'the registration certificate has expired — every sign-in fails. Have it reissued at the registrar.', fatal: true }];

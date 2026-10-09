@@ -11,7 +11,7 @@
  *      certificate built from that list covers every room.
  *   4. A PID config the certificate does not cover is refused BEFORE it reaches EUDIPLO; a
  *      catalog config simply goes out without the certificate; a covered one carries it.
- *   5. Startup: absent = warning, garbage or expired = fatal.
+ *   5. Startup: absent = silent (EUDIPLO issues one), garbage or expired = fatal.
  *
  * Usage: npm run test:wrprc
  */
@@ -93,7 +93,7 @@ console.log('3. helper output covers what is sent');
     const res = {};
     try { await ensureVerifierConfig('pid1', buildDcql(selectedProfiles(), ['given_name', 'family_name']), 'pid'); res.pid = 'ok'; } catch (e) { res.pid = 'threw:' + e.message; }
     try { await ensureVerifierConfig('cat1', { credentials: [{ id: 'w', format: 'dc+sd-jwt', meta: { vct_values: ['x'] }, claims: [{ path: ['a'] }] }] }, 'catalog'); res.cat = 'ok'; } catch (e) { res.cat = 'threw:' + e.message; }
-    res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt }));
+    res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body }));
     console.log(JSON.stringify(res));
     })();`;
   const egressEnv = { EUDIPLO_BASE_URL: 'http://verifier.test', EUDIPLO_CLIENT_ID: 'tenant', EUDIPLO_CLIENT_SECRET: 's' };
@@ -109,7 +109,9 @@ console.log('3. helper output covers what is sent');
   const none = tsx(code, egressEnv);
   let z = {};
   try { z = JSON.parse(none.out.split('\n').pop()); } catch {}
-  check('without a certificate nothing changes', z.pid === 'ok' && z.bodies?.every((b) => !b.cert), none.out || none.err);
+  const zp = z.bodies?.find((b) => b.id === 'pid1');
+  check('without a JWT the PID config asks EUDIPLO to issue one (purpose only)', z.pid === 'ok' && !zp?.cert && zp?.body?.purpose?.[0]?.content?.length > 0 && !('credentials' in (zp?.body ?? {})), none.out || none.err);
+  check('…and a catalog config carries no spec', !z.bodies?.find((b) => b.id === 'cat1')?.body, none.out);
 }
 
 console.log('5. startup');
@@ -121,7 +123,7 @@ console.log('5. startup');
     console.log(JSON.stringify(p.map((x) => x.fatal)));`;
   const run = (c) => { const r = tsx(code, { CASE: JSON.stringify(c) }); try { return JSON.parse(r.out.split('\n').pop()); } catch { return r.out || r.err; } };
   const now = Math.floor(Date.now() / 1000);
-  check('absent → warning', JSON.stringify(run({})) === '[false]', JSON.stringify(run({})));
+  check('absent → silent (EUDIPLO issues via the registrar)', JSON.stringify(run({})) === '[]', JSON.stringify(run({})));
   check('garbage → fatal', JSON.stringify(run({ EUDI_REGISTRATION_CERT: 'nope' })) === '[true]', JSON.stringify(run({ EUDI_REGISTRATION_CERT: 'nope' })));
   check('expired → fatal', JSON.stringify(run({ EUDI_REGISTRATION_CERT: jwtFor({ exp: now - 10 }) })) === '[true]', '');
   check('expiring soon → warning', JSON.stringify(run({ EUDI_REGISTRATION_CERT: jwtFor({ exp: now + 86400 * 5 }) })) === '[false]', '');
