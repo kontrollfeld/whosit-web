@@ -39,6 +39,11 @@ const OK_ENV = {
   EUDIPLO_BASE_URL: 'https://verifier.agency.example-real.eu',
   EUDIPLO_CLIENT_ID: 'agency-tenant',
   EUDIPLO_CLIENT_SECRET: 'a-real-looking-random-secret-9f3c1',
+  // A registration certificate valid for a year (its own checks: scripts/test-registration-cert.mjs).
+  EUDI_REGISTRATION_CERT: [
+    { alg: 'ES256', typ: 'rc-wrp+jwt' },
+    { exp: Math.floor(Date.now() / 1000) + 365 * 86400 },
+  ].map((o) => Buffer.from(JSON.stringify(o)).toString('base64url')).join('.') + '.c2ln',
 };
 
 /** Call `collectConfigProblems` with a fixed environment. */

@@ -112,6 +112,10 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true });
   }
 
+  // The app checks once that the tenant has a registrar configuration, because EUDIPLO
+  // otherwise drops the registration certificate silently (see src/registration-cert.ts).
+  if (req.method === 'GET' && p === '/api/registrar/config') return json(res, 200, { registrarUrl: 'mock' });
+
   if (req.method === 'POST' && p === '/api/verifier/offer') {
     const body = JSON.parse((await readBody(req)) || '{}');
     // Like EUDIPLO 7+: the offer schema is strict, an unknown field is a 400.

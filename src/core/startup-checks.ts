@@ -32,6 +32,7 @@
  */
 
 import { verifierModeRaw } from './verifier-mode';
+import { loadRegistrationCert, secondsUntilExpiry } from '../registration-cert';
 
 /** A configuration problem found. `variable` is the name, never the value. */
 export interface ConfigProblem {
@@ -156,6 +157,8 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
       fatal: true,
     });
   }
+  out.push(...registrationCertProblems(env));
+
   for (const name of ['EUDIPLO_CLIENT_SECRET', 'EUDIPLO_ROOT_SECRET'] as const) {
     const v = env[name];
     if (isSet(v) && looksLikePlaceholder(v!)) {
@@ -171,6 +174,43 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
   }
 
   return [...out, ...collectRemaining(env, ctx)];
+}
+
+/**
+ * Registration certificate (WRPRC), see ../registration-cert.
+ *
+ * Absent: a warning, not fatal — wallets outside the German sandbox may not require it yet,
+ * and a self-hoster still waiting for the registrar should be able to start. But the German
+ * wallet refuses every request without it since 2026-10, so it must be impossible to miss.
+ * Present but unreadable or expired: fatal — that is a configuration that looks finished and
+ * fails every single sign-in. Close to expiry: a warning, early enough to reapply.
+ */
+const REG_CERT_RENEW_WARN_DAYS = 30;
+function registrationCertProblems(env: Record<string, string | undefined>): ConfigProblem[] {
+  const variable = 'EUDI_REGISTRATION_CERT / EUDI_REGISTRATION_CERT_FILE';
+  let cert;
+  try {
+    cert = loadRegistrationCert(env);
+  } catch (e: any) {
+    return [{ variable, problem: `unusable — ${e?.message || e}`, fatal: true }];
+  }
+  if (!cert) {
+    return [{
+      variable,
+      problem: 'not set — requests carry no registration certificate (verifier_info). The German '
+        + 'EUDI wallet refuses them ("WRPRC policy is configured but verifier_info is missing"). '
+        + 'See the README, "Registration certificate".',
+      fatal: false,
+    }];
+  }
+  const left = secondsUntilExpiry(cert.payload);
+  if (left !== undefined && left <= 0) {
+    return [{ variable: cert.source, problem: 'the registration certificate has expired — every sign-in fails. Have it reissued at the registrar.', fatal: true }];
+  }
+  if (left !== undefined && left < REG_CERT_RENEW_WARN_DAYS * 86400) {
+    return [{ variable: cert.source, problem: `the registration certificate expires in ${Math.ceil(left / 86400)} day(s) — have it reissued at the registrar.`, fatal: false }];
+  }
+  return [];
 }
 
 /** Checks that apply with and without a verifier. */

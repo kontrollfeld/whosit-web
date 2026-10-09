@@ -319,7 +319,10 @@ export function buildDcql(profiles: CredentialProfile[], attrs: SemanticAttr[]):
   // Only wallet-requestable attributes reach the query. `pseudonym_id` is derived by this
   // server (see ../pseudonym) and asking a wallet for it would build a request no real
   // wallet can satisfy — the whitelist and the wire format are not the same set.
-  const asked = attrs.filter((a) => (WALLET_REQUESTABLE as readonly SemanticAttr[]).includes(a));
+  // Canonical order, not the caller's: a registration certificate authorizes a claims array
+  // compared EXACTLY, order included (see ../registration-cert) — the same attribute set must
+  // always produce the same bytes, however a room happened to list it.
+  const asked = (WALLET_REQUESTABLE as readonly SemanticAttr[]).filter((a) => attrs.includes(a));
   const credentials: DcqlCredentialQuery[] = profiles.map((p) => ({
     id: p.id,
     format: p.format,
