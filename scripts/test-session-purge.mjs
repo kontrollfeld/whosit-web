@@ -4,7 +4,7 @@
  * Zero retention at the verifier — the claims must not outlive the call.
  *
  * EUDIPLO keeps the result of a presentation in a session row of its own so that a relying
- * party can poll for it. We never poll: the result arrives at our webhook, is read into
+ * party can poll for it. The app never polls: the result arrives at its webhook, is read into
  * process memory, and from that moment the verifier's copy is the ONLY persisted record of
  * who presented what. Left alone it stays there until a time-based sweep removes it
  * (SESSION_TTL, 24 h by default) — encrypted at rest, on a host that also holds the key.

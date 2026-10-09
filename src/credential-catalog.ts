@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * In-call credential catalog (Pro) — operator-defined credentials the HOST may request
- * from a participant DURING the call ("Nachforderung"), e.g. the Wohnraum-ID. See
+ * from a participant DURING the call, e.g. a membership or housing credential. See
  * src/credential-requests.ts.
  *
  * Deliberately NOT built on the PID `SemanticAttr` vocabulary: domain credentials bring
@@ -34,7 +34,7 @@ export interface CatalogCredential {
   format: CredentialFormat;
   /** Type in the format's namespace: dc+sd-jwt → vct; mso_mdoc → doctype; jwt_vc_json → VC type.
    *  May be an ARRAY of accepted alternatives (SD-JWT `vct_values`) — issuers are not always
-   *  consistent (e.g. the live Wohnraum-ID carries the literal vct "Wohnraum-ID", not its URL),
+   *  consistent (e.g. an issuer may put a literal name into vct rather than its URL),
    *  so a catalog entry can match several. mdoc uses only the FIRST (doctype_value is single). */
   credentialType: string | string[];
   claims: CatalogClaim[];

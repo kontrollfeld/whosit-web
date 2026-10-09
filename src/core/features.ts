@@ -5,26 +5,24 @@
  *
  * `GET /capabilities` computes the enabled set from this list plus the active edition and any
  * loaded Pro extensions; the browser then shows optional UI only for ids that are enabled.
- * There is deliberately no second list any more: a Markdown table alongside this file drifted
- * from it three times, so the reasoning now lives here, next to the data it explains.
+ * There is deliberately no second list: the reasoning lives here, next to the data it explains.
  *
  * THE SPLIT — three categories, kept apart on purpose:
  *
  *   1. `edition: 'community'` — part of the published source. That is the large majority, for
  *      a sober reason: a gate that only the browser holds can be lifted with one line in an
- *      open client. It protected no revenue, yet made the free edition look crippled.
- *   2. `edition: 'pro'` — only where we render an actual service in return AND the code lives
+ *      open client.
+ *   2. `edition: 'pro'` — only where an actual service is rendered in return AND the code lives
  *      in ./pro under the commercial licence: retention with liability (`audit-trail`) and
  *      qualified remote signing (`qes-csc`). A Pro entry whose implementation sits in the AGPL
  *      core is only a switch, and anyone may flip a switch in open code — that is why
- *      `multi-party` moved to Community (2026-09-25) rather than being called Pro.
+ *      `multi-party` is Community rather than Pro.
  *   3. **Switchability** — EVERY capability can be turned off via EUDI_FEATURES_OFF (see
  *      UNSWITCHABLE below). Not a stopgap: public authorities must be able to disable
  *      functions for compliance reasons, not because they failed to pay for them.
  *
- * `clientGated` now says only WHETHER the browser reacts to a capability — it is not an
- * edition boundary. Not to be confused with the tiers of the hosted service: there we control
- * the server, and quotas apply irrespective of this file.
+ * `clientGated` says only WHETHER the browser reacts to a capability — it is not an
+ * edition boundary.
  */
 export type Edition = 'community' | 'pro';
 
@@ -48,11 +46,10 @@ export const FEATURES: Feature[] = [
   // capability stays off, and the client falls back to a plain room link.
   { id: 'planned-invites', title: 'Scheduled calls (signed invitation, role-bound)', edition: 'community', clientGated: true },
   // QES in-call document ceremony (see public/qes/). Community ships the doc
-  // sharing + mock signing path; CSC/QTSP signature providers are Pro (Phase 6) and
+  // sharing + mock signing path; CSC/QTSP signature providers are Pro and
   // hard-gated server-side via /signature-providers.
   { id: 'qes-in-call', title: 'In-call document sharing & signing ceremony (QES)', edition: 'community', clientGated: true },
-  // eIDAS 2.0 / EU 2024/1183 compliance. Community on purpose and by decision
-  // (2026-08-06): a WRP guarantee that only holds in the paid edition is not a guarantee,
+  // eIDAS 2.0 / EU 2024/1183 compliance. Community on purpose: a WRP guarantee that only holds in the paid edition is not a guarantee,
   // and a self-hoster needs `/wrp-policy` to evidence the scope of THEIR instance.
   // Not clientGated — these are unconditional properties, not toggleable UI. The browser
   // reads the attribute list from /capabilities `policy`, not from this capability set.
@@ -74,11 +71,9 @@ export const FEATURES: Feature[] = [
   // refuses an unknown transaction_data type — see ../channel-binding.
   { id: 'channel-binding', title: 'Channel binding: identity tied to the connection DTLS key (SD-JWT VC, currently disabled)', edition: 'community', clientGated: false },
 
-  // In-call comfort. All of these were Pro until 2026-08-19; their gate was purely
-  // client-side, so an open client lifts it with one line. `meeting-controls` was the
-  // clearest case: being able to mute yourself is a precondition of video calling, not an
-  // enterprise trait — nobody buys a licence for a mute button, but many dismiss an edition
-  // that lacks one.
+  // In-call comfort. Community because their gate would be purely client-side, so an open
+  // client lifts it with one line. Being able to mute yourself (`meeting-controls`) is a
+  // precondition of video calling, not an enterprise trait.
   { id: 'screen-share', title: 'Screen sharing', edition: 'community', clientGated: true },
   { id: 'calendar-invite', title: 'Calendar invite (.ics/Google)', edition: 'community', clientGated: true },
   { id: 'native-share', title: 'Native share (Web Share)', edition: 'community', clientGated: true },
@@ -97,19 +92,16 @@ export const FEATURES: Feature[] = [
   { id: 'audit-trail', title: 'Verification audit trail with retention and export', edition: 'pro', clientGated: false },
   // Server-enforced via frame headers (frame-ancestors); the client reads it for embed UX.
   // Community, because embedding needs the OPERATOR's configuration — their portals, their
-  // origins. We cannot charge for their own arrangements.
+  // origins.
   { id: 'embed', title: 'Embeddable iframe widget', edition: 'community', clientGated: false },
-  // Community since 2026-09-25 (was 'pro'). Room size limit: EUDI_MAX_PARTICIPANTS with it,
-  // 2 without (operators switch it off via EUDI_FEATURES_OFF=multi-party). The mesh logic is
-  // spread through the signalling in ../server.ts and the client in public/app.js — all of it
-  // AGPL. As 'pro' it was a one-line switch in open code: it protected no revenue, and the
-  // label claimed a protection that did not exist. What we DO charge for is operating group
-  // calls at scale (relay capacity, support) on the hosted service — not the code.
+  // Room size limit: EUDI_MAX_PARTICIPANTS with it, 2 without (operators switch it off via
+  // EUDI_FEATURES_OFF=multi-party). The mesh logic is spread through the signalling in
+  // ../server.ts and the client in public/app.js — all of it AGPL, so as 'pro' it would be a
+  // one-line switch in open code, claiming a protection that does not exist.
   { id: 'multi-party', title: 'Multi-party calls (full mesh)', edition: 'community', clientGated: false },
-  // PID in BOTH ARF formats — Community since 2026-08-09 (was 'pro').
-  // The trigger was not generosity: channel binding (DTLS fingerprint → transaction_data →
-  // KB-JWT) only works with SD-JWT VC in the EUDIPLO verifier. Pro-exclusive SD-JWT would
-  // have put the strongest security property behind the paywall — see the detailed reasoning
+  // PID in BOTH ARF formats. Community because channel binding (DTLS fingerprint →
+  // transaction_data → KB-JWT) only works with SD-JWT VC in the EUDIPLO verifier. Pro-exclusive
+  // SD-JWT would put the strongest security property behind the paywall — see the detailed reasoning
   // at the `pidSdJwt` profile in ../credential-profiles.ts.
   // WHICH of the permitted profiles are actually offered stays the opt-in
   // `EUDI_CREDENTIAL_PROFILES` (still defaulting to `pid_mdoc` only) — the edition permits,
@@ -119,7 +111,7 @@ export const FEATURES: Feature[] = [
   // src/credential-requests.ts. Community, because the catalogue and the issuer arrangements
   // behind it belong to the operator.
   { id: 'in-call-credentials', title: 'In-call credential requests (catalogue)', edition: 'community', clientGated: false },
-  // Pro, server-ENFORCED, and implemented in ./pro (pro/qes-csc.ts, placeholder until Phase 6):
+  // Pro, server-ENFORCED, and implemented in ./pro (pro/qes-csc.ts, currently a placeholder):
   // /signature-providers ships CSC/QTSP entries only with this capability. It needs BOTH the
   // Pro edition AND a loaded Pro module that provides the `qualifiedSigner` port — the AGPL
   // core alone cannot sign qualified, so it never advertises that it could (see
@@ -128,7 +120,7 @@ export const FEATURES: Feature[] = [
   // service provider and costs money per signature.
   { id: 'qes-csc', title: 'Qualified remote signature via CSC/QTSP (QES ceremony, Phase 6)', edition: 'pro', clientGated: false },
   // Pro, server-ENFORCED, implemented in ./pro (pro/qes-device.ts + pro/client/device-local.js)
-  // and in the proprietary app (native DeviceSigner plugin). The signing key is generated in the
+  // and in the native app (DeviceSigner plugin). The signing key is generated in the
   // phone's secure element behind biometrics and never leaves it; a certificate authority
   // certifies it once, from the PID the participant presented in this call. This is the model
   // a QTSP will follow for wallet-held keys — until one does, the authority is a DEMO CA and the
@@ -166,8 +158,8 @@ export const UNSWITCHABLE: readonly string[] = [
  * Capabilities the operator has switched off, from `EUDI_FEATURES_OFF` (comma-separated).
  *
  * Public authorities must be able to disable functions for compliance reasons — "file transfer
- * during a citizen consultation: not permitted" is a realistic sentence from a real data
- * protection concept, and until now there was no way to honour it. Applies to EVERY capability
+ * during a citizen consultation: not permitted" is a realistic requirement in a data
+ * protection concept. Applies to EVERY capability
  * (Pro ones included: holding a licence does not mean you want the feature on), except those
  * in UNSWITCHABLE.
  *

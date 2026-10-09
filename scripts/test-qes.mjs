@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * QES ceremony test suite (Node, no browser) — public/qes/ §10 Phase 7.
+ * QES ceremony test suite (Node, no browser) for public/qes/.
  *
  * Runs the SAME modules the browser uses (public/qes/* + vendored bundles) under
  * Node's WebCrypto:
@@ -125,9 +125,9 @@ check(results.every((r) => r.signingTime instanceof Date && Math.abs(Date.now() 
 
 // Structure as a STRICT reader sees it. Our own validation finds signatures by their
 // /ByteRange; PDFBox (Stirling PDF), Acrobat and EU DSS find them through the catalog's AcroForm.
-// Until 2026-10-01 the catalog of every signed PDF closed before /AcroForm (a Buffer-shim bug,
-// see fixLastIndexOf in public/qes/pades.js) and those tools saw no signature at all — while
-// every check above was green.
+// A Buffer-shim bug (see fixLastIndexOf in public/qes/pades.js) once closed the catalog of every
+// signed PDF before /AcroForm, and those tools saw no signature at all — while every check above
+// was green.
 console.log('structure as strict readers see it:');
 {
   const { PDFDocument } = await import(join(root, 'public', 'vendor', 'signpdf', 'signpdf.bundle.mjs'));

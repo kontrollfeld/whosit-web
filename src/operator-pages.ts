@@ -3,10 +3,9 @@
 /**
  * Pages that belong to the OPERATOR of an instance, not to the software.
  *
- * An imprint names whoever runs the service. Until now this repository shipped ours, which meant
- * every self-hosted instance published Kontrollfeld GmbH as its provider — wrong for the operator
- * (section 5 DDG requires the actual one) and wrong for us (named as responsible for instances we
- * neither run nor know of). A privacy notice has the same property, and a press area is operator
+ * An imprint names whoever runs the service, so it cannot ship with the software: section 5 DDG
+ * requires the actual provider, and the software's authors must not be named as responsible for
+ * instances they neither run nor know of. A privacy notice has the same property, and a press area is operator
  * content by definition.
  *
  * So: the repository ships neutral placeholders that say no imprint has been provided, and an
@@ -69,8 +68,7 @@ export function resolveOperatorPage(cfg: OperatorPagesConfig, urlPath: string): 
   if (!(OPERATOR_PAGES as readonly string[]).includes(name)) return null;
   // Checked per request, NOT against the list from startup. An operator who drops an imprint into
   // the directory must not have to restart the service for it — and if they did, they would first
-  // see a 404 and go looking for the mistake somewhere else entirely. Exactly that happened when
-  // this was first put into operation. A stat() per request is nothing next to reading the file.
+  // see a 404 and go looking for the mistake somewhere else entirely. A stat() per request is nothing next to reading the file.
   const full = path.join(cfg.dir, `${name}.html`);
   try { if (!fs.statSync(full).isFile()) return null; } catch { return null; }
   return full;
@@ -78,7 +76,7 @@ export function resolveOperatorPage(cfg: OperatorPagesConfig, urlPath: string): 
 
 /**
  * Media an operator may provide, same idea as the pages: it belongs to whoever runs the
- * instance. The app demo film shows OUR app, so it must not ship with the software — a
+ * instance. The app demo film shows one particular product, so it must not ship with the software — a
  * self-hoster would otherwise advertise a product that is not theirs.
  *
  * Files live in `<dir>/media/` and are already reachable through the /operator/ mount; this list
@@ -98,13 +96,13 @@ export function availableMedia(cfg: OperatorPagesConfig): OperatorMedia[] {
 /**
  * The operator's start page, where there is one.
  *
- * Different in kind from the pages above, which override a placeholder we ship: this one
+ * Different in kind from the pages above, which override a shipped placeholder: this one
  * REPLACES the application at "/". An instance without it opens the call screen directly, and
  * that is the honest default — this software is a tool for making verified calls, not a website,
  * and a self-hoster should not find someone else's marketing on their own front page.
  *
- * The operator of id-call.eu keeps its start page here for the same reason the imprint lives
- * here: it describes one particular service, and it would be wrong on any other instance.
+ * An operator's start page belongs here for the same reason the imprint does: it describes one
+ * particular service, and it would be wrong on any other instance.
  *
  * Resolved per request like everything else in this module — see the note above
  * `resolveOperatorPage` for what happens when that is done once at startup instead.
@@ -118,11 +116,10 @@ export function resolveOperatorHome(cfg: OperatorPagesConfig): string | null {
  * The operator's own site next to the application: pages under short paths, a few files at the
  * root, redirects and a 404 page — all from the same directory.
  *
- * Why this exists: until now an operator could only provide the three pages above plus files
- * below /operator/. Every further page (an FAQ, an article, a product page) ended up at an address
- * like /operator/faq.html, there was no way to answer /robots.txt or /sitemap.xml, and renaming a
- * page broke every link to it. Each of those would otherwise have needed a change to this code,
- * and a website must not need a release of the application to grow.
+ * Why this exists: with only the three pages above plus files below /operator/, every further page
+ * (an FAQ, an article, a product page) would end up at an address like /operator/faq.html, there
+ * would be no way to answer /robots.txt or /sitemap.xml, and renaming a page would break every
+ * link to it. A website must not need a release of the application to grow.
  *
  * The rule that keeps this safe: it is consulted LAST, after every route of the application (see
  * the fallback at the end of the routes in ./server). A file in the directory can therefore never

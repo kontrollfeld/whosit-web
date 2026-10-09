@@ -18,8 +18,7 @@
  *                                     changes (see `current()`)
  *   EUDI_HOST_ALLOWLIST=...           the original environment variable, unchanged
  *
- * The file came later and is the better place for three reasons, all of them learned from running
- * this. Staff change: a name added to an environment variable needs a redeployment, and a
+ * The file is the better place for three reasons. Staff change: a name added to an environment variable needs a redeployment, and a
  * redeployment DROPS EVERY CALL IN PROGRESS — room state lives in this process (see ./rooms). Data
  * protection: an allowlist is personal data, and in the environment it sits in the deployment
  * platform's UI, which widens who can read it to everyone with access to that platform. And a
@@ -32,7 +31,7 @@
  * a targeted attempt does not attack the cryptography — it looks for a person with a matching
  * name. Only the date of birth would make the identifier unique, but that attribute is retired
  * under this instance's registration and publicly declared as retired at /wrp-policy; requesting
- * it for this purpose would contradict our own statement. This layer is therefore meant as ONE
+ * it for this purpose would contradict the instance's own published statement. This layer is therefore meant as ONE
  * of two, together with the staff link (see ./staff-token). The target state is an authority
  * staff credential: then a revocable credential replaces the name list, and this checkpoint stays.
  */
@@ -134,7 +133,7 @@ function fromFile(): Entry[] {
   } catch {
     // Missing file. Distinguish two cases: never read → empty (the operator has not written
     // it yet, and assertHostGateOrExit already refused to start if it was the only source);
-    // read before → keep what we had, because a file that vanishes must not open the gate.
+    // read before → keep the last list, because a file that vanishes must not open the gate.
     if (fileCache) {
       if (lastFileError !== 'missing') {
         lastFileError = 'missing';
@@ -216,7 +215,7 @@ export function mayHost(familyName?: string, givenName?: string): boolean {
  *
  * Without this it locks out the operator: a room's default discloses only the family name
  * (`rooms.ts`), while `mayHost` requires both — so the host would never get through, and the
- * reason would be written nowhere. Observed in a real wallet's log on 2026-08-15:
+ * reason would be written nowhere. Symptom in the wallet's log:
  * "Verifier requested items: [family_name]".
  *
  * Disclosure is therefore ENFORCED rather than assumed. Data minimisation still holds: both

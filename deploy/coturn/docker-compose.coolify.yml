@@ -31,8 +31,8 @@
 # 4. In the application -> Environment Variables:
 #       TURN_URL=turn:turn.<your-domain>:3478
 #       TURN_SECRET=<the same value as below>
-#    Then restart. With both set, /ice serves ephemeral TURN REST credentials and the (by now
-#    defunct) openrelay fallback is no longer used.
+#    Then restart. With both set, /ice serves ephemeral TURN REST credentials and the public
+#    openrelay fallback (unreliable) is no longer used.
 #
 # 5. Verify — a relay candidate MUST appear:
 #       gather the ICE candidates in the browser (see the TURN section of the README)
@@ -67,10 +67,9 @@ services:
     # command: in ../../docker-compose.yml). Two convenience flags (server name, log format) are
     # omitted because --realm and the default cover them.
     #
-    # VERIFIED locally on 2026-08-06: `docker run coturn/coturn:4.6 turnserver <these flags>`
-    # starts cleanly — "Default realm: …", listener and relay discovery run, no unknown-option
-    # error. The only messages are harmless (no conf file, no pid file in the container). A wrong
-    # flag name would terminate coturn immediately, which is why the test was worth doing.
+    # A wrong flag name terminates coturn immediately, so after changing flags check that
+    # `docker run coturn/coturn:4.6 turnserver <these flags>` starts cleanly ("Default realm: …",
+    # no unknown-option error). Messages about a missing conf or pid file are harmless.
     command: >
       turnserver
       --listening-port=3478
@@ -100,13 +99,13 @@ services:
 #   the relay sees ciphertext either way, so TLS on top adds nothing for confidentiality. TURNS
 #   (5349) only helps traverse TLS-only firewalls.
 #   THE LIMIT, and how it is resolved: restrictive corporate and government networks often permit
-#   TCP 443 only — port 3478 then fails, whether UDP or TCP. On this host Traefik occupies 443,
-#   so coturn cannot bind it itself.
-#   SOLVED on 2026-08-12: a Traefik TCP router on 443 with HostSNI(turn.<your-domain>), TLS
+#   TCP 443 only — port 3478 then fails, whether UDP or TCP. On a Coolify host Traefik occupies
+#   443, so coturn cannot bind it itself.
+#   The solution: a Traefik TCP router on 443 with HostSNI(turn.<your-domain>), TLS
 #   termination through the existing resolver, forwarding to the TCP 3478 listener here. The
 #   browser speaks turns:turn.<your-domain>:443?transport=tcp; coturn needs no certificate of its
-#   own, which is why --no-tls stays. In the application: TURN_TLS_URL. Proven end to end (a TURN
-#   allocation, not just a certificate) — the concrete setup is in the TURN section of the README.
+#   own, which is why --no-tls stays. In the application: TURN_TLS_URL. The concrete setup is in
+#   the TURN section of the README.
 #
 # --denied-peer-ip: otherwise an open TURN relay is an SSRF tool — someone could reach the host's
 #   internal services through it. These ranges block private and loopback destinations.

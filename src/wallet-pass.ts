@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Apple Wallet Termin-Pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
+ * Apple Wallet appointment pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
  * a scheduled verified call
  * as a .pkpass "appointment ticket": appears on the lock screen at call time
  * (relevantDate) and carries the room link as QR + back-field (Universal Link →
@@ -13,8 +13,8 @@
  * only title, time and the room URL the holder already knows.
  *
  * Config (all three required to enable the feature):
- *   EUDI_PASS_TYPE_ID   pass type identifier (e.g. pass.eu.id-call.termin)
- *   EUDI_PASS_TEAM_ID   Apple team id (e.g. W63PMKNPKY)
+ *   EUDI_PASS_TYPE_ID   pass type identifier (e.g. pass.com.example.appointment)
+ *   EUDI_PASS_TEAM_ID   Apple team id (e.g. ABCDE12345)
  *   EUDI_PASS_CERT      pass certificate AND private key (concatenated PEM) — as
  *                       file path, inline PEM, or base64-encoded PEM (env-UI-safe)
  * The Apple WWDR G4 intermediate ships in assets/pass/ (public certificate).

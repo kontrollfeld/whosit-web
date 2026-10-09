@@ -73,7 +73,7 @@ export interface RoomStore {
  * A verification lifecycle event. Carries only claim KEYS, never PID VALUES — the
  * privacy guarantee that holds in logs also holds here.
  *
- * The `credential-*` types cover in-call credential requests (Pro, see
+ * The `credential-*` types cover in-call credential requests (see
  * src/credential-requests.ts): `role`/`clientId` identify the TARGET (the participant
  * asked to present), `requestedBy` the requesting host, `credentialId` the catalog entry.
  */
@@ -106,7 +106,7 @@ export interface VerificationEvent {
 
 /**
  * Where verification events go. Community: no-op. Pro: an audit trail
- * (who verified what, when) with compliance export — the first planned Pro feature.
+ * (who verified what, when) with compliance export.
  */
 export interface VerificationSink {
   record(ev: VerificationEvent): void | Promise<void>;
@@ -140,8 +140,8 @@ export interface SignalingPlugin {
  * document. The authorisation (`sad`) comes from the QTSP's own OAuth flow, in which the signer
  * authenticates to the QTSP directly — this server never sees their credentials.
  *
- * Phase 6. Until then the Pro module registers a placeholder that refuses with
- * `NotYetAvailable`. When the real flow lands, the HTTP route that calls `signHash` must be
+ * Currently the Pro module registers a placeholder that refuses with
+ * `NotYetAvailable`. Once the real flow exists, the HTTP route that calls `signHash` must be
  * bound to a verified participant's session — a signing endpoint reachable without that would
  * sign for anyone.
  */

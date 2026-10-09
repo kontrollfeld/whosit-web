@@ -4,15 +4,15 @@
  * Reciprocity in an open room: nobody receives values before they have agreed themselves.
  *
  * The review screen makes a promise — "the contents only become visible once both agree" — and
- * until 2026-09-01 an open multi-party room broke it. `broadcastStatus` gated the values on the
- * SUBJECT alone:
+ * an open multi-party room once broke it. `broadcastStatus` gated the values on the SUBJECT
+ * alone:
  *
  *   const showValues = (x) => revealed && (!openRoom || (x.verified && x.confirmed));
  *
  * `revealed` turns true in an open room as soon as TWO participants have confirmed. From that
  * moment every participant received the names and claims of the confirmed ones — including
- * someone who had only just joined and had not consented to anything. Found in a live
- * three-party call: the third person saw the others' names on their own review screen.
+ * someone who had only just joined and had not consented to anything: in a three-party call the
+ * third person saw the others' names on their own review screen.
  *
  * The visible part was the name in the block heading. The worse part was invisible: the whole
  * `claims` object travelled in the status payload, so anyone with developer tools could read
@@ -125,7 +125,7 @@ function startApp() {
       ...process.env,
       PORT: String(APP_PORT),
       PUBLIC_URL: `http://127.0.0.1:${APP_PORT}`,
-      // Open rooms need the multi-party capability — Community since 2026-09-25, so the plain
+      // Open rooms need the multi-party capability, which is in Community, so the plain
       // default edition is exactly the case this test has to cover.
       EUDI_EDITION: 'community',
       EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,

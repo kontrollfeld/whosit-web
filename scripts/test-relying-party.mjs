@@ -4,9 +4,8 @@
  * Who is asking — the one thing a white-labelled instance must not get wrong.
  *
  * On a branded instance the page carries the customer's name while the WALLET shows whoever owns
- * the access certificate behind the EUDIPLO tenant. Measured on the first tenant instance in
- * August 2026: page said "LHD Bürgerservice", wallet said "Kontrollfeld", and nothing in the
- * interface bridged the two.
+ * the access certificate behind the EUDIPLO tenant: the page can say "Musterstadt Bürgerservice"
+ * while the wallet names the certificate holder, and nothing in the interface bridges the two.
  *
  * What is tested here is not the wording but the DECISION — when disclosure happens, and that no
  * configuration can switch it off. The failure mode is silent by construction: an instance with
@@ -38,7 +37,7 @@ const OWN = { EUDIPLO_CLIENT_ID: 'stadt-xy' };        // an instance on its own 
 const DEFAULT_TENANT = { EUDIPLO_CLIENT_ID: '' };      // falls back to kontrollfeld-admin
 
 console.log('\nAn unbranded instance discloses nothing');
-// The no-op condition. id-call.eu itself and every self-hosted instance without EUDI_BRAND_NAME
+// The no-op condition. Every instance without EUDI_BRAND_NAME
 // must be completely unaffected — same standard src/branding.ts holds itself to.
 const plain = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: '' }, undefined);
 check('no disclosure without a brand', plain.disclose === false, JSON.stringify(plain));

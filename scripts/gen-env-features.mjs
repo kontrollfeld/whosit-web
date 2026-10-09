@@ -3,10 +3,9 @@
 /**
  * Render the capability list into `.env.selfhost.example` from the registry.
  *
- * Why generated and not written by hand: a Markdown table listing the same capabilities drifted
- * from `src/core/features.ts` three times (`multi-credential` was wrong for ten days,
- * `channel-binding` was missing entirely), which is why FEATURES.md was abolished. Putting the
- * same list into an env template by hand would repeat that mistake, with a worse consequence:
+ * Why generated and not written by hand: a hand-maintained list of the same capabilities drifts
+ * from `src/core/features.ts` (entries go stale or missing). Putting the same list into an env
+ * template by hand would repeat that mistake, with a worse consequence:
  * a self-hoster reading it has no way to notice, and would switch off a capability that is not
  * called that any more — silently, because an unknown id is ignored.
  *

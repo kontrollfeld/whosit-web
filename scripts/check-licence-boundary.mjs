@@ -60,8 +60,7 @@ check(`${scanned.length} files checked, no import from pro/`, offenders.length =
 console.log('\nThe main build does not know about pro/');
 // A structural guarantee, stronger than a test: pro/ is NOT in the main tsconfig's include and
 // has one of its own. The AGPL build therefore CANNOT depend on pro/ — regardless of what anyone
-// imports. Verified by hand: with pro/ moved away, `tsc` and the server start ran unchanged, and
-// /capabilities reported 20 capabilities without audit-trail.
+// imports.
 const rootTs = JSON.parse(readFileSync('tsconfig.json', 'utf8'));
 const includes = (rootTs.include || []).join(' ');
 check('tsconfig.json does not include pro/', !/\bpro\b/.test(includes), `include = ${includes}`);

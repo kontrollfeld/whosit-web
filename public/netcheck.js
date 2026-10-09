@@ -3,18 +3,18 @@
 /**
  * Network pre-flight — can this network carry a call at all?
  *
- * On corporate and government networks calls fail at firewalls, and until now nobody noticed until
- * the call collapsed: the client reported the failure only once the connection had already failed
- * — in the middle of the appointment, with no explanation and no way out. This check runs quietly
+ * On corporate and government networks calls fail at firewalls. Without a check, the client reports
+ * the failure only once the connection has already failed — in the middle of the appointment, with
+ * no explanation and no way out. This check runs quietly
  * in the background when the page loads and speaks up ONLY when something is in the way.
  *
  * METHOD: a dedicated RTCPeerConnection using exactly the ICE servers the call uses (otherwise it
  * would be testing something other than reality), a throwaway DataChannel, an offer — and then an
  * evaluation of which candidate types the browser finds.
  *
- * WHY getStats() AND NOT THE CANDIDATE LINE: measured on 2026-08-12 against real production, a
- * relay candidate ALWAYS carries `udp` in the SDP line, even when the relay was reached over TCP —
- * that field describes the relay<->peer leg, not browser<->relay. Whether we got out over TCP is
+ * WHY getStats() AND NOT THE CANDIDATE LINE: a relay candidate ALWAYS carries `udp` in the SDP
+ * line, even when the relay was reached over TCP — that field describes the relay<->peer leg, not
+ * browser<->relay. Whether the browser got out over TCP is
  * stated only in `RTCIceCandidateStats.relayProtocol`. A classifier parsing the line would be
  * silently wrong: it would report "UDP works" where in truth only TCP carried.
  */
@@ -52,12 +52,12 @@ async function runNetCheck(iceServers, { timeoutMs = 8000 } = {}) {
   try {
     if (typeof RTCPeerConnection !== 'function') return { verdict: 'unknown', relayVia: [], types: [] };
     pc = new RTCPeerConnection({ iceServers });
-    pc.createDataChannel('netcheck'); // ohne Kanal sammelt der Browser gar nicht erst
+    pc.createDataChannel('netcheck'); // without a channel the browser does not gather at all
     await pc.setLocalDescription(await pc.createOffer());
     await new Promise((resolve) => {
       const done = () => resolve();
       pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') done(); };
-      setTimeout(done, timeoutMs); // vollständiges Sammeln kann hängen — nicht ewig warten
+      setTimeout(done, timeoutMs); // full gathering can hang — do not wait forever
     });
     const cands = [];
     const stats = await pc.getStats();
@@ -69,7 +69,7 @@ async function runNetCheck(iceServers, { timeoutMs = 8000 } = {}) {
     console.warn('[netcheck] Prüfung fehlgeschlagen:', e && e.message);
     return { verdict: 'unknown', relayVia: [], types: [], ms: Date.now() - started };
   } finally {
-    try { if (pc) pc.close(); } catch { /* egal */ }
+    try { if (pc) pc.close(); } catch { /* ignore */ }
   }
 }
 

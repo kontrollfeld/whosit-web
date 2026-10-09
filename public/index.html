@@ -23,9 +23,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>
       <span data-i18n-html><strong>Testbetrieb ohne Ausweisprüfung.</strong> Niemand in diesem Anruf ist per EUDI-Wallet verifiziert — Namen und Angaben werden nicht geprüft.</span>
     </div>
-    <!-- Setup-Phase auf breiten Screens zweispaltig: Erklärtext links (sticky), die
-         eigentlichen Formulare/Anzeigen rechts. Bricht unter setup-columns-Breakpoint
-         zur gewohnten Einspalte zusammen (siehe CSS). -->
+    <!-- Setup phase on wide screens in two columns: explainer text left (sticky), the
+         actual forms/displays right. Collapses below the setup-columns breakpoint
+         to the usual single column (see CSS). -->
     <div id="setup-columns" class="setup-columns">
     <div class="setup-columns-left">
     <header>
@@ -38,22 +38,22 @@
     </div><!-- /setup-columns-left -->
 
     <div class="setup-columns-right">
-    <!-- Fortschritt (rollen-abhängig von app.js befüllt) -->
+    <!-- Progress (filled role-dependently by app.js) -->
     <ol id="stepper" class="stepper" hidden></ol>
 
-    <!-- Getrennt-Banner. Bewusst NICHT nur die Statuszeile: die zeigt beim Abriss sonst
-         weiter den letzten Stand von vorher, und ein eingefrorenes Fenster sieht aus wie
-         ein funktionierendes. Genau daran ist ein geplanter Anruf gescheitert. -->
+    <!-- Disconnected banner. Deliberately NOT just the status line: on a connection drop it
+         would keep showing the previous state, and a frozen window looks like a
+         working one. -->
     <div id="offline-bar" class="offline-bar" role="status" aria-live="polite" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="m2 2 20 20"/></svg>
       <span data-i18n>Keine Verbindung zum Server — was du hier siehst, ist möglicherweise veraltet. Es wird automatisch weiter versucht.</span>
       <button type="button" id="offline-retry-btn" class="ghost" data-i18n>Jetzt neu verbinden</button>
     </div>
 
-    <!-- Netzwerk-Vorabprüfung. Erscheint NUR, wenn das Netz den Anruf behindert — im
-         Normalfall sieht hier niemand etwas. Die Detailzeile ist für die IT-Abteilung
-         gedacht und bleibt eingeklappt, damit die Meldung selbst ohne Fachbegriffe
-         auskommt. -->
+    <!-- Network pre-flight. Appears ONLY when the network hinders the call — normally
+         nobody sees anything here. The detail line is meant for the IT department
+         and stays collapsed, so the message itself can do without technical
+         terms. -->
     <div id="netcheck-bar" class="netcheck-bar" role="status" aria-live="polite" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
       <div class="netcheck-text">
@@ -67,29 +67,28 @@
 
     <div id="status-bar" class="status" data-i18n>Verbindung wird hergestellt …</div>
 
-    <!-- Medien-Freigabe: eigener, STEHENDER Hinweis — bewusst nicht die Statuszeile. Die wird
-         beim Verbindungsaufbau zwei Zeilen später überschrieben (app.js, startCall), womit eine
-         verweigerte Freigabe spurlos verschwand: Der Anruf meldete „Verbunden ✓", hatte aber
-         weder Bild noch Ton und keine Erklärung. Bleibt stehen, bis Kamera/Mikrofon laufen. -->
+    <!-- Media permission: a separate, STANDING notice — deliberately not the status line. That
+         one is overwritten two lines later during connection setup (app.js, startCall), so a
+         denied permission would vanish without trace: the call would report "Verbunden ✓" but
+         have neither picture nor sound and no explanation. Stays until camera/microphone run. -->
     <div id="media-notice" class="media-notice" role="status" aria-live="polite" hidden>
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.27A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.89L15 14"/><rect width="13" height="10" x="2" y="7" rx="2"/></svg>
       <span id="media-notice-text"></span>
       <button type="button" id="media-retry-btn" class="ghost" data-i18n>Erneut versuchen</button>
     </div>
 
-    <!-- Wartebildschirm für einen Termin, der noch nicht offen ist. Der Countdown ist
-         nicht Zierde: er belegt, dass hier etwas passieren WIRD — vorher stand da eine
-         Aufforderung zum erneuten Öffnen, und nichts geschah von allein. -->
+    <!-- Waiting screen for an appointment that is not open yet. The countdown is not
+         decoration: it shows that something WILL happen here, on its own. -->
     <div id="invite-wait" class="invite-wait" hidden>
       <div id="invite-countdown" class="invite-countdown" role="timer" aria-live="off"></div>
       <button type="button" id="invite-retry-btn" class="ghost" data-i18n>Jetzt versuchen</button>
     </div>
 
-    <!-- Teilnehmer (kompakt, immer im Blick) -->
+    <!-- Participants (compact, always in view) -->
     <section id="identities" class="card identities">
       <div class="ids">
-        <!-- Rollenklasse (role-host / role-guest) setzt app.js: die Farbe folgt der Rolle,
-             nicht der Perspektive — Gastgeber blau, Gast grün, auf beiden Geräten gleich. -->
+        <!-- The role class (role-host / role-guest) is set by app.js: the colour follows the role,
+             not the perspective — host blue, guest green, the same on both devices. -->
         <div class="id-chip" id="self-chip"><span class="dot"></span><span id="self-label" class="chip-label" data-i18n>Du</span></div>
         <div id="peer-chips"></div>
       </div>
@@ -100,18 +99,17 @@
       <span id="restart-label" data-i18n>Neuen Anruf starten</span>
     </button>
 
-    <!-- Einrichten + Ausweisen: auf breiten Screens nebeneinander (Ursache → Wirkung) -->
+    <!-- Configure + identify: side by side on wide screens (cause → effect) -->
     <div id="setup-zone" class="setup-zone">
     <section id="setup" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span data-i18n>Anruf einrichten</span></h2>
 
-      <!-- Der Schritt-Wizard war bisher an die Bildschirmbreite gebunden (app.js, ≤640px oder
-           App). Er steht jetzt überall zur Verfügung und lässt sich hier abschalten — der
-           Schalter gehört in die Karte, nicht in ein Menü, das niemand öffnet. Bleibt in jedem
-           Schritt sichtbar, damit der Ausweg nicht erst gesucht werden muss. -->
+      <!-- The step wizard is available everywhere and can be switched off here — the switch
+           belongs in the card, not in a menu nobody opens. Stays visible on every step, so the
+           way out never has to be searched for. -->
       <label class="wiz-switch" id="wiz-switch-row">
-        <!-- `checked` schon im Markup: die Voreinstellung ist „geführt", und ohne das Attribut
-             stünde der Haken bis zum ersten Lauf von syncActive() kurz falsch. -->
+        <!-- `checked` already in the markup: the default is "guided", and without the attribute
+             the checkmark would briefly be wrong until the first run of syncActive(). -->
         <input type="checkbox" id="wiz-switch" checked />
         <span data-i18n>Schritt für Schritt einrichten</span>
       </label>
@@ -164,16 +162,16 @@
         <span><span data-i18n>Weitere Gäste später zulassen</span> <span class="field-note" data-i18n>— Anruf startet ab 2 Personen, weitere kommen später dazu</span></span>
       </label>
 
-      <!-- Zwei Zeilen als eigene Elemente statt durch <br> getrennt: im geführten Modus darf
-           auf dem Schritt „Ich teile" nicht schon stehen, was der Gast teilt — das ist die
-           Entscheidung des nächsten Schritts, und eine Zusammenfassung, die Ungefragtes
-           vorwegnimmt, liest sich wie eine bereits getroffene Wahl. -->
+      <!-- Two lines as separate elements instead of split by <br>: in guided mode the
+           "Ich teile" step must not already show what the guest shares — that is the
+           next step's decision, and a summary anticipating it reads like a choice
+           already made. -->
       <p class="preview">
         <span class="prev-you"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong></span>
         <span class="prev-guest"><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></span>
       </p>
 
-      <!-- Schritt-Navigation des Setup-Assistenten (mobil/App; app.js aktiviert). -->
+      <!-- Step navigation of the setup wizard (mobile/app; activated by app.js). -->
       <div id="wiz-nav" class="wiz-nav">
         <button type="button" id="wiz-back" class="ghost" data-i18n>Zurück</button>
         <span id="wiz-dots" class="wiz-dots" aria-live="polite"></span>
@@ -181,17 +179,17 @@
       </div>
     </section>
 
-    <!-- Ausweisen (Host-Disclosure ODER Gast-Anfrage) — sitzt neben dem Setup -->
+    <!-- Identify (host disclosure OR guest request) — sits next to the setup -->
 
     <section id="auth" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg><span id="auth-title" data-i18n>Identität bestätigen</span></h2>
       <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:</p>
       <ul class="consent" id="consent-list"></ul>
       <div class="auth-cta">
-        <!-- Wer die Abfrage tatsaechlich stellt. Bleibt leer und versteckt, solange Marke und
-             Zertifikatsinhaber dieselbe Stelle sind — siehe src/relying-party.ts. Steht VOR dem
-             Wallet-Knopf, weil das auf dem Telefon die erste Handlung ist: danach gelesen waere
-             der Satz wertlos. Die `order`-Regeln in style.css halten das auch am Desktop. -->
+        <!-- Who actually makes the request. Stays empty and hidden as long as brand and
+             certificate holder are the same entity — see src/relying-party.ts. Sits BEFORE the
+             wallet button because on the phone that is the first action: read afterwards the
+             sentence would be worthless. The `order` rules in style.css keep this on desktop too. -->
         <p class="hint rp-disclosure" id="rp-disclosure" hidden></p>
         <a id="auth-link" class="same-device" href="#">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
@@ -200,33 +198,33 @@
         <p class="hint qr-hint qr-hint--desktop" data-i18n-html>Scanne dazu den Code mit deiner <strong>EUDI-Wallet</strong>:</p>
         <p class="hint qr-hint qr-hint--mobile" data-i18n-html>Oder scanne den Code mit der <strong>EUDI-Wallet</strong> auf einem anderen Gerät:</p>
         <div id="qrcode" class="qr"></div>
-        <!-- Ein Angebot ist nach EINEM Versuch verbraucht; EUDIPLO weist die Wallet dann ab,
-             ohne dass der Server davon erfährt. Ohne diesen Knopf bliebe nur ein Neuladen. -->
+        <!-- An offer is used up after ONE attempt; EUDIPLO then rejects the wallet without
+             the server learning of it. Without this button only a reload would remain. -->
         <button type="button" id="auth-renew" class="ghost auth-renew" data-i18n>Code erneuern</button>
       </div>
     </section>
     </div><!-- /setup-zone -->
 
-    <!-- Einladung -->
+    <!-- Invitation -->
     <section id="share" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg><span data-i18n>Jemanden einladen</span></h2>
-      <!-- Eine Handlung, zwei Varianten: sofort einladen oder mit Termin (Pro calendar-invite;
-           Segment bleibt ohne die Capability versteckt). Link-Zeile gilt fuer beide. -->
+      <!-- One action, two variants: invite now or with an appointment (Pro calendar-invite;
+           the segment stays hidden without the capability). The link row applies to both. -->
       <div class="seg invite-when" id="invite-when-seg" role="group" aria-label="Wann" data-i18n-attr="aria-label" hidden>
         <button type="button" data-when="now" class="active" data-i18n>Direkt jetzt</button>
         <button type="button" data-when="later" data-i18n>Mit Termin</button>
       </div>
       <p class="hint" id="share-hint" data-i18n>Teile diesen Link mit der Person, die du anrufen möchtest.</p>
-      <!-- Die Reihenfolge Einrichten → Einladen ist keine Kosmetik: sobald der Gast beitritt,
-           schaltet app.js die Einrichtung schreibgeschützt (lockSetup). Wer zuerst einlädt und
-           von seinem Gast überholt wird, hat den Anruf auf die Voreinstellungen festgenagelt und
-           sieht danach nur noch ein totes Formular. Also sagen, bevor es passiert. -->
+      <!-- The order configure → invite is not cosmetic: as soon as the guest joins, app.js
+           makes the setup read-only (lockSetup). Whoever invites first and is overtaken by
+           their guest has pinned the call to the defaults and then sees only a dead form.
+           So say it before it happens. -->
       <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.</p>
       <div id="schedule-block" hidden>
-      <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
-           der .ics-Datei. Auf einer gebrandeten Instanz traegt er die Marke des Betreibers
-           (siehe branding.js) — sonst steht im Kalender des Gastes der Name einer Firma, mit der
-           er nie etwas vereinbart hat. -->
+      <!-- A default, not a fixed value: this title ends up in the guest's calendar and in
+           the .ics file. On a branded instance it carries the operator's brand
+           (see branding.js) — otherwise the guest's calendar shows the name of a company
+           they never arranged anything with. -->
       <input id="cal-title" type="text" value="EUDI Verified Call" aria-label="Titel des Termins" maxlength="120" data-i18n-attr="aria-label" />
       <div class="schedule-fields">
         <input id="cal-date" type="date" aria-label="Datum" data-i18n-attr="aria-label" />
@@ -252,10 +250,10 @@
         </button>
       </div>
 
-      <!-- Geplanter Anruf: der eigene Zugang. Zwei Links, weil der Termin-Link die Rolle
-           festlegt — wer den Host-Link oeffnet, tritt als Gastgeber ein. Er gehoert in die
-           Wallet-Karte und an den Schluss des Kalendereintrags, nicht ins Teilen.
-           Siehe src/invite-token.ts. -->
+      <!-- Scheduled call: the host's own access. Two links, because the appointment link fixes
+           the role — whoever opens the host link enters as host. It belongs in the
+           wallet card and at the end of the calendar entry, not in sharing.
+           See src/invite-token.ts. -->
       <div class="row" id="host-link-row" hidden>
         <input id="host-url" type="text" readonly aria-label="Mein eigener Zugang zum Termin" data-i18n-attr="aria-label" />
         <button type="button" id="copy-host-btn" class="ghost">
@@ -283,7 +281,7 @@
 
     </section>
 
-    <!-- Host: Mehrparteien-Call explizit starten (erst dann sperrt der Raum) -->
+    <!-- Host: explicitly start a multi-party call (only then does the room lock) -->
     <section id="start-bar" class="card" hidden>
       <p class="hint"><span id="start-hint" data-i18n>Warte, bis alle beigetreten sind — dann starte den Anruf.</span></p>
       <button id="start-btn" type="button">
@@ -292,14 +290,14 @@
       </button>
     </section>
 
-    <!-- Review vor dem Verbinden: nur Felder, keine Werte -->
+    <!-- Review before connecting: fields only, no values -->
     <section id="review" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n>Vor dem Verbinden</span></h2>
       <p class="hint" data-i18n-html>Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>.</p>
 
-      <!-- Zweckbindung: derselbe Text, den der Server in die DCQL-Anfrage schreibt und den
-           die Wallet anzeigt (src/wrp-policy.ts → WRP_PURPOSE_TEXT, geliefert über
-           /capabilities). Eine Quelle, damit Consent-Screen und Wallet nicht auseinanderlaufen. -->
+      <!-- Purpose limitation: the same text the server writes into the DCQL request and the
+           wallet displays (src/wrp-policy.ts → WRP_PURPOSE_TEXT, delivered via
+           /capabilities). One source, so consent screen and wallet cannot drift apart. -->
       <p class="purpose-binding">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span><span class="pb-label" data-i18n>Zweckbindung:</span> <span data-policy-purpose data-i18n>Identitätsverifikation für sichere P2P-Kommunikation</span></span>
@@ -311,11 +309,11 @@
       </div>
       <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
       <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
-      <!-- Auf schmalen Screens klebt diese Leiste am unteren Rand, solange die Review offen ist
-           (style.css). Kein Modal: Verbinden ist eine Einwilligung zur Datenweitergabe, und ein
-           Fenster, das in einem Moment aufspringt, den die Nutzerin nicht steuert, setzt ihr
-           diesen Knopf beim Scrollen unter den Daumen — es müsste zudem genau die Liste
-           verdecken, die es zu lesen gibt. -->
+      <!-- On narrow screens this bar sticks to the bottom edge while the review is open
+           (style.css). No modal: connecting is consent to sharing data, and a window that
+           pops up at a moment the user does not control puts this button under their thumb
+           while scrolling — and it would also have to cover exactly the list there is to
+           read. -->
       <div class="row review-actions" id="review-actions">
         <span class="review-ready" id="review-ready" hidden></span>
         <button id="decline-btn" class="ghost" data-i18n>Ablehnen</button>
@@ -323,10 +321,10 @@
       </div>
       <p class="hint review-wait" id="review-wait" hidden data-i18n>✓ Du hast bestätigt — wartet auf das Gegenüber …</p>
     </section>
-    <!-- Geprüfte Angaben und Sicherheitscode gehören IN die rechte Spalte: außerhalb
-         liefen sie in der schmaleren Hauptspalte und standen sichtbar versetzt zu
-         Statuszeile und Teilnehmer-Chips darüber. -->
-    <!-- Geprüfte Angaben: Werte, erst sichtbar nach beidseitiger Zustimmung -->
+    <!-- Verified data and security code belong IN the right column: outside it they
+         would run in the narrower main column, visibly offset from the status line and
+         participant chips above. -->
+    <!-- Verified data: values, visible only after mutual consent -->
     <section id="result" class="card" hidden>
       <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n data-verified-only>Geprüfte Angaben</span><span data-i18n data-testmode-only hidden>Angaben im Anruf</span>
         <button id="result-toggle" class="collapse-btn" type="button" aria-expanded="true" hidden><span id="result-toggle-label" data-i18n>Ausblenden</span></button>
@@ -339,7 +337,7 @@
       </div>
     </section>
 
-    <!-- SAS-Sicherheitscode: MITM-Erkennung durch mündlichen Vergleich -->
+    <!-- SAS security code: MITM detection by verbal comparison -->
     <section id="sas-card" class="card sas" hidden>
       <div class="sas-row">
         <svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -359,12 +357,12 @@
     </section>
 
     </div><!-- /setup-columns-right -->
-    <!-- „Warum id-call.eu?" — gehört zum Erklärtext, nicht zum Formular. Deshalb DIREKTES
-         Kind von .setup-columns: auf breiten Screens setzt das CSS die Karte in die linke
-         Spalte unter den Einleitungstext, und die rechte Spalte gehört ganz dem Formular.
-         Im Markup steht sie NACH der rechten Spalte, damit sie auf schmalen Screens (dort ist
-         .setup-columns `display: contents`) hinter dem Formular landet und nicht davor. -->
-    <!-- App-Staerken: nur auf Wizard-Schritt 1 (mobil/App), unter "Anruf einrichten" -->
+    <!-- Strengths card — belongs to the explainer text, not the form. Hence a DIRECT
+         child of .setup-columns: on wide screens the CSS places the card in the left
+         column below the intro text, and the right column belongs entirely to the form.
+         In the markup it comes AFTER the right column, so that on narrow screens (where
+         .setup-columns is `display: contents`) it lands after the form, not before it. -->
+    <!-- App strengths: only on wizard step 1 (mobile/app), below "Anruf einrichten" -->
     <section id="app-strengths" class="app-strengths" aria-label="Vorteile">
       <h2 data-i18n>Warum id-call.eu?</h2>
       <div class="strength">
@@ -379,10 +377,9 @@
         <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></span>
         <div><h3 data-i18n>Du bestimmst, was du zeigst</h3><p data-i18n>Nur die Angaben, die du auswählst. Sichtbar werden sie erst, wenn beide zustimmen.</p></div>
       </div>
-      <!-- Dieses Argument stand bisher nur in der Häkchen-Liste („Beidseitig & flexibel") und
-           fehlte der Karte: „Du bestimmst, was du zeigst" klingt nach Auswahl INNERHALB des
-           Ausweisens. Dass anonym ein gültiges Ergebnis ist und der Anruf trotzdem zustande
-           kommt — und dass die Gegenseite dieselbe Freiheit hat — sagt erst dieser Punkt. -->
+      <!-- "Du bestimmst, was du zeigst" sounds like a choice WITHIN identification. That
+           anonymous is a valid result and the call still happens — and that the other side
+           has the same freedom — is said only by this point. -->
       <div class="strength">
         <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="10" r="4"/><circle cx="12" cy="12" r="10"/></svg></span>
         <div><h3 data-i18n>Ausweisen ist freiwillig</h3><p data-i18n>Jede Seite entscheidet für sich — anonym bleiben oder ausgewählte Angaben teilen. Auch anonym kommt der Anruf zustande.</p></div>
@@ -394,15 +391,15 @@
     </section>
     </div><!-- /setup-columns -->
 
-    <!-- Call-Banner (Audio/Chat) -->
+    <!-- Call banner (audio/chat) -->
     <section id="call-banner" class="card" hidden>
       <div class="banner"><span class="banner-dot"></span><span id="banner-text" data-i18n>Verbindung steht</span></div>
     </section>
 
     <!-- Video -->
-    <!-- Native App im Call: eingeklappte Trust-Leiste — buendelt Status/Chips/
-         Gepruefte Angaben/Sicherheitscode; Tippen klappt die Original-Karten auf.
-         Website: bleibt hidden (app.js initAppShell aktiviert sie nur nativ). -->
+    <!-- Native app in a call: collapsed trust bar — bundles status/chips/
+         verified data/security code; tapping expands the original cards.
+         Website: stays hidden (app.js initAppShell activates it only natively). -->
     <button id="trust-bar" class="trust-bar" type="button" hidden aria-expanded="false" aria-controls="identities result sas-card">
       <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
       <span id="trust-names" class="trust-names" data-i18n>Verifizierter Anruf</span>
@@ -420,7 +417,7 @@
       </div>
     </section>
 
-    <!-- Chat + Dokument im Call: nebeneinander auf breiten Screens, wenn beide offen sind -->
+    <!-- Chat + document in the call: side by side on wide screens when both are open -->
     <div id="call-panels" class="call-panels">
     <!-- Chat -->
     <section id="chat" class="card" hidden>
@@ -440,8 +437,8 @@
       </div>
     </section>
 
-    <!-- QES im Call (Phase 1): Dokument teilen & gemeinsam durchgehen — P2P über den
-         'qes'-DataChannel, Hash-verifiziert; UI-Logik in qes/doc-share.js (lazy). -->
+    <!-- QES in the call: share & review a document together — P2P over the
+         'qes' DataChannel, hash-verified; UI logic in qes/doc-share.js (lazy). -->
     <section id="qes-box" class="card qes" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span data-i18n>Dokument im Call</span>
         <button id="qes-close" class="collapse-btn" type="button" hidden><span data-i18n>Beenden</span></button>
@@ -470,14 +467,14 @@
         <code id="qes-hash" class="qes-hash"></code>
         <p class="hint" id="qes-hash-status"></p>
       </div>
-      <!-- Signieren (Phase 2): Provider-Auswahl + permanenter Demo-Hinweis. Der Banner
-           bleibt sichtbar, solange ein nicht-qualifizierter Provider gewählt ist. -->
+      <!-- Signing: provider choice + permanent demo notice. The banner
+           stays visible as long as a non-qualified provider is selected. -->
       <div id="qes-sign" class="qes-sign" hidden>
         <div class="qes-demo-banner" id="qes-demo-banner" role="note">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           <span data-i18n-html><strong>Demo — keine qualifizierte Signatur.</strong> Diese Unterschrift ist rechtlich <strong>nicht bindend</strong>. Die rechtssichere qualifizierte elektronische Signatur (QES) über einen Vertrauensdiensteanbieter folgt in einer späteren Ausbaustufe.</span>
         </div>
-        <!-- Zustimmung der Gegenseite zur Zeremonie (Starter signiert zuerst) -->
+        <!-- The other side's consent to the ceremony (starter signs first) -->
         <div id="qes-cer-confirm" hidden>
           <p class="hint" id="qes-cer-confirm-text"></p>
           <div class="row">
@@ -485,7 +482,7 @@
             <button id="qes-cer-accept" data-i18n>Signieren zustimmen ✓</button>
           </div>
         </div>
-        <!-- Identitätsbindung fehlgeschlagen (§6): Zertifikat ≠ PID — der Mensch entscheidet -->
+        <!-- Identity binding failed: certificate ≠ PID — the human decides -->
         <div id="qes-mismatch" class="qes-mismatch" hidden>
           <p id="qes-mismatch-text"></p>
           <div class="row">
@@ -513,7 +510,7 @@
         </div>
         <div class="qes-canvas-wrap"><canvas id="qes-canvas"></canvas></div>
       </div>
-      <!-- Prüfansicht (Phase 5): alle Signaturen im aktuellen Dokument -->
+      <!-- Validation view: all signatures in the current document -->
       <div id="qes-validate" class="qes-validate" hidden>
         <button id="qes-validate-btn" class="ghost" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -525,13 +522,13 @@
     </section>
     </div><!-- /call-panels -->
 
-    <!-- Kompatibilitäts-Hinweis (z. B. Bildschirm teilen auf iOS nicht verfügbar) -->
+    <!-- Compatibility notice (e.g. screen sharing unavailable on iOS) -->
     <p id="compat-note" class="hint compat-note" hidden></p>
 
-    <!-- In-Call-Nachforderung (Pro): Auswahl-Panel des Hosts -->
+    <!-- In-call credential request (Pro): the host's picker panel -->
     <div id="credreq-panel" class="credreq-panel card" hidden></div>
 
-    <!-- Call-Steuerung (alle Modi) -->
+    <!-- Call controls (all modes) -->
     <div id="call-controls" class="call-controls" hidden>
       <button id="credreq-btn" class="ghost" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
@@ -563,7 +560,7 @@
         <span data-i18n>Auflegen</span>
       </button>
     </div>
-    <!-- In-Call-Nachforderung (Pro): Consent-Modal des Gegenübers -->
+    <!-- In-call credential request (Pro): the other party's consent modal -->
     <div id="cred-modal" class="cred-modal" hidden>
       <div class="cred-dialog card">
         <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg><span id="cred-title">Nachweis</span></h2>
@@ -586,8 +583,8 @@
     </div>
   </main>
 
-  <!-- Native App: Einstellungen-Tab (Website: bleibt hidden). Die Controls
-       (Sprache/Design/Version) werden von app.js aus dem Footer hierher verschoben. -->
+  <!-- Native app: settings tab (website: stays hidden). The controls
+       (language/theme/version) are moved here from the footer by app.js. -->
   <section id="app-settings" class="card app-settings" hidden>
     <h2 class="settings-title" data-i18n>Einstellungen</h2>
     <button type="button" id="new-call-btn" class="new-call-btn">
@@ -609,7 +606,7 @@
     <a class="footer-link" href="datenschutz.html" data-i18n>Datenschutz</a>
   </footer>
 
-  <!-- Native App: Bottom-Tab-Bar (Anruf / Einstellungen). Website: bleibt hidden. -->
+  <!-- Native app: bottom tab bar (call / settings). Website: stays hidden. -->
   <nav id="app-tabbar" class="app-tabbar" hidden aria-label="App-Navigation">
     <button type="button" class="tab active" data-tab="call" aria-selected="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
@@ -622,8 +619,8 @@
   </nav>
 
   <script src="i18n.js"></script>
-  <!-- Vor app.js: die Netzprüfung stellt nur eine Funktion bereit, app.js ruft sie
-       nach refreshIce() mit genau den ICE-Servern auf, die auch der Anruf nutzt. -->
+  <!-- Before app.js: the network check only provides a function; app.js calls it
+       after refreshIce() with exactly the ICE servers the call uses too. -->
   <script src="netcheck.js"></script>
   <script src="app.js"></script>
 </body>

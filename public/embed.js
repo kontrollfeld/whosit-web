@@ -50,8 +50,8 @@
   })();
 
   var VALID_MODES = { video: 1, audio: 1, chat: 1 };
-  // WRP whitelist (server: src/wrp-policy.ts). birth_date / issuing_country / address were
-  // removed with the eIDAS 2.0 WRP scoping — the server narrows or refuses them, so drop
+  // WRP whitelist (server: src/wrp-policy.ts). birth_date / issuing_country / address are
+  // outside the eIDAS 2.0 WRP scope — the server narrows or refuses them, so drop
   // them here too and SAY SO, instead of silently shipping a config that won't apply.
   // pseudonym_id is omitted on purpose: it is derived server-side and only valid alongside
   // a real attribute, which an embed config cannot usefully express.
@@ -121,7 +121,7 @@
 
     var handlers = options.on || {};
     function onMessage(e) {
-      if (e.origin !== origin) return;                 // only trust our app's origin
+      if (e.origin !== origin) return;                 // only trust the app's origin
       if (e.source !== iframe.contentWindow) return;    // only this iframe
       var d = e.data;
       if (!d || d.source !== 'trustcall' || !d.type) return;

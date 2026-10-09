@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* QES im Call — Phasen 1–3: Dokument teilen, durchgehen & gemeinsam signieren
- * (public/qes/).
+/* QES in the call: share a document, page through it together and co-sign it.
  *
  * Runs entirely P2P over a dedicated 'qes' DataChannel (in-band, no renegotiation —
  * app.js routes incoming channels by label). Control messages are JSON envelopes
@@ -14,7 +13,7 @@
  * re-sent. Both sides verify the SHA-256 locally before anything is displayed —
  * "verified" means both render byte-identical bytes.
  *
- * SIGNING CEREMONY (Phase 3): PAdES with multiple signers means SEQUENTIAL
+ * SIGNING CEREMONY: PAdES with multiple signers means SEQUENTIAL
  * incremental updates — the ceremony starter signs first, the grown PDF travels to
  * the other side (as a normal chunked transfer with docId "<cid>:<step>", auto-
  * accepted — consent was given at ceremony start), that side verifies the hash AND
@@ -123,7 +122,7 @@ export function createDocShare(ctx) {
   let rendering = false;
   let providers = null;   // SignatureProviders from ./providers.js (lazy, once per session)
   let viewerBytes = null; // the bytes currently rendered — input for the validation view
-  // Signing ceremony (Phase 3): sequential incremental signatures, starter first.
+  // Signing ceremony: sequential incremental signatures, starter first.
   // { cid, starter, state: proposed|confirm|signing|peer-signing|done, step,
   //   versions:[Uint8Array…], expected:{step,sha256,subject}, timer }
   let cer = null;
@@ -175,9 +174,8 @@ export function createDocShare(ctx) {
   /**
    * Nothing in flight: no transfer half-way, no ceremony still running. A FINISHED document
    * session (both see the document, or a completed ceremony) does not block the next share —
-   * the new document replaces it on both sides. Until 2026-09-26 any open view blocked it, so
-   * whoever had RECEIVED a document could not share one back without closing the view first,
-   * and the button gave no hint why nothing happened: sharing looked like it worked one way only.
+   * the new document replaces it on both sides, so whoever RECEIVED a document can share one
+   * back without closing the view first.
    */
   function settled() {
     return (!cer || cer.state === 'done') && (!out || out.done) && (!inc || inc.done);
@@ -430,7 +428,7 @@ export function createDocShare(ctx) {
       : tr('Wird nach der Übertragung auf beiden Seiten verglichen.');
   }
 
-  // ---- signing (Phase 2: providers + demo signature — public/qes/ §5) ----
+  // ---- signing (providers + demo signature) ----
   // Every UI surface a demo signature touches carries the permanent "not legally
   // binding" banner: `qualified:false` comes from the provider, never from config.
   async function showSigning() {
@@ -471,7 +469,7 @@ export function createDocShare(ctx) {
     if (p && typeof p.renderHint === 'function') { try { p.renderHint(providerHint); } catch { /* a hint must not break signing */ } }
     providerHint.hidden = !providerHint.firstChild;
     // The banner is permanent and non-dismissable while a non-qualified provider is
-    // selected — the user asked for an unmissable "not legally binding yet" notice.
+    // selected, so the "not legally binding yet" notice cannot be missed.
     $('qes-demo-banner').hidden = !!(p && p.qualified);
   }
   function addSignatureRow(who, subject) {
@@ -486,7 +484,7 @@ export function createDocShare(ctx) {
     signList.appendChild(row);
     return row;
   }
-  /** Attach the identity-binding verdict (§6) to a signature row. */
+  /** Attach the identity-binding verdict to a signature row. */
   function setRowBinding(row, binding) {
     const el = document.createElement('span');
     el.className = 'qes-bind qes-bind-' + binding.status;
@@ -499,7 +497,7 @@ export function createDocShare(ctx) {
   }
   providerSel.addEventListener('change', updateSignUi);
 
-  // ---- signing ceremony (Phase 3 — public/qes/ §3) ----
+  // ---- signing ceremony ----
   // Sequential incremental updates: starter signs step 1, the other side step 2.
   // Every state has a timeout; q:cer-abort ends the ceremony on both sides but keeps
   // the shared document view intact.
@@ -507,7 +505,7 @@ export function createDocShare(ctx) {
     const id = ctx.getSelfIdentity();
     return [id.givenName, id.familyName].filter(Boolean).join(' ');
   }
-  // Client-only ceremony protocol (§6/§8): every step, hash, binding verdict and
+  // Client-only ceremony protocol: every step, hash, binding verdict and
   // mismatch decision — exportable as JSON, never sent to the server.
   function logEvent(type, data) {
     if (cer && cer.protocol) cer.protocol.events.push(Object.assign({ type, at: new Date().toISOString() }, data || {}));
@@ -654,7 +652,7 @@ export function createDocShare(ctx) {
     }
     cer.versions.push(bytes);
     cer.expected = null;
-    // Identity binding (§6): the signer's certificate is read out of the RECEIVED
+    // Identity binding: the signer's certificate is read out of the RECEIVED
     // DOCUMENT (not out of any message) and matched against the PID this person
     // presented in the call. The row subject shows what the certificate says.
     const peer = ctx.getPeer();
@@ -669,7 +667,7 @@ export function createDocShare(ctx) {
 
     const proceed = () => (!cer ? undefined : (!cer.starter && step === 1) ? mySignStep(2) : finishCeremony());
     if (binding.status === 'mismatch' || binding.status === 'invalid') {
-      // §6: warn with both names and let the USER decide — continue or abort. The
+      // Warn with both names and let the USER decide — continue or abort. The
       // decision lands in the ceremony protocol either way.
       showMismatch(binding, proceed);
       return;
@@ -713,7 +711,7 @@ export function createDocShare(ctx) {
     offerProtocol();
     note(tr('Signatur-Zeremonie abgeschlossen ✓ — das signierte PDF steht beidseitig zum Download bereit (Demo, nicht rechtsgültig).'));
   }
-  /** Client-only protocol download (§8) — steps, hashes, binding verdicts, decisions. */
+  /** Client-only protocol download — steps, hashes, binding verdicts, decisions. */
   function offerProtocol() {
     if (!cer || !cer.protocol) return;
     if (protocolLink.dataset.url) { try { URL.revokeObjectURL(protocolLink.dataset.url); } catch {} }
@@ -772,7 +770,7 @@ export function createDocShare(ctx) {
     }
   }
 
-  // ---- validation view (Phase 5): every signature in the current document ----
+  // ---- validation view: every signature in the current document ----
   async function updateValidateUi() {
     validateList.innerHTML = '';
     validateHint.hidden = true;

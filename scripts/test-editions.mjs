@@ -4,14 +4,13 @@
  * The edition split — the boundary that can slip silently.
  *
  * Two directions of failure, both expensive:
- *   - TOO MUCH in Community means a Pro feature is given away. Nobody notices, because nothing
- *     breaks — there is simply less revenue, and unnoticed at that.
- *   - TOO LITTLE in Community means the published edition looks crippled. That is the very
- *     reason the split was redrawn on 2026-08-19 (the rationale lives in src/core/features.ts,
- *     entry by entry), and it would be a shame to undo it with one careless registry edit.
+ *   - TOO MUCH in Community means a Pro feature ends up in the AGPL edition. Nobody notices,
+ *     because nothing breaks.
+ *   - TOO LITTLE in Community means the published edition looks crippled. The rationale for
+ *     the split lives in src/core/features.ts, entry by entry, and one careless registry edit
+ *     must not undo it.
  *
- * Until 2026-08-19 there was NO automated test for this — the Pro case was only checked by hand.
- * Both cases are therefore tested against the real endpoint rather than against the registry
+ * Both cases are tested against the real endpoint rather than against the registry
  * alone: between registry and response sit `enabledFeatures()`, the promo resolution and the
  * config gates, which is exactly where things go wrong.
  *
@@ -27,11 +26,11 @@ const PORT_PRO = 3772;
 const PORT_PROMO = 3773;
 const PORT_PRO_MODULE = 3775;
 
-/** The two Pro features — where we genuinely provide something in return, with the code in pro/. */
+/** The two Pro features — the ones whose code lives in pro/. */
 const PRO_IDS = ['audit-trail', 'qes-csc', 'qes-device'];
 
-/** Community features whose loss MUST be noticed immediately (the 2026-08-19 split, plus
- *  multi-party on 2026-09-25: its code is all AGPL, so a Pro label was only a switch). */
+/** Community features whose loss MUST be noticed immediately (multi-party included: its code
+ *  is all AGPL, so a Pro label would only be a switch). */
 const MOVED_TO_COMMUNITY = [
   'meeting-controls', 'screen-share', 'spotlight', 'hand-raise',
   'file-transfer', 'emoji', 'calendar-invite', 'native-share',

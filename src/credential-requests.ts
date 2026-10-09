@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * In-call credential request registry (Pro) — the state machine behind a "Nachforderung"
- * (see src/credential-requests.ts):
+ * In-call credential request registry — the state machine behind a follow-up request for a
+ * further credential during the call:
  *
  *   pending → accepted → presented | declined | failed | expired | cancelled
  *

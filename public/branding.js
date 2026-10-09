@@ -35,13 +35,12 @@
      *
      * Two places only, each marked or addressed by id — deliberately not a search-and-replace
      * over the document. The name sits inside translated sentences, and swapping it everywhere
-     * produces crooked grammar in three languages; that judgement has not changed. What HAS
-     * changed is that these two are not sentences at all:
+     * produces crooked grammar in three languages. These two are not sentences at all:
      *
      *   [data-brand-product]  the "about" line in the settings, where the name stands alone
      *   #cal-title            the appointment title, which ends up in a GUEST'S calendar and in
      *                         the .ics file they receive. Under the operator's brand it reads as
-     *                         an appointment with them; under ours it names a company the guest
+     *                         an appointment with them; under the default brand it names a company the guest
      *                         has never heard of and did not arrange anything with.
      *
      * NOT branded, on purpose: `PRODID` in the .ics. That field identifies the software that
