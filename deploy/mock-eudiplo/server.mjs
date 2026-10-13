@@ -37,6 +37,11 @@ import { randomUUID } from 'node:crypto';
 const PORT = Number(process.env.PORT || 8080);
 const SELF_URL = (process.env.SELF_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 
+/** Escape a value for interpolation into HTML (text and quoted attributes). */
+function escapeHtml(v) {
+  return String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
 /** offerId → { webhook, requestId } the app asked us to call back. */
 const offers = new Map();
 /**
@@ -162,7 +167,7 @@ const server = http.createServer(async (req, res) => {
       const fields = claims.map((c) => {
         const key = pathKey(c.path);
         const val = CLAIM_DEFAULTS[key] ?? 'test';
-        return `<label>${key}<input name="${key}" value="${val}"></label>`;
+        return `<label>${escapeHtml(key)}<input name="${escapeHtml(key)}" value="${escapeHtml(val)}"></label>`;
       }).join('\n');
       return html(res, 200, `<!doctype html><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
@@ -172,8 +177,8 @@ input{width:100%;padding:.6rem;margin:.2rem 0 .8rem;border:1px solid #cfd8e6;bor
 button{width:100%;padding:.7rem;border:0;border-radius:8px;background:#4f46e5;color:#fff;font:inherit;font-weight:600}
 small{color:#5d6b85;word-break:break-all}</style>
 <h2>🪪 Mock-Wallet — Nachweis</h2>
-<p><small>Simulated presentation for <code>${type}</code> (local development, no cryptography).</small></p>
-<form method=POST action="/simulate/${id}">
+<p><small>Simulated presentation for <code>${escapeHtml(type)}</code> (local development, no cryptography).</small></p>
+<form method=POST action="/simulate/${escapeHtml(id)}">
 ${fields}
 <button>Nachweis teilen ✓</button>
 </form>`);
@@ -187,7 +192,7 @@ button{width:100%;padding:.7rem;border:0;border-radius:8px;background:#0369a1;co
 small{color:#5d6b85}</style>
 <h2>🪪 Mock-Wallet</h2>
 <p><small>Not a real identity document — simulates a PID presentation for local development.</small></p>
-<form method=POST action="/simulate/${id}">
+<form method=POST action="/simulate/${escapeHtml(id)}">
   <label>Vorname<input name=given_name value="Erika"></label>
   <label>Nachname<input name=family_name value="Mustermann"></label>
   <label>Format<select name=format style="width:100%;padding:.6rem;margin:.2rem 0 .8rem;border:1px solid #cfd8e6;border-radius:8px;font:inherit">
@@ -252,7 +257,7 @@ small{color:#5d6b85}</style>
     }
     offers.delete(id); // one-shot
     return html(res, 200, `<!doctype html><meta charset=utf-8><style>body{font:16px/1.5 system-ui;max-width:22rem;margin:12vh auto;text-align:center;color:#1b2433}</style>
-<h2>✓ Verified as ${given_name} ${family_name}</h2><p>You can return to the other tab — the call connects as soon as both sides have confirmed.</p>`);
+<h2>✓ Verified as ${escapeHtml(given_name)} ${escapeHtml(family_name)}</h2><p>You can return to the other tab — the call connects as soon as both sides have confirmed.</p>`);
   }
 
   if (p === '/health') return json(res, 200, { ok: true });
