@@ -28,6 +28,9 @@
  *
  * Start:  SELF_URL=http://localhost:8080 node deploy/mock-eudiplo/server.mjs
  * Point the app at it:  EUDIPLO_BASE_URL=http://localhost:8080
+ * Webhook targets: the mock only POSTs to `/webhook/…` on an allowed app origin. Default:
+ * localhost, 127.0.0.1 and [::1] (any port). Otherwise set WEBHOOK_ORIGINS=https://app.example.org
+ * (comma-separated origins).
  *
  * NOT for production.
  */
@@ -36,6 +39,19 @@ import { randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 8080);
 const SELF_URL = (process.env.SELF_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
+
+/** Origins the mock may call back (SSRF guard); default: loopback app origins only. */
+const WEBHOOK_ORIGINS = (process.env.WEBHOOK_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
+
+/** Is `raw` a URL the mock may POST to: allowed origin and a `/webhook/…` path? */
+function webhookAllowed(raw) {
+  let u;
+  try { u = new URL(String(raw)); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  if (!u.pathname.startsWith('/webhook/')) return false;
+  if (WEBHOOK_ORIGINS.length) return WEBHOOK_ORIGINS.includes(u.origin);
+  return ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+}
 
 /** Escape a value for interpolation into HTML (text and quoted attributes). */
 function escapeHtml(v) {
@@ -124,6 +140,7 @@ const server = http.createServer(async (req, res) => {
     if (unknown.length) return json(res, 400, { error: `unrecognized keys: ${unknown.join(',')}` });
     const webhook = body?.webhook?.url;
     if (!webhook) return json(res, 400, { error: 'missing webhook.url' });
+    if (!webhookAllowed(webhook)) return json(res, 400, { error: 'webhook.url not allowed: must be /webhook/… on an allowed origin (see WEBHOOK_ORIGINS)' });
     const id = randomUUID();
     offers.set(id, { webhook, requestId: body?.requestId });
     const uri = `${SELF_URL}/simulate/${id}`;
@@ -207,6 +224,7 @@ small{color:#5d6b85}</style>
     const offer = offers.get(id);
     if (!offer) return html(res, 404, '<p>Unbekanntes/abgelaufenes Angebot.</p>');
     const webhook = offer.webhook;
+    if (!webhookAllowed(webhook)) return html(res, 400, '<p>Webhook not allowed.</p>');
     const form = new URLSearchParams(await readBody(req));
 
     // Generic path for in-call catalog credentials: every form field becomes a flat claim.

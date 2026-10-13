@@ -111,6 +111,7 @@ services:
     environment:
       PORT: "8080"
       SELF_URL: "https://${DOMAIN}/mock"
+      WEBHOOK_ORIGINS: "https://${DOMAIN}"
     volumes:
       - ./deploy/mock-eudiplo:/app:ro
     labels:
