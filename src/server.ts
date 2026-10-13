@@ -1796,7 +1796,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // What this participant must present:
   //  - guest (callee): the attributes the host requested
   //  - host (caller): the attributes the host chose to disclose (none → anonymous)
-  //  - solo (wantAuth): the requested attributes (single-device test path)
+  //  - wantAuth (solo test path) changes nothing here: it must never lower the host's requirements
   // With the host gate active, the host must disclose BOTH given and family name — otherwise
   // there would be nothing to compare and they would never get through. Set on the room, not
   // just on the request, so that interface, wallet query and check all show the same thing.
@@ -1806,11 +1806,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // Without a verifier the room's defaults (family name both ways) cannot be met: nobody is
   // asked for anything, so every participant counts as verified-anonymous right below.
   if (VERIFIER_OFF) { room.requestedAttrs = []; room.disclosedAttrs = []; }
-  const requiredAttrs = wantAuth
-    ? room.requestedAttrs
-    : participant.role === 'callee'
-      ? room.requestedAttrs
-      : room.disclosedAttrs;
+  const requiredAttrs = participant.role === 'callee' ? room.requestedAttrs : room.disclosedAttrs;
   // Decide the "nothing to present" case up front so the very first status is correct.
   // Covers both anonymous (empty) and derived-only sets — see ./wrp-policy.
   if (!participant.verified && !requiresWalletPresentation(requiredAttrs)) participant.verified = true;
