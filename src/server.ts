@@ -51,6 +51,7 @@ import { recordAudit, setAuditForwarder } from './audit';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
+import { rateLimit, rateLimitFromEnv } from './rate-limit';
 
 // A configured host gate must also be ABLE to work. If this instance's policy permits no
 // name, there would be nothing to compare and nobody would ever get through — an unusable
@@ -411,7 +412,10 @@ const inviteCors: express.RequestHandler = (req, res, next) => {
   next();
 };
 app.options('/invite', inviteCors);
-app.post('/invite', inviteCors, (req, res) => {
+// Per-IP brake on the unauthenticated mint/sign endpoints (see ./rate-limit); 0 = off.
+const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 30);
+const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 30);
+app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
   if (!enabledFeatures().has('planned-invites')) {
     res.status(501).json({ error: 'planned invites not configured' }); return;
   }
@@ -474,7 +478,7 @@ app.post('/invite', inviteCors, (req, res) => {
 // Apple Wallet appointment pass: a scheduled verified call as .pkpass (Community `wallet-pass`,
 // config-gated — see src/wallet-pass.ts). Stateless: everything the pass
 // needs travels in the query; the QR/back-link is the room URL on THIS origin.
-app.get('/wallet-pass', (req, res) => {
+app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
   if (!enabledFeatures().has('wallet-pass')) { res.status(404).end(); return; }
   // Scheduled call: the pass carries the HOST invitation, not the room id — otherwise it
   // would lead into a room its holder cannot enter without a token.
@@ -1888,6 +1892,9 @@ loadExtensions().then((resolved) => {
     console.log(staffGateActive()
       ? 'Staff token: ACTIVE — appointments only with a valid link'
       : 'Staff token: off — any visitor can issue appointments');
+    if (enabledFeatures().has('planned-invites') && !staffGateActive()) {
+      console.log('⚠️  planned-invites is enabled but EUDI_STAFF_SECRET is not set: POST /invite is open to anyone who can reach this server. Set EUDI_STAFF_SECRET to restrict who can issue appointments.');
+    }
     // Make disabled functions visible. A switch whose state you cannot see is one you rely on
     // mistakenly — and in operation people otherwise spend a long time hunting for why a
     // button is missing.
