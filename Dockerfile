@@ -42,8 +42,6 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/pro ./pro
 COPY public ./public
 COPY assets ./assets
-# Catalogue for in-call credentials: the default path is <app root>/credential-catalog.json
-COPY credential-catalog.json ./
 
 # Version stamp. `public/version.json` is committed and carries the version from package.json —
 # but the commit SHA in it is only as fresh as the last manual stamp. Deployment platforms hand the

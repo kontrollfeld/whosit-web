@@ -73,10 +73,8 @@ const configs = new Map();
 
 /** Default values the mock wallet pre-fills for non-PID (catalog) claims. */
 const CLAIM_DEFAULTS = {
-  objekt_id: 'WR-123456',
-  adresse: 'Musterstr. 1, 10115 Berlin',
-  max_personen: '4',
-  gueltig_bis: '2027-12-31',
+  member_id: 'M-123456',
+  valid_until: '2027-12-31',
 };
 
 /** Last string segment of a DCQL claim path = the flat claim key. */
@@ -175,7 +173,7 @@ const server = http.createServer(async (req, res) => {
     if (!offer) return html(res, 404, '<p>Unbekanntes/abgelaufenes Angebot.</p>');
 
     // In-call catalog credential (config id "cred_…"): render a GENERIC claim form from
-    // the registered DCQL, so e.g. the Wohnraum-ID flow works end-to-end on localhost.
+    // the registered DCQL, so e.g. the example catalog credential works end-to-end on localhost.
     if (String(offer.requestId || '').startsWith('cred_')) {
       const dcql = configs.get(offer.requestId);
       const claims = dcql?.credentials?.[0]?.claims ?? [];
