@@ -26,7 +26,7 @@ const PORT_PRO = 3772;
 const PORT_PROMO = 3773;
 const PORT_PRO_MODULE = 3775;
 
-/** The two Pro features — the ones whose code lives in pro/. */
+/** The three Pro features — the ones whose code lives in pro/. */
 const PRO_IDS = ['audit-trail', 'qes-csc', 'qes-device'];
 
 /** Community features whose loss MUST be noticed immediately (multi-party included: its code
