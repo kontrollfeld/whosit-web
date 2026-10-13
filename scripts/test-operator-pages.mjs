@@ -303,10 +303,11 @@ try {
     // The point of the whole exercise: what ships must not name an operator. The pattern covers
     // the provider details, not the SPDX copyright line — the author of the software and the
     // provider of a service are different roles, and only the second one is wrong here.
-    check('the shipped page names no service provider',
-      !/Gartenstra|HRB\s*(&nbsp;)?155693|22908|Markus Bruns/.test(imprint.text)
-      && !/Diensteanbieter[\s\S]{0,200}Kontrollfeld GmbH/.test(imprint.text),
-      'operator data of id-call.eu is still in the shipped page');
+    check('the shipped page is the neutral template and names no service provider',
+      imprint.text.includes('keine Angaben hinterlegt')
+      && !/HRB\s*(&nbsp;)?\d{3,}/.test(imprint.text)
+      && !/Diensteanbieter[\s\S]{0,200}(GmbH|AG|e\.V\.)/.test(imprint.text),
+      'operator data is still in the shipped page');
     const press = await body(PORT_WITHOUT, '/presse.html');
     check('no press page in a plain instance', press.status === 404, `HTTP ${press.status}`);
     const asset = await body(PORT_WITHOUT, '/operator/downloads/logo.svg');

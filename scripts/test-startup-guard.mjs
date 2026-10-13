@@ -98,9 +98,8 @@ for (const [variable, value] of [
 }
 
 console.log('\nThe old default secret from the source code is rejected by name');
-// 'kontrollfeld-secret' was once a fallback in the code and is therefore publicly
-// known. It MUST fail even when someone sets it deliberately.
-const compromised = problems({ ...OK_ENV, EUDIPLO_CLIENT_SECRET: undefined, EUDIPLO_ROOT_ID: 'kontrollfeld', EUDIPLO_ROOT_SECRET: 'kontrollfeld-secret' });
+// A publicly known former default secret must stay rejected.
+const compromised = problems({ ...OK_ENV, EUDIPLO_CLIENT_SECRET: undefined, EUDIPLO_ROOT_ID: 'example-root', EUDIPLO_ROOT_SECRET: 'kontrollfeld-secret' });
 check('recognised as fatal', fatalNames(compromised).includes('EUDIPLO_ROOT_SECRET'), JSON.stringify(compromised));
 const msg = (compromised.find((p) => p.variable === 'EUDIPLO_ROOT_SECRET') || {}).problem || '';
 check('the message explains that it must be rotated', /rotate/i.test(msg), msg);
