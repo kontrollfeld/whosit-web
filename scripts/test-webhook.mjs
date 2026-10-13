@@ -133,7 +133,9 @@ async function waitForApp(timeoutMs = 25000) {
 }
 
 /** A guest joins, asks to be verified, and we capture their webhook URL. */
+const usedRoomIds = [];
 async function newGuestWithWebhookUrl(roomId) {
+  usedRoomIds.push(roomId);
   const before = new Set(offers.keys());
   const guest = participant(APP_PORT, { roomId, clientId: randomUUID(), wantAuth: true });
   const auth = await guest.wait('auth');
@@ -221,6 +223,8 @@ try {
     // The token is a credential; it must not be logged even when the call is rejected.
     check('no webhook token in the server log', !/[?&]t=[A-Za-z0-9-]{8,}/.test(joined), 'a token in the log');
     check('sessionId not in clear text', !/session=[0-9a-f]{8}-[0-9a-f]{4}/.test(joined), 'a sessionId in the log');
+    // Room ids are secrets (see src/channel-binding.ts): only their audit hash may be logged.
+    check('room ids not in clear text', usedRoomIds.length > 0 && usedRoomIds.every((id) => !joined.includes(id)), 'a room id in the log');
   }
 
   // ---------------------------------------------------------------------------

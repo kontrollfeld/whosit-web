@@ -471,7 +471,7 @@ app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
   const { hostToken, guestToken } = mintInvitePair({
     room, m: mode, r: requestedAttrs, d: disclosedAttrs, nbf, exp,
   });
-  console.log(`[invite] geplant room=${room} mode=${mode} request=[${requestedAttrs.join(',')}] disclose=[${disclosedAttrs.join(',')}] gueltig=${new Date(nbf * 1000).toISOString()}…${new Date(exp * 1000).toISOString()}`);
+  console.log(`[invite] geplant room=${auditHash('room', room)} mode=${mode} request=[${requestedAttrs.join(',')}] disclose=[${disclosedAttrs.join(',')}] gueltig=${new Date(nbf * 1000).toISOString()}…${new Date(exp * 1000).toISOString()}`);
   res.json({ room, hostToken, guestToken, nbf, exp, requestedAttrs, disclosedAttrs, mode });
 });
 
@@ -1538,7 +1538,7 @@ wss.on('connection', (ws, request) => {
         send(expired.requester.ws, { type: 'credential-expired', requestId: expired.requestId, from: expired.target.peerId, label: expired.credential.label });
         send(expired.target.ws, { type: 'credential-expired', requestId: expired.requestId, label: expired.credential.label });
       });
-      console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${room.id}`);
+      console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${auditHash('room', room.id)}`);
       credentialAudit(r, 'credential-requested', []);
       send(requester.ws, { type: 'credential-pending', requestId: r.requestId, to: target.peerId, credentialId: credential.id, label: credential.label });
       // The consent prompt: who asks, which credential, EXACTLY which fields — before
@@ -1706,7 +1706,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   if (isPlannedRoomId(roomId)) {
     const v = verifyInviteForRoom(inviteTok, roomId);
     if (!v.ok) {
-      console.log(`[invite] Beitritt abgelehnt room=${roomId} grund=${v.reason}`);
+      console.log(`[invite] Beitritt abgelehnt room=${auditHash('room', roomId)} grund=${v.reason}`);
       // Both times, named separately: `opensAt` is the `nbf` from the token, while the
       // appointment starts `INVITE_LEAD_S` later. The start is DERIVED, because the payload
       // does not carry it — change the lead time and the display shifts for tokens already
@@ -1732,7 +1732,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
     } catch (e) {
       if (e instanceof PolicyViolationError) {
         auditPolicyViolation(roomId, undefined, [], e.rejected, 'rejected');
-        console.log(`[invite] Beitritt abgelehnt room=${roomId} grund=policy rejected=[${e.rejected.join(',')}]`);
+        console.log(`[invite] Beitritt abgelehnt room=${auditHash('room', roomId)} grund=policy rejected=[${e.rejected.join(',')}]`);
         send(ws, { type: 'invite-invalid', reason: 'policy', rejected: e.rejected });
         return;
       }
@@ -1801,7 +1801,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   } else if (dtlsFingerprint != null) {
     console.warn(`[channel-binding] unbrauchbarer Fingerprint verworfen (${participant.role})`);
   }
-  console.log(`[join] ${participant.role} (${clientId.slice(0, 8)}) room=${roomId} resumed=${resumed} verified=${participant.verified} binding=${fp ? 'angefragt' : 'nein'} session=${auditHash('session', participant.sessionId)}`);
+  console.log(`[join] ${participant.role} (${clientId.slice(0, 8)}) room=${auditHash('room', roomId)} resumed=${resumed} verified=${participant.verified} binding=${fp ? 'angefragt' : 'nein'} session=${auditHash('session', participant.sessionId)}`);
   firePlugins((p) => p.onJoin?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, resumed }));
 
   // What this participant must present:
