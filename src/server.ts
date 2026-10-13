@@ -678,14 +678,21 @@ const TURN_URL = (process.env.TURN_URL || '').trim();       // e.g. turn:call.ex
 const TURN_TLS_URL = (process.env.TURN_TLS_URL || '').trim();
 const TURN_SECRET = (process.env.TURN_SECRET || '').trim();
 const TURN_TTL = Number(process.env.TURN_TTL || 86400);     // credential lifetime, seconds
-const STUN_URLS = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
+// STUN_URLS (comma-separated) replaces the defaults; `none` advertises no STUN server at all.
+const STUN_DEFAULT = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
+const STUN_RAW = (process.env.STUN_URLS || '').trim();
+const STUN_LIST = STUN_RAW.split(',').map((u) => u.trim()).filter(Boolean);
+const STUN_URLS = STUN_RAW.toLowerCase() === 'none' ? [] : (STUN_LIST.length ? STUN_LIST : STUN_DEFAULT);
+// The public relay below is a third party with shared credentials; TURN_PUBLIC_FALLBACK=off
+// removes it (default on, as before).
+const TURN_PUBLIC_FALLBACK = (process.env.TURN_PUBLIC_FALLBACK || '').trim().toLowerCase() !== 'off';
 const FALLBACK_TURN = [
   { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 app.get('/ice', publicCors, (_req, res) => {
-  const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [{ urls: STUN_URLS }];
+  const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = (STUN_URLS.length ? [{ urls: STUN_URLS }] : []);
   if (TURN_URL && TURN_SECRET) {
     // TURN REST: username = "<unix-expiry>:<name>", credential = base64(HMAC-SHA1(secret, username)).
     const username = `${Math.floor(Date.now() / 1000) + TURN_TTL}:eudi`;
@@ -695,7 +702,7 @@ app.get('/ice', publicCors, (_req, res) => {
     // slowest path (TLS handshake, TCP overhead, everything through a proxy). It should apply
     // when nothing else works — not be preferred.
     if (TURN_TLS_URL) iceServers.push({ urls: [TURN_TLS_URL], username, credential });
-  } else {
+  } else if (TURN_PUBLIC_FALLBACK) {
     iceServers.push(...FALLBACK_TURN);
   }
   res.set('Cache-Control', 'no-store');
@@ -1915,6 +1922,9 @@ loadExtensions().then((resolved) => {
     }
     if (PROMO_ALL_PRO) {
       console.log('🎁 LAUNCH PROMO active (EUDI_PROMO_ALL_PRO) — full Pro feature set free for EVERYONE, no gate. Unset to switch back to the configured edition.');
+    }
+    if (!(TURN_URL && TURN_SECRET) && TURN_PUBLIC_FALLBACK) {
+      console.log('⚠️  No own TURN server configured (TURN_URL/TURN_SECRET): /ice hands out the public relay openrelay.metered.ca with shared credentials, so callers\' IP addresses reach that third party. Configure TURN_URL and TURN_SECRET, or set TURN_PUBLIC_FALLBACK=off.');
     }
     console.log(`PUBLIC_URL (env) = ${PUBLIC_URL}`);
     if (!process.env.PUBLIC_URL || PUBLIC_URL.includes('CHANGE-ME') || PUBLIC_URL.startsWith('http://localhost')) {

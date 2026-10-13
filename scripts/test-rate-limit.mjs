@@ -21,6 +21,36 @@ function check(name, cond, detail) {
   console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
+// Start a second server to read /ice under a given environment, then stop it.
+async function iceWith(port, extraEnv) {
+  const child = spawn('npx', ['tsx', 'src/server.ts'], {
+    env: {
+      ...process.env,
+      PORT: String(port),
+      EUDI_EDITION: 'community',
+      EUDI_VERIFIER: 'none',
+      STUN_URLS: '',
+      TURN_PUBLIC_FALLBACK: '',
+      TURN_URL: '',
+      TURN_SECRET: '',
+      ...extraEnv,
+    },
+    stdio: ['ignore', 'ignore', 'ignore'],
+  });
+  try {
+    for (let i = 0; i < 100; i++) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/ice`);
+        if (r.ok) return (await r.json()).iceServers.map((s) => [].concat(s.urls)).flat();
+      } catch {}
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw new Error(`/ice not reachable on :${port}`);
+  } finally {
+    child.kill();
+  }
+}
+
 const server = spawn('npx', ['tsx', 'src/server.ts'], {
   env: {
     ...process.env,
@@ -90,6 +120,19 @@ try {
     p3.status === 429 && Number(p3.headers.get('retry-after')) > 0, `status=${p3.status}`);
   const p4 = await pass('198.51.100.2');
   check('a different client is not limited', p4.status !== 429, `status=${p4.status}`);
+
+  console.log('\n/ice: STUN_URLS and TURN_PUBLIC_FALLBACK (OSS-S07, OSS-S08)');
+  const isStun = (u) => u.startsWith('stun:');
+  const isRelay = (u) => u.includes('openrelay.metered.ca');
+  const def = await iceWith(3962, {});
+  check('default: Google and Cloudflare STUN', def.includes('stun:stun.l.google.com:19302') && def.includes('stun:stun.cloudflare.com:3478'), def.join(' '));
+  check('default: public relay present', def.some(isRelay));
+  const own = await iceWith(3963, { STUN_URLS: 'stun:stun.example.org:3478' });
+  check('STUN_URLS=<url>: only that STUN entry', own.filter(isStun).join() === 'stun:stun.example.org:3478', own.join(' '));
+  const none = await iceWith(3964, { STUN_URLS: 'none' });
+  check('STUN_URLS=none: no STUN entry', !none.some(isStun), none.join(' '));
+  const off = await iceWith(3965, { TURN_PUBLIC_FALLBACK: 'off' });
+  check('TURN_PUBLIC_FALLBACK=off: no public relay', !off.some(isRelay) && off.some(isStun), off.join(' '));
 } catch (e) {
   failures++;
   console.log(`  ✗ ${e.message}`);
