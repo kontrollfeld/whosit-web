@@ -71,6 +71,16 @@ function looksLikePlaceholder(value: string): boolean {
 
 const isSet = (v: string | undefined): boolean => !!(v && v.trim());
 
+/** Does the verifier address look like the EUDIPLO dummy (host `mock-eudiplo` or a `/mock` path)? */
+function pointsAtMock(value: string): boolean {
+  try {
+    const u = new URL(value.trim());
+    return u.hostname.toLowerCase() === 'mock-eudiplo' || u.pathname.replace(/\/+$/, '').toLowerCase().endsWith('/mock');
+  } catch {
+    return false;
+  }
+}
+
 export interface CheckContext {
   env?: Record<string, string | undefined>;
   /** Is the `embed` feature active here? (from enabledFeatures(), see ../server) */
@@ -126,6 +136,24 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     });
   } else if (looksLikePlaceholder(env.EUDIPLO_BASE_URL!)) {
     out.push({ variable: 'EUDIPLO_BASE_URL', problem: 'still holds the example value from .env.example', fatal: true });
+  }
+
+  // --- the dummy verifier -----------------------------------------------------------
+  // `mock-eudiplo` (compose service) and a `/mock` path (Traefik route) are the two shapes the
+  // repository documents for the dummy. It accepts ANY name without cryptography, so a
+  // production instance pointed at it would "verify" anyone. Fatal unless explicitly allowed
+  // for a trial; the opt-in keeps a warning so the logs still say what this instance runs on.
+  if (isSet(env.EUDIPLO_BASE_URL) && pointsAtMock(env.EUDIPLO_BASE_URL!)) {
+    const allowed = (env.EUDI_ALLOW_MOCK_VERIFIER || '').trim().toLowerCase() === 'true';
+    out.push({
+      variable: 'EUDIPLO_BASE_URL',
+      problem: 'points at the EUDIPLO dummy. The dummy accepts any name without checking anything '
+        + 'and is for trying the flow only, never for real operation. '
+        + (allowed
+          ? 'Running against it because EUDI_ALLOW_MOCK_VERIFIER=true.'
+          : 'To run against it anyway for a trial, set EUDI_ALLOW_MOCK_VERIFIER=true.'),
+      fatal: !allowed,
+    });
   }
 
   // --- verifier tenant --------------------------------------------------------------

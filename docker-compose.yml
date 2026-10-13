@@ -59,6 +59,7 @@ services:
       EUDI_EDITION: "${EUDI_EDITION:-community}"
       # EUDI_VERIFIER=none: no verifier at all, anonymous calls only (see .env.selfhost.example).
       EUDI_VERIFIER: "${EUDI_VERIFIER:-}"
+      EUDI_ALLOW_MOCK_VERIFIER: "${EUDI_ALLOW_MOCK_VERIFIER:-}"
       EUDIPLO_BASE_URL: "${EUDIPLO_BASE_URL:-}"
       EUDIPLO_ROOT_ID: "${EUDIPLO_ROOT_ID:-}"
       EUDIPLO_ROOT_SECRET: "${EUDIPLO_ROOT_SECRET:-}"
