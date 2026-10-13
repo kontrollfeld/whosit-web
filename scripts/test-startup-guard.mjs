@@ -71,6 +71,11 @@ for (const missing of ['EUDIPLO_BASE_URL', 'EUDIPLO_CLIENT_ID', 'EUDIPLO_CLIENT_
 console.log('\nThe legacy root path is a valid substitute for the tenant secret');
 const rootOnly = { EUDIPLO_BASE_URL: OK_ENV.EUDIPLO_BASE_URL, EUDIPLO_CLIENT_ID: 'agency-tenant', EUDIPLO_ROOT_ID: 'root', EUDIPLO_ROOT_SECRET: 'another-real-looking-secret-4a7b' };
 check('verifier access not flagged', !names(problems(rootOnly)).includes('EUDIPLO_CLIENT_SECRET'), JSON.stringify(problems(rootOnly)));
+const rootNote = problems(rootOnly).find((p) => p.variable === 'EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET');
+check('but flagged as deprecated, non-fatal', !!rootNote && rootNote.fatal === false, JSON.stringify(problems(rootOnly)));
+check('the note names the replacement variables', /EUDIPLO_CLIENT_ID/.test(rootNote?.problem || '') && /EUDIPLO_CLIENT_SECRET/.test(rootNote?.problem || ''), JSON.stringify(rootNote));
+check('the note does not echo the secret', !JSON.stringify(rootNote).includes('another-real-looking-secret'), JSON.stringify(rootNote));
+check('no note when the tenant secret is set too', !names(problems({ ...rootOnly, EUDIPLO_CLIENT_SECRET: OK_ENV.EUDIPLO_CLIENT_SECRET })).includes('EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET'));
 // Half of the legacy path must NOT be enough — otherwise the token request would fail later.
 const halfRoot = { EUDIPLO_BASE_URL: OK_ENV.EUDIPLO_BASE_URL, EUDIPLO_CLIENT_ID: 'agency-tenant', EUDIPLO_ROOT_SECRET: 'secret-without-its-id-8c2d' };
 check('half a legacy path (no ROOT_ID) is not enough', fatalNames(problems(halfRoot)).includes('EUDIPLO_CLIENT_SECRET'), JSON.stringify(problems(halfRoot)));

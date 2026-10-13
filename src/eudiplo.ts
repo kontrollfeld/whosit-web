@@ -131,6 +131,7 @@ async function postJson(path: string, body: unknown, token?: string): Promise<an
 
 /** Root login → rotate the tenant secret → tenant token. The tenant secret is
  *  not static (it gets rotated), so it is recovered through the root account. */
+let rootPathWarned = false;
 async function rotateAndGetToken(): Promise<string> {
   // Legacy path for a SHARED instance whose tenant secret one does not know. For the normal
   // case — your own instance — EUDIPLO_CLIENT_SECRET is the way. Without root credentials this
@@ -140,6 +141,15 @@ async function rotateAndGetToken(): Promise<string> {
       'EUDIPLO: no verifier access configured. Set EUDIPLO_CLIENT_SECRET (recommended: the ' +
       'fixed tenant client of your own instance) or EUDIPLO_ROOT_ID + EUDIPLO_ROOT_SECRET ' +
       '(the legacy path for a shared instance).',
+    );
+  }
+  if (!rootPathWarned) {
+    rootPathWarned = true;
+    console.warn(
+      '⚠️  DEPRECATED: EUDIPLO_ROOT_ID + EUDIPLO_ROOT_SECRET are in use. This legacy path logs in ' +
+      'as root (tenants:manage) on the verifier and rotates the tenant secret on every token ' +
+      'request, so this application holds root rights there. Use EUDIPLO_CLIENT_ID + ' +
+      'EUDIPLO_CLIENT_SECRET (a fixed tenant client) instead.',
     );
   }
   const root = await postJson('/api/oauth2/token', { client_id: ROOT_ID, client_secret: ROOT_SECRET });

@@ -183,6 +183,15 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
       fatal: true,
     });
   }
+  if (hasRootPath && !hasClientSecret) {
+    out.push({
+      variable: 'EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET',
+      problem: 'the legacy root path is deprecated: it gives this application root rights on the '
+        + 'verifier (tenants:manage) and rotates the tenant secret on every token request. Use '
+        + 'EUDIPLO_CLIENT_ID + EUDIPLO_CLIENT_SECRET (a fixed tenant client) instead.',
+      fatal: false,
+    });
+  }
   for (const name of ['EUDIPLO_CLIENT_SECRET', 'EUDIPLO_ROOT_SECRET'] as const) {
     const v = env[name];
     if (isSet(v) && looksLikePlaceholder(v!)) {
