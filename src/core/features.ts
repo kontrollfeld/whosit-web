@@ -118,7 +118,7 @@ export const FEATURES: Feature[] = [
   // enabledFeatures() in ../server.ts). Without it there is just the demo provider, permanently
   // labelled as not legally binding. Qualified remote signing requires a contract with a trust
   // service provider and costs money per signature.
-  { id: 'qes-csc', title: 'Qualified remote signature via CSC/QTSP (QES ceremony, Phase 6)', edition: 'pro', clientGated: false },
+  { id: 'qes-csc', title: 'Qualified remote signature via CSC/QTSP (QES ceremony, not yet available)', edition: 'pro', clientGated: false },
   // Pro, server-ENFORCED, implemented in ./pro (pro/qes-device.ts + pro/client/device-local.js)
   // and in the native app (DeviceSigner plugin). The signing key is generated in the
   // phone's secure element behind biometrics and never leaves it; a certificate authority

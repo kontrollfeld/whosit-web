@@ -77,8 +77,8 @@ export function verifierTenantId(): string {
  * Is this instance running on the DEFAULT tenant?
  *
  * The question is about the effective value, not about whether a variable is set: anyone
- * copying an existing environment into an authority deployment HAS set it — to the original
- * operator's tenant. That is exactly the mix-up this is meant to surface.
+ * copying an existing environment into a new deployment HAS set it — to the copied
+ * environment's tenant. That is exactly the mix-up this is meant to surface.
  */
 export function isDefaultVerifierTenant(): boolean {
   return TENANT_ID === DEFAULT_TENANT_ID;

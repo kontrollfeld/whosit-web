@@ -1859,15 +1859,14 @@ loadExtensions().then((resolved) => {
     console.log(`id-call-web listening on :${PORT}`);
     console.log(`Edition: ${CONFIGURED_EDITION}${PROMO_ALL_PRO ? ' + PROMO (effective: pro)' : ''}`);
     console.log(`WRP policy: name=${activePolicyName()} purpose=${WRP_PURPOSE_ID} attrs=[${policyDescriptor().allowedAttributes.join(',')}] retention=none enforcement=${policyDescriptor().enforcement}`);
-    // Under WHOSE registration this instance queries wallets. The worst mix-up in
-    // public-authority operation is a subdomain requesting under someone else's identity — it
-    // would otherwise go unnoticed, because the interface would be branded and the request
-    // would work.
+    // Under WHOSE registration this instance queries wallets. The worst mix-up is an instance
+    // requesting under someone else's identity — it would otherwise go unnoticed, because the
+    // interface would be branded and the request would work.
     console.log(VERIFIER_OFF
       ? 'Verifier: NONE (EUDI_VERIFIER=none) — no wallet verification, every call is anonymous'
       : `Verifier: eudiplo-tenant=${verifierTenantId()}${isDefaultVerifierTenant() ? ' (Standard)' : ''}`);
     // Who the person being asked will be told is asking. Unlike the warning further down, this
-    // one is not about a misconfiguration — it reports a property of a white-labelled instance
+    // one is not about a misconfiguration — it reports a property of a branded instance
     // that the operator should be able to confirm at a glance.
     {
       const w = relyingPartyWarning(RELYING_PARTY);
@@ -1928,7 +1927,7 @@ loadExtensions().then((resolved) => {
     }
     console.log(`PUBLIC_URL (env) = ${PUBLIC_URL}`);
     if (!process.env.PUBLIC_URL || PUBLIC_URL.includes('CHANGE-ME') || PUBLIC_URL.startsWith('http://localhost')) {
-      console.log('ℹ️  No explicit PUBLIC_URL set — webhook origin is derived per-request from x-forwarded-host/proto (works behind Traefik/Coolify).');
+      console.log('ℹ️  No explicit PUBLIC_URL set — webhook origin is derived per-request from x-forwarded-host/proto (works behind a reverse proxy).');
     }
   });
 });

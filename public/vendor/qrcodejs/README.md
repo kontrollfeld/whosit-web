@@ -18,7 +18,7 @@ an `integrity` attribute. Three reasons that had to end, in order of severity:
 
 1. Whoever controls that repository could inject arbitrary JavaScript into the page that builds
    the wallet request — the page where a manipulated script could rewrite the presentation offer
-   while the user believes they are identifying themselves to us. `gh/…` always serves the
+   while the user believes they are identifying themselves to the verifier. `gh/…` always serves the
    current tip, so a change there would have taken effect here without anyone agreeing to it.
 2. Every visitor's browser contacted a third party, which contradicted the privacy notice. The
    fonts in ../../fonts are self-hosted for exactly this reason.

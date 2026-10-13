@@ -22,9 +22,7 @@ paths = [
   '''public/vendor/.*''',
 ]
 regexes = [
-  # The value that sat in the source as a fallback until 2026-08-19. It is therefore publicly
-  # known and worthless; the affected instance has been shut down. src/core/startup-checks.ts
-  # lists it explicitly in order to REJECT it — it belongs there.
+  # A publicly known former default secret; src/core/startup-checks.ts rejects it by name.
   '''kontrollfeld-secret''',
   # Placeholders from the templates
   '''__set_me__''',

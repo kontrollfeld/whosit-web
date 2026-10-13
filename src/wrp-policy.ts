@@ -143,12 +143,11 @@ export function activePolicyName(): string {
  * the active policy, never unioned, so the result is always a SUBSET of a set that was
  * written down, reviewed and committed above.
  *
- * Why it exists: a hosted instance runs under the operator's registration but serves ONE
- * customer's purpose, and that purpose is almost always narrower than the registration. The
- * registration is drawn wide enough to cover every deployment; a single deployment covers one.
- * A support line that only needs "who am I talking to" should not ask for a date of birth
- * merely because the registration would permit it, whether it belongs to an insurer, a notary,
- * a clinic, a landlord or a public authority. Data minimisation (Art. 5a(4) EU 2024/1183) is an
+ * Why it exists: an instance runs under one registration but serves a single purpose, and that
+ * purpose is often narrower than the registration. The registration is drawn wide enough to
+ * cover every deployment; a single deployment covers one. A support line that only needs
+ * "who am I talking to" should not ask for a date of birth merely because the registration
+ * would permit it. Data minimisation (Art. 5a(4) EU 2024/1183) is an
  * obligation per PROCESSING, not per registration — so an instance must be able to ask for LESS
  * without a code change, while asking for MORE stays a code change forever.
  *
