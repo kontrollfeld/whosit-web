@@ -11,3 +11,14 @@ dist
 .DS_Store
 README.md
 .env.example
+.env*
+!.env.example
+!.env.selfhost.example
+secrets/
+.idea
+.gitlab
+pages/
+*.pem
+*.key
+*.p12
+!assets/pass/AppleWWDRCAG4.pem
