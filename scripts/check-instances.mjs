@@ -23,7 +23,7 @@
  * THE LIST IS NOT IN THIS REPOSITORY. Which customers run an instance is business data, and this
  * repository is mirrored publicly. Pass it in:
  *
- *   EUDI_INSTANCES="https://whosit.eu,https://lhd.whosit.eu" node scripts/check-instances.mjs
+ *   EUDI_INSTANCES="https://www.whosit.eu,https://lhd.whosit.eu" node scripts/check-instances.mjs
  *   node scripts/check-instances.mjs --list ./instanzen.txt --commit f0b3c23
  *
  * Expected revision: --commit, else $CI_COMMIT_SHORT_SHA, else the committed public/version.json.

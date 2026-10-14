@@ -118,7 +118,7 @@ console.log('\nPUBLIC_URL: absence is allowed, a placeholder is not');
 check('unset -> no complaint', !names(problems(OK_ENV)).includes('PUBLIC_URL'));
 check('CHANGE-ME -> fatal', fatalNames(problems({ ...OK_ENV, PUBLIC_URL: 'https://CHANGE-ME.example' })).includes('PUBLIC_URL'));
 check('localhost -> fatal', fatalNames(problems({ ...OK_ENV, PUBLIC_URL: 'http://localhost:3000' })).includes('PUBLIC_URL'));
-check('a real address -> fine', !names(problems({ ...OK_ENV, PUBLIC_URL: 'https://whosit.eu' })).includes('PUBLIC_URL'));
+check('a real address -> fine', !names(problems({ ...OK_ENV, PUBLIC_URL: 'https://www.whosit.eu' })).includes('PUBLIC_URL'));
 
 console.log('\nFraming: the placeholder asterisk does not get through');
 check('embed off -> EMBED_ALLOWED_ANCESTORS irrelevant',

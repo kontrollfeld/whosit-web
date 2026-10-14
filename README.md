@@ -1,14 +1,14 @@
 <p align="center">
-  <a href="https://whosit.eu">
+  <a href="https://www.whosit.eu">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://whosit.eu/operator/logo/logo-horizontal-white.svg">
-      <img src="https://whosit.eu/operator/logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Call" width="380">
+      <source media="(prefers-color-scheme: dark)" srcset="https://www.whosit.eu/operator/logo/logo-horizontal-white.svg">
+      <img src="https://www.whosit.eu/operator/logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Call" width="380">
     </picture>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://whosit.eu"><strong>▶&nbsp;Try&nbsp;the&nbsp;live&nbsp;demo&nbsp;at&nbsp;whosit.eu</strong></a>
+  <a href="https://www.whosit.eu"><strong>▶&nbsp;Try&nbsp;the&nbsp;live&nbsp;demo&nbsp;at&nbsp;whosit.eu</strong></a>
   &nbsp;·&nbsp;
   <a href="https://testflight.apple.com/join/PfYx2MhR">iPhone app (TestFlight)</a>
   &nbsp;·&nbsp;
@@ -22,7 +22,7 @@
 **EUDI Verified Call.** Until October 2026 this project was published under that name alone;
 repositories, domain and packages now carry the name *whosit*.
 
-> **See it before you set it up:** [**whosit.eu**](https://whosit.eu) is our hosted instance of
+> **See it before you set it up:** [**whosit.eu**](https://www.whosit.eu) is our hosted instance of
 > this code, with a registered verifier. Open it, share the invitation link, and you are in a call
 > within a minute — with an EUDI wallet, including the identity check before connecting.
 > Signing a document with the key in your iPhone's security chip needs the
