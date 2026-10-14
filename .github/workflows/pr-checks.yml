@@ -98,6 +98,8 @@ jobs:
         run: npm run test:startup
       - name: Edition split and off-switch
         run: npm run test:editions
+      - name: Audit trail (hash chain across restarts)
+        run: npm run test:audit
       - name: Verification callback (auth, replay)
         run: npm run test:webhook
       - name: Verifier session deleted right after use (zero retention)

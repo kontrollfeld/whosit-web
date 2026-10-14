@@ -82,6 +82,7 @@ test:
     - npm run test:netcheck
     - npm run test:startup
     - npm run test:editions
+    - npm run test:audit
     - npm run test:webhook
     # Zero retention at the verifier: the session holding the claims is deleted right after use.
     - npm run test:purge
