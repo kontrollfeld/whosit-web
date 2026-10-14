@@ -164,6 +164,18 @@ p { margin: 0 0 1em; }
 .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .logo svg { width: 34px; height: 34px; }
+/* The whosit mark — same colours as in style.css, which these pages do not load. */
+.mark-ring { stroke: #1e7fd4; }
+.mark-g1 { stop-color: #1e7fd4; }
+.mark-g2 { stop-color: #003b8e; }
+:root[data-theme="dark"] .mark-ring { stroke: #4aa3e8; }
+:root[data-theme="dark"] .mark-g1 { stop-color: #4aa3e8; }
+:root[data-theme="dark"] .mark-g2 { stop-color: #1565c0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mark-ring { stroke: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g1 { stop-color: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g2 { stop-color: #1565c0; }
+}
 .logo strong { color: var(--navy); font-size: 1.05rem; letter-spacing: -0.01em; white-space: nowrap; }
 .header-cta { min-height: 40px; padding: 8px 18px; font-size: 0.9rem; }
 

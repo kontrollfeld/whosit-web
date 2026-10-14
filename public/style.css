@@ -246,6 +246,18 @@ main {
 /* ---- header / logo ---- */
 header { margin-bottom: 22px; }
 .logo { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; }
+/* The whosit mark: ring and bubble take their colours from here, so it follows the theme. */
+.mark-ring { stroke: #1e7fd4; }
+.mark-g1 { stop-color: #1e7fd4; }
+.mark-g2 { stop-color: #003b8e; }
+:root[data-theme="dark"] .mark-ring { stroke: #4aa3e8; }
+:root[data-theme="dark"] .mark-g1 { stop-color: #4aa3e8; }
+:root[data-theme="dark"] .mark-g2 { stop-color: #1565c0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mark-ring { stroke: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g1 { stop-color: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g2 { stop-color: #1565c0; }
+}
 .logo-mark {
   width: 46px; height: 46px; flex: none;
   filter: drop-shadow(0 8px 16px rgba(3, 105, 161, 0.28));
