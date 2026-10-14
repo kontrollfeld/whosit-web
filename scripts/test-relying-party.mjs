@@ -38,7 +38,7 @@ const OWN = { EUDIPLO_CLIENT_ID: 'stadt-xy' };        // an instance on its own 
 const DEFAULT_TENANT = { EUDIPLO_CLIENT_ID: '' };      // falls back to kontrollfeld-admin
 
 console.log('\nAn unbranded instance discloses nothing');
-// The no-op condition. id-call.eu itself and every self-hosted instance without EUDI_BRAND_NAME
+// The no-op condition. whosit.eu itself and every self-hosted instance without EUDI_BRAND_NAME
 // must be completely unaffected — same standard src/branding.ts holds itself to.
 const plain = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: '' }, undefined);
 check('no disclosure without a brand', plain.disclose === false, JSON.stringify(plain));

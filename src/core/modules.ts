@@ -4,9 +4,9 @@
  * Module manifests — what a module declares about itself BEFORE any of its code runs.
  *
  * A module is an npm package (or a directory with a package.json) that the server loads through
- * `EUDI_MODULES` (see ../module-loader). Its package.json carries an `idCall` block:
+ * `EUDI_MODULES` (see ../module-loader). Its package.json carries a `whosit` block:
  *
- *   "idCall": {
+ *   "whosit": {
  *     "id": "audit-trail",
  *     "coreApi": "^1",
  *     "features": [
@@ -86,18 +86,18 @@ export function coreApiSatisfied(range: string, version: number = MODULE_API_VER
 }
 
 /**
- * Read and validate the `idCall` block of a module's package.json. Throws with a message that
+ * Read and validate the `whosit` block of a module's package.json. Throws with a message that
  * names the module and the field, because this ends up in a startup log that someone reads
  * under time pressure.
  *
  * `coreIds` are the core's own capability ids: a module may not redeclare one of them.
  */
 export function parseManifest(pkg: any, where: string, coreIds: readonly string[]): ModuleManifest {
-  const m = pkg?.idCall;
+  const m = pkg?.whosit;
   const fail = (msg: string): never => { throw new Error(`${where}: ${msg}`); };
-  if (!m || typeof m !== 'object') fail('package.json has no "idCall" manifest — is this an id-call module?');
-  if (typeof m.id !== 'string' || !ID.test(m.id)) fail(`"idCall.id" must match ${ID} (got ${JSON.stringify(m.id)})`);
-  if (typeof m.coreApi !== 'string') fail('"idCall.coreApi" is missing — which core API was this module built for?');
+  if (!m || typeof m !== 'object') fail('package.json has no "whosit" manifest — is this a whosit module?');
+  if (typeof m.id !== 'string' || !ID.test(m.id)) fail(`"whosit.id" must match ${ID} (got ${JSON.stringify(m.id)})`);
+  if (typeof m.coreApi !== 'string') fail('"whosit.coreApi" is missing — which core API was this module built for?');
   let fits: boolean;
   try { fits = coreApiSatisfied(m.coreApi); } catch (e: any) { return fail(e.message); }
   if (!fits) {

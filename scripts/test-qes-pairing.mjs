@@ -35,7 +35,7 @@ globalThis.self = globalThis;
 const VERIFIER_PORT = 3994;
 const APP_PORT = 3995;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const work = mkdtempSync(join(tmpdir(), 'id-call-qes-pairing-'));
+const work = mkdtempSync(join(tmpdir(), 'whosit-qes-pairing-'));
 
 let failures = 0;
 function check(name, ok, detail) {

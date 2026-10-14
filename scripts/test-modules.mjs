@@ -37,13 +37,13 @@ function throws(fn, pattern) {
   try { fn(); return false; } catch (e) { return pattern.test(e.message); }
 }
 
-const dir = mkdtempSync(join(tmpdir(), 'id-call-modules-'));
+const dir = mkdtempSync(join(tmpdir(), 'whosit-modules-'));
 
 /** Write a fixture module: package.json with manifest, an ESM entry, optional browser files. */
-function fixture(name, idCall, { entry, client } = {}) {
+function fixture(name, whosit, { entry, client } = {}) {
   const d = join(dir, name);
   mkdirSync(d, { recursive: true });
-  writeFileSync(join(d, 'package.json'), JSON.stringify({ name, version: '1.2.3', type: 'module', main: 'index.mjs', idCall }));
+  writeFileSync(join(d, 'package.json'), JSON.stringify({ name, version: '1.2.3', type: 'module', main: 'index.mjs', whosit }));
   writeFileSync(join(d, 'index.mjs'), entry ?? 'export function register() { return {}; }\n');
   if (client) {
     mkdirSync(join(d, 'client'), { recursive: true });
@@ -52,7 +52,7 @@ function fixture(name, idCall, { entry, client } = {}) {
   return d;
 }
 
-const manifest = (over = {}) => ({ idCall: { id: 'sample', coreApi: `^${MODULE_API_VERSION}`, features: [], ...over }, version: '1.0.0' });
+const manifest = (over = {}) => ({ whosit: { id: 'sample', coreApi: `^${MODULE_API_VERSION}`, features: [], ...over }, version: '1.0.0' });
 
 try {
   console.log('\nThe core API range');
@@ -65,10 +65,10 @@ try {
 
   console.log('\nA manifest is checked before any module code runs');
   check('a valid manifest is accepted', parseManifest(manifest({ features: [{ id: 'sample-x', title: 'X' }] }), 'm', ALL_FEATURE_IDS).features[0].id === 'sample-x');
-  check('no manifest → refused', throws(() => parseManifest({ name: 'x' }, 'm', ALL_FEATURE_IDS), /no "idCall" manifest/));
+  check('no manifest → refused', throws(() => parseManifest({ name: 'x' }, 'm', ALL_FEATURE_IDS), /no "whosit" manifest/));
   check('missing coreApi → refused', throws(() => parseManifest(manifest({ coreApi: undefined }), 'm', ALL_FEATURE_IDS), /coreApi/));
   check('wrong core API → refused', throws(() => parseManifest(manifest({ coreApi: `^${MODULE_API_VERSION + 1}` }), 'm', ALL_FEATURE_IDS), /built for core API/));
-  check('invalid id → refused', throws(() => parseManifest(manifest({ id: 'Bad Id' }), 'm', ALL_FEATURE_IDS), /idCall\.id/));
+  check('invalid id → refused', throws(() => parseManifest(manifest({ id: 'Bad Id' }), 'm', ALL_FEATURE_IDS), /whosit\.id/));
   for (const core of ['screen-share', 'wrp-policy', 'pseudonym-id']) {
     check(`redeclaring the core capability ${core} → refused`,
       throws(() => parseManifest(manifest({ features: [{ id: core, title: 'mine now' }] }), 'm', ALL_FEATURE_IDS), /belongs to the core/));

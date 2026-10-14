@@ -13,7 +13,7 @@
  * only title, time and the room URL the holder already knows.
  *
  * Config (all three required to enable the feature):
- *   EUDI_PASS_TYPE_ID   pass type identifier (e.g. pass.eu.id-call.termin)
+ *   EUDI_PASS_TYPE_ID   pass type identifier (e.g. pass.eu.whosit.termin)
  *   EUDI_PASS_TEAM_ID   Apple team id (e.g. W63PMKNPKY)
  *   EUDI_PASS_CERT      pass certificate AND private key (concatenated PEM) — as
  *                       file path, inline PEM, or base64-encoded PEM (env-UI-safe)
@@ -180,7 +180,7 @@ export function buildTerminPass(opts: TerminPassOptions): Buffer {
     formatVersion: 1,
     passTypeIdentifier: PASS_TYPE_ID,
     teamIdentifier: PASS_TEAM_ID,
-    organizationName: 'EUDI Verified Call',
+    organizationName: 'whosit',
     serialNumber: opts.roomId,
     description: opts.title,
     // brand: light slate surface, navy text, accent labels (public/style.css §1)
@@ -189,7 +189,7 @@ export function buildTerminPass(opts: TerminPassOptions): Buffer {
     labelColor: 'rgb(3, 105, 161)',
     relevantDate: opts.start.toISOString(),
     expirationDate: new Date(opts.end.getTime() + 24 * 3600 * 1000).toISOString(),
-    barcodes: [{ format: 'PKBarcodeFormatQR', message: opts.roomUrl, messageEncoding: 'iso-8859-1', altText: 'id-call.eu' }],
+    barcodes: [{ format: 'PKBarcodeFormatQR', message: opts.roomUrl, messageEncoding: 'iso-8859-1', altText: 'whosit.eu' }],
     eventTicket: {
       primaryFields: [{ key: 'title', value: opts.title }],
       secondaryFields: [

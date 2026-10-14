@@ -586,7 +586,7 @@ export function createDocShare(ctx) {
       await provider.authorize({});
       const pades = await import(new URL('./pades.js', import.meta.url).href);
       const src = currentBytes();
-      const opts = { provider, signerName: myName(), reason: 'EUDI Verified Call', firstSignature: step === 1, name: baseDoc && baseDoc.name };
+      const opts = { provider, signerName: myName(), reason: 'whosit', firstSignature: step === 1, name: baseDoc && baseDoc.name };
       // A provider that signs on another device (paired phone) takes the WHOLE document: the
       // phone shows it, adds the signature itself and returns the grown PDF — so it signs what
       // it displayed, not a hash it has to take on trust. Otherwise PAdES runs here.

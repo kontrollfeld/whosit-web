@@ -258,6 +258,14 @@ header { margin-bottom: 22px; }
   line-height: 1.05;
   color: var(--navy);
 }
+.brand-text { display: flex; flex-direction: column; gap: 3px; }
+/* The claim under the product name. Small caps-like tracking, muted, so the name stays the
+   brand and the claim reads as what it is: a description of the category. */
+.brand-claim {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); line-height: 1.1;
+}
+html.native-app .brand-claim { font-size: 0.62rem; }
 .sub { color: var(--text-muted); margin: 0; font-size: 0.98rem; max-width: 54ch; }
 .sub strong { color: var(--navy); font-weight: 600; }
 
@@ -1382,7 +1390,7 @@ html.native-app .stepper { margin-bottom: 14px; }
 .app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; }
 .app-footer .footer-link:hover { color: var(--text-muted); }
 
-/* ---- „Warum id-call.eu?" ----
+/* ---- „Warum whosit?" ----
    Ersetzt seit 2026-09-23 die Häkchen-Liste im Kopf. Beide sagten dasselbe in zwei
    Formulierungen und standen auf dem Desktop nebeneinander; auf schmalen Screens war die Liste
    ohnehin schon ausgeblendet. Deshalb zeigt sich die Karte jetzt überall dort, wo die Liste

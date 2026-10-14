@@ -1,8 +1,8 @@
 # Contributor License Agreement (CLA)
 
-**EUDI Verified Call — Individual & Entity Contributor License Agreement, Version 1.0**
+**whosit — Individual & Entity Contributor License Agreement, Version 1.0**
 
-Thank you for contributing to EUDI Verified Call. This agreement clarifies the rights granted
+Thank you for contributing to whosit. This agreement clarifies the rights granted
 for contributions, so the project can be offered both under the **GNU AGPL-3.0-or-later** and
 under a **commercial licence** (see [`LICENSE-COMMERCIAL.md`](LICENSE-COMMERCIAL.md)).
 
@@ -12,7 +12,7 @@ the project rights to use it — you do not transfer it.
 
 > **Why this is needed:** the project is dual-licensed. Most of it is AGPL; the `pro/`
 > directory is commercially licensed (see [`pro/LICENSE`](pro/LICENSE)), and the hosted service
-> at id-call.eu runs both together. That combination is only permissible because the rights are
+> at whosit.eu runs both together. That combination is only permissible because the rights are
 > held in one place — nobody is bound by their own copyleft licence. A contribution without
 > these grants would make it unlawful, which means we could not merge it. We would rather
 > explain that up front than turn down finished work.
@@ -28,7 +28,7 @@ your commits with `git commit -s` (Developer Certificate of Origin).
 person agreeing warrants that they are authorised to do so on its behalf, and "You" includes
 entities that control, are controlled by, or are under common control with that entity.
 
-**"Project"** means EUDI Verified Call, maintained by Kontrollfeld GmbH (the **"Maintainer"**).
+**"Project"** means whosit (published until October 2026 as EUDI Verified Call), maintained by Kontrollfeld GmbH (the **"Maintainer"**).
 
 **"Contribution"** means any work of authorship, including modifications to existing work, that You
 intentionally submit to the Project for inclusion — by pull request, patch, issue attachment,

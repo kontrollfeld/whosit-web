@@ -7,7 +7,7 @@
  *
  * 1) Declarative (auto-init from the <script> tag):
  *    <div id="trustcall"></div>
- *    <script src="https://id-call.eu/embed.js"
+ *    <script src="https://whosit.eu/embed.js"
  *            data-target="#trustcall"
  *            data-mode="video"
  *            data-request="family_name,age_over_18"
@@ -15,7 +15,7 @@
  *            data-height="620"></script>
  *
  * 2) Programmatic:
- *    <script src="https://id-call.eu/embed.js"></script>
+ *    <script src="https://whosit.eu/embed.js"></script>
  *    <script>
  *      const call = TrustCall.embed('#trustcall', {
  *        mode: 'video',

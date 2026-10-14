@@ -29,7 +29,7 @@ import type { CredentialProfile } from './credential-profiles';
  * OFF until a wallet-supported transaction_data type is established.
  *
  * Measured on 2026-08-10 with the SPRIND wallet: it rejects the request with
- * "Invalid DCQL query: Unsupported transaction data type: eu.id-call.channel-binding.v1".
+ * "Invalid DCQL query: Unsupported transaction data type: eu.whosit.channel-binding.v1".
  * That is CORRECT behaviour and not a wallet bug — OpenID4VP requires a wallet to refuse a
  * `transaction_data` type it does not know, rather than sign something whose meaning it does
  * not understand. A custom type therefore cannot simply be invented; the wallet has to
@@ -47,7 +47,7 @@ export function bindingEnabled(): boolean {
  *  in a signed record and must stay interpretable later. Overridable, because the type MUST
  *  be accepted by the wallet (see bindingEnabled). */
 export const CHANNEL_BINDING_TYPE =
-  process.env.EUDI_CHANNEL_BINDING_TYPE || 'eu.id-call.channel-binding.v1';
+  process.env.EUDI_CHANNEL_BINDING_TYPE || 'eu.whosit.channel-binding.v1';
 
 /** SHA-256 fingerprint as 32 uppercase byte pairs: `AB:CD:…` (95 characters). */
 const FP_RE = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/;

@@ -35,7 +35,7 @@ const RULES = [
 ];
 
 /** Our own origin in example markup is fine — it documents how integrators embed the widget. */
-const ALLOWED = [/https?:\/\/id-call\.eu\//];
+const ALLOWED = [/https?:\/\/whosit\.eu\//];
 
 function files(dir) {
   return readdirSync(dir).flatMap((n) => {

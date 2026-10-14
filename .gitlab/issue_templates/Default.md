@@ -17,7 +17,7 @@ TITLE: imperative, no ticket-speak. "Add rate limiting to the verification endpo
 "Rate limiting" and not "We should maybe look into rate limiting".
 
 WHAT DOES NOT BELONG HERE: secrets, customer names, prices, contract details. Issues are private
-today, but privacy is a setting and settings change. Those things live in ~/sites/id-call-web-intern.
+today, but privacy is a setting and settings change. Those things live in ~/sites/whosit-intern.
 
 SECURITY VULNERABILITIES: tick "This issue is confidential", or see .gitlab/SECURITY.md.
 -->

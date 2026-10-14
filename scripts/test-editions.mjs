@@ -43,7 +43,7 @@ const MOVED_TO_COMMUNITY = [
 // The Pro module straight from source (the server runs under tsx, which imports .ts), so the
 // test needs no `npm run build:pro` first. Its audit trail writes into a throwaway directory.
 const PRO_MODULE = './pro/index.ts';
-const auditDir = mkdtempSync(join(tmpdir(), 'id-call-editions-'));
+const auditDir = mkdtempSync(join(tmpdir(), 'whosit-editions-'));
 const withProModule = { EUDI_MODULES: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl'), EUDI_QES_CA_FILE: join(auditDir, 'ca.json') };
 
 let failures = 0;

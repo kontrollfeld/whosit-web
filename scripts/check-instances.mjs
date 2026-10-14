@@ -23,7 +23,7 @@
  * THE LIST IS NOT IN THIS REPOSITORY. Which customers run an instance is business data, and this
  * repository is mirrored publicly. Pass it in:
  *
- *   EUDI_INSTANCES="https://id-call.eu,https://lhd.id-call.eu" node scripts/check-instances.mjs
+ *   EUDI_INSTANCES="https://whosit.eu,https://lhd.whosit.eu" node scripts/check-instances.mjs
  *   node scripts/check-instances.mjs --list ./instanzen.txt --commit f0b3c23
  *
  * Expected revision: --commit, else $CI_COMMIT_SHORT_SHA, else the committed public/version.json.
@@ -124,7 +124,7 @@ for (const base of targets) {
       console.log(`      asks [${p.allowedAttributes.join(', ')}] of [${p.registrationPermits.join(', ')}] permitted`);
     }
     // A branded instance without a host gate lets anyone who knows the URL invite citizens to a
-    // call under the customer's name. On id-call.eu that is correct; on a customer instance it
+    // call under the customer's name. On whosit.eu that is correct; on a customer instance it
     // is almost certainly an oversight.
     if (rp && rp.onBehalfOf && caps.hostLogin === false) {
       note(host, false, `branded "${rp.onBehalfOf}" but ANYONE may host — no EUDI_HOST_FILE / EUDI_HOST_ALLOWLIST`);

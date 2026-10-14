@@ -308,7 +308,7 @@ try {
     check('the shipped page names no service provider',
       !/Gartenstra|HRB\s*(&nbsp;)?155693|22908|Markus Bruns/.test(imprint.text)
       && !/Diensteanbieter[\s\S]{0,200}Kontrollfeld GmbH/.test(imprint.text),
-      'operator data of id-call.eu is still in the shipped page');
+      'operator data of whosit.eu is still in the shipped page');
     const press = await body(PORT_WITHOUT, '/presse.html');
     check('no press page in a plain instance', press.status === 404, `HTTP ${press.status}`);
     const asset = await body(PORT_WITHOUT, '/operator/downloads/logo.svg');
