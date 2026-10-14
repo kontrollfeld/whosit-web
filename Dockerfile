@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# EUDI Verified Call — ein Dockerfile, zwei Ergebnisse.
+# whosit — ein Dockerfile, zwei Ergebnisse.
 #
 #   docker build .                            → AGPL-Image, frei weitergebbar
 #   docker build --build-arg WITH_PRO=1 .     -> the Pro image, DO NOT redistribute

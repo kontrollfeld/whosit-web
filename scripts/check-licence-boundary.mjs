@@ -13,7 +13,7 @@
  * another licence — it could then no longer be shipped on its own, and the separation would be
  * worthless. This script checks exactly that, in both directions:
  *
- *   1. No import from `pro/` or from a module package (`@id-call/…`) in `src/`, `public/` or
+ *   1. No import from `pro/` or from a module package (`@whosit/…`) in `src/`, `public/` or
  *      `scripts/`.
  *   2. No module is a prerequisite: `tsc` over `src/` must succeed without `pro/`, and the
  *      loader catches a failing module at runtime — verified here too.
@@ -46,8 +46,8 @@ function walk(dir, exts = ['.ts', '.js', '.mjs']) {
 }
 
 console.log('\nThe AGPL part must not depend on a module');
-// Catches `from './pro/x'`, `require('../pro/x')`, `import('@id-call/x')` and dynamic imports alike.
-const OFFENDING = /(?:from|import|require)\s*\(?\s*['"](?:[^'"]*(?:^|\/)pro\/|@id-call\/)/;
+// Catches `from './pro/x'`, `require('../pro/x')`, `import('@whosit/x')` and dynamic imports alike.
+const OFFENDING = /(?:from|import|require)\s*\(?\s*['"](?:[^'"]*(?:^|\/)pro\/|@whosit\/)/;
 const scanned = [...walk('src'), ...walk('scripts'), ...walk('public')];
 const offenders = [];
 for (const f of scanned) {
@@ -90,7 +90,7 @@ const registry = readFileSync('src/core/features.ts', 'utf8');
 check("no `edition: 'pro'` entry in src/core/features.ts", !/edition:\s*'pro'/.test(registry),
   'a capability whose code lives in a module belongs in that module\'s manifest');
 let manifest = null;
-try { manifest = JSON.parse(readFileSync('pro/package.json', 'utf8')).idCall; } catch {}
+try { manifest = JSON.parse(readFileSync('pro/package.json', 'utf8')).whosit; } catch {}
 if (manifest) {
   const named = (manifest.features || []).map((f) => f.id).filter((id) => new RegExp(`id:\\s*'${id}'`).test(registry));
   check('the capabilities of pro/ are not listed in the core registry', named.length === 0,

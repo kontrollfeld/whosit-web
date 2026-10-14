@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* EUDI Verified Call — browser client (signaling + WebRTC).
+/* whosit — browser client (signaling + WebRTC).
  *
  * Model: the host (caller) configures the exchange — connection mode (video/audio/
  * chat), which PID attributes they REQUEST from the guest, and which they DISCLOSE
@@ -827,7 +827,7 @@ function refreshPlannedInvite() {
 // ---- calendar invite (.ics download / Google Calendar) ----
 // Used when the title field is left empty. Follows the brand for the same reason the field's
 // default does (see branding.js): the value ends up in a guest's calendar.
-const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'EUDI Verified Call';
+const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'whosit – EUDI Verified Call';
 function calTitleValue() { return calTitle.value.trim() || CAL_TITLE_FALLBACK; }
 // Default the schedule to the next full quarter hour, today.
 (function initSchedule() {
@@ -927,9 +927,9 @@ icsBtn.addEventListener('click', async () => {
   const hostLink = inv ? plannedHostUrl : null;
   // Escape per RFC 5545: backslash, comma, semicolon, newline.
   const esc = (s) => s.replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
-  const uid = `${inv ? inv.room : roomId}@id-call-web`;
+  const uid = `${inv ? inv.room : roomId}@whosit-web`;
   const ics = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EUDI Verified Call//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//whosit//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${toCalUTC(new Date())}`,
@@ -3311,7 +3311,7 @@ function startPairedSigner(token) {
     const openRoomUrl = (url) => {
       try {
         // A pairing QR code scanned with the camera: sign for the browser that shows it. Arrives as
-        // https://…/?pair= (universal link) or idcall://open?pair= (the page's fallback button,
+        // https://…/?pair= (universal link) or whosit://open?pair= (the page's fallback button,
         // when the universal link opened Safari instead) — same parameter either way.
         const pair = new URL(url).searchParams.get('pair');
         if (pair) { if (pair !== pairToken) location.href = `index.html?pair=${encodeURIComponent(pair)}`; return; }

@@ -103,7 +103,7 @@ export function availableMedia(cfg: OperatorPagesConfig): OperatorMedia[] {
  * that is the honest default — this software is a tool for making verified calls, not a website,
  * and a self-hoster should not find someone else's marketing on their own front page.
  *
- * The operator of id-call.eu keeps its start page here for the same reason the imprint lives
+ * The operator of whosit.eu keeps its start page here for the same reason the imprint lives
  * here: it describes one particular service, and it would be wrong on any other instance.
  *
  * Resolved per request like everything else in this module — see the note above

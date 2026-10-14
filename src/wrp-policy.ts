@@ -84,7 +84,7 @@ export interface WrpPolicy {
  * registration decides what may lawfully be asked, this file only records it.
  */
 export const WRP_POLICIES: Record<string, WrpPolicy> = {
-  /** id-call.eu itself. These are exactly the values that shipped before policies existed —
+  /** whosit.eu itself. These are exactly the values that shipped before policies existed —
    *  an instance without EUDI_WRP_POLICY must behave identically. */
   'p2p-call': {
     purposeId: 'identity-verification-p2p-call',

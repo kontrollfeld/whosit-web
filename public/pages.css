@@ -20,7 +20,7 @@
 @font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-700.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
 @font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ibm-plex-sans-ext-700.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* Landing page — EUDI Verified Call.
+/* Landing page — whosit.
  * Tokens & Regeln: die Design-Tokens stehen in :root von public/style.css — dort ist die Quelle.
  * Mobile-first, Flexbox/Grid, keine Frameworks. */
 
@@ -164,6 +164,18 @@ p { margin: 0 0 1em; }
 .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .logo svg { width: 34px; height: 34px; }
+/* The whosit mark — same colours as in style.css, which these pages do not load. */
+.mark-ring { stroke: #1e7fd4; }
+.mark-g1 { stop-color: #1e7fd4; }
+.mark-g2 { stop-color: #003b8e; }
+:root[data-theme="dark"] .mark-ring { stroke: #4aa3e8; }
+:root[data-theme="dark"] .mark-g1 { stop-color: #4aa3e8; }
+:root[data-theme="dark"] .mark-g2 { stop-color: #1565c0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mark-ring { stroke: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g1 { stop-color: #4aa3e8; }
+  :root:not([data-theme="light"]) .mark-g2 { stop-color: #1565c0; }
+}
 .logo strong { color: var(--navy); font-size: 1.05rem; letter-spacing: -0.01em; white-space: nowrap; }
 .header-cta { min-height: 40px; padding: 8px 18px; font-size: 0.9rem; }
 

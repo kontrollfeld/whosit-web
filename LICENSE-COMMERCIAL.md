@@ -1,6 +1,6 @@
 # Commercial License (Pro / Enterprise)
 
-The **Community Edition** of EUDI Verified Call is licensed under the
+The **Community Edition** of whosit (formerly EUDI Verified Call) is licensed under the
 **GNU AGPL-3.0-or-later** (see [`LICENSE`](LICENSE)).
 
 The **Pro / Enterprise Edition** — and the right to use this software **without** the

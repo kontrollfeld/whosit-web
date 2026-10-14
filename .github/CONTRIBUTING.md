@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 # Contributing
 
-Thanks for your interest in **EUDI Verified Call**! Contributions are welcome.
+Thanks for your interest in **whosit**! Contributions are welcome.
 
 **Where things live.** Development happens in a private GitLab project; this GitHub repository is
 a **read-only mirror** and the public point of contact. That split has one practical consequence:
@@ -101,7 +101,7 @@ GitHub is a force-updated mirror, so a PR is never merged there. Port it into Gi
 2. **Take the commits with their authorship.** On a branch in the GitLab checkout:
 
    ```bash
-   git fetch https://github.com/kontrollfeld/id-call-web.git pull/<N>/head:pr-<N>
+   git fetch https://github.com/kontrollfeld/whosit-web.git pull/<N>/head:pr-<N>
    git switch -c contrib/pr-<N> origin/main
    git cherry-pick -x --signoff origin/main..pr-<N>   # keeps the contributor as author
    ```
@@ -111,7 +111,7 @@ GitHub is a force-updated mirror, so a PR is never merged there. Port it into Gi
    with this trailer:
 
    ```
-   CLA-Accepted: CLA 1.0, @<github-user>, https://github.com/kontrollfeld/id-call-web/pull/<N>
+   CLA-Accepted: CLA 1.0, @<github-user>, https://github.com/kontrollfeld/whosit-web/pull/<N>
    ```
 
    The history is the record. It is mirrored publicly and needs no account, bot or token that

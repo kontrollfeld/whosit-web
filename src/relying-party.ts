@@ -59,7 +59,7 @@ export interface RelyingPartyDisclosure {
  *   - the two names differ.
  *
  * An UNBRANDED instance discloses nothing: the page carries no one else's name, so there is no
- * gap between what is shown and who asks. That keeps this module a complete no-op on id-call.eu
+ * gap between what is shown and who asks. That keeps this module a complete no-op on whosit.eu
  * and on every self-hosted instance that has not set EUDI_BRAND_NAME — the same condition
  * ./branding holds itself to.
  */

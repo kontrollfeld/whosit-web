@@ -5,7 +5,7 @@
  *
  * The signing key lives in the phone's secure element; the participant sits at a browser. A
  * pairing joins the two: the browser asks for a one-time token, shows it as a QR code, the phone
- * (the id-call app) opens it and connects. From then on this server only RELAYS the WebRTC
+ * (the whosit app) opens it and connects. From then on this server only RELAYS the WebRTC
  * signalling between the two ends — the document itself travels over their own DataChannel,
  * peer to peer, exactly like the document in the call. This server never sees it.
  *

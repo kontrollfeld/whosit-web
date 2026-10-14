@@ -3,9 +3,9 @@
 /**
  * Load the modules this instance is configured with, and merge what they contribute.
  *
- *   EUDI_MODULES=./pro,@id-call/audit-trail
+ *   EUDI_MODULES=./pro,@whosit/audit-trail
  *
- * Each entry is a directory or an installed package carrying an `idCall` manifest in its
+ * Each entry is a directory or an installed package carrying a `whosit` manifest in its
  * package.json (see ./core/modules). The loader first reads ALL manifests — without running any
  * module code — and checks them: does each one fit this core (`coreApi`), does any claim a core
  * capability, do two claim the same id, feature or path. Only then are the modules imported and

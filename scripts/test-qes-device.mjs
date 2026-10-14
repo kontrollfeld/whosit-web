@@ -37,7 +37,7 @@ globalThis.btoa ??= (s) => Buffer.from(s, 'latin1').toString('base64');
 const VERIFIER_PORT = 3992;
 const APP_PORT = 3993;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const work = mkdtempSync(join(tmpdir(), 'id-call-qes-device-'));
+const work = mkdtempSync(join(tmpdir(), 'whosit-qes-device-'));
 const CA_FILE = join(work, 'ca.json');
 
 let failures = 0;

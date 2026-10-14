@@ -20,12 +20,15 @@
     // three languages.
     var namen = document.querySelectorAll('[data-brand-name]');
     for (var i = 0; i < namen.length; i++) namen[i].textContent = b.name;
+    // Our claim under our name ("EUDI Verified Call") would read as part of the operator's brand.
+    var claims = document.querySelectorAll('[data-brand-claim]');
+    for (var c = 0; c < claims.length; c++) claims[c].hidden = true;
     // Carry along labels that contain the name — otherwise a screen reader keeps announcing the
     // old brand.
-    var lockups = document.querySelectorAll('[data-brand-lockup], [aria-label*="EUDI Verified Call"]');
+    var lockups = document.querySelectorAll('[data-brand-lockup], [aria-label*="whosit"]');
     for (var j = 0; j < lockups.length; j++) {
       var al = lockups[j].getAttribute('aria-label');
-      if (al) lockups[j].setAttribute('aria-label', al.replace(/EUDI Verified Call/g, b.name));
+      if (al) lockups[j].setAttribute('aria-label', al.replace(/whosit/g, b.name));
     }
   }
 
@@ -54,11 +57,11 @@
     var brandProduct = function () {
       var texts = document.querySelectorAll('[data-brand-product]');
       for (var m = 0; m < texts.length; m++) {
-        texts[m].textContent = texts[m].textContent.replace(/EUDI Verified Call/g, b.name);
+        texts[m].textContent = texts[m].textContent.replace(/whosit/g, b.name);
       }
       var cal = document.getElementById('cal-title');
       // Only while untouched: overwriting what someone typed would be worse than the wrong default.
-      if (cal && cal.value === 'EUDI Verified Call') cal.value = b.name;
+      if (cal && cal.value === 'whosit – EUDI Verified Call') cal.value = b.name;
     };
     brandProduct();
     if (typeof i18nReady !== 'undefined' && i18nReady && i18nReady.then) i18nReady.then(brandProduct);

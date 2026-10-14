@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Self-hosting stack for EUDI Verified Call (Community Edition).
+# Self-hosting stack for whosit (Community Edition).
 #
 #   app     — the Node.js signaling/app server (built from ./Dockerfile)
 #   traefik — reverse proxy: HTTP→HTTPS, Let's Encrypt certs, WSS routing
@@ -14,7 +14,7 @@
 # verifier):  docker compose --profile mock up
 # See README.selfhost.md for the full walkthrough.
 
-name: id-call-web
+name: whosit-web
 
 services:
   traefik:

@@ -1,14 +1,14 @@
 <p align="center">
-  <a href="https://id-call.eu">
+  <a href="https://www.whosit.eu">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://id-call.eu/operator/logo/logo-horizontal-white.svg">
-      <img src="https://id-call.eu/operator/logo/logo-horizontal-colour.svg" alt="EUDI Verified Call" width="380">
+      <source media="(prefers-color-scheme: dark)" srcset="https://www.whosit.eu/operator/logo/logo-horizontal-white.svg">
+      <img src="https://www.whosit.eu/operator/logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Call" width="380">
     </picture>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://id-call.eu"><strong>▶&nbsp;Try&nbsp;the&nbsp;live&nbsp;demo&nbsp;at&nbsp;id-call.eu</strong></a>
+  <a href="https://www.whosit.eu"><strong>▶&nbsp;Try&nbsp;the&nbsp;live&nbsp;demo&nbsp;at&nbsp;whosit.eu</strong></a>
   &nbsp;·&nbsp;
   <a href="https://testflight.apple.com/join/PfYx2MhR">iPhone app (TestFlight)</a>
   &nbsp;·&nbsp;
@@ -17,9 +17,12 @@
   <a href="#help-with-eidas-20-and-the-eudi-wallet">eIDAS&nbsp;2.0 integration help</a>
 </p>
 
-# EUDI Verified Call — Community Edition
+# whosit — Community Edition
 
-> **See it before you set it up:** [**id-call.eu**](https://id-call.eu) is our hosted instance of
+**EUDI Verified Call.** Until October 2026 this project was published under that name alone;
+repositories, domain and packages now carry the name *whosit*.
+
+> **See it before you set it up:** [**whosit.eu**](https://www.whosit.eu) is our hosted instance of
 > this code, with a registered verifier. Open it, share the invitation link, and you are in a call
 > within a minute — with an EUDI wallet, including the identity check before connecting.
 > Signing a document with the key in your iPhone's security chip needs the
@@ -34,7 +37,7 @@ which fields will be exchanged — the values only once **both** have agreed.
 Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS) + coturn
 (TURN). No framework, few dependencies, state in RAM.
 
-> **Where to reach us:** <https://github.com/kontrollfeld/id-call-web> — issues, pull requests and
+> **Where to reach us:** <https://github.com/kontrollfeld/whosit-web> — issues, pull requests and
 > vulnerability reports belong there. Development itself happens in a private GitLab project, so
 > this repository is a **read-only mirror**: maintainers port reviewed commits upstream, and they
 > arrive here on the next sync. The copy on **openCode** is a second mirror.
@@ -117,8 +120,8 @@ Roles: the first person in the room is the `caller` (host, WebRTC initiator), th
 
 ```bash
 # 1) Get the repository
-git clone https://github.com/kontrollfeld/id-call-web.git
-cd id-call-web
+git clone https://github.com/kontrollfeld/whosit-web.git
+cd whosit-web
 
 # 2) Create and fill in the env file (DOMAIN, ACME_EMAIL, TURN_SECRET, TURN_EXTERNAL_IP, EUDIPLO_*)
 #    No verifier yet? Set EUDI_VERIFIER=none instead of the EUDIPLO_* lines — see
@@ -568,11 +571,11 @@ the code lives in the module [`pro/`](pro/) (see [Modules](#modules)):
 
 ### Modules
 
-Functions beyond the core come as **modules**: a directory or npm package with an `idCall`
+Functions beyond the core come as **modules**: a directory or npm package with a `whosit`
 manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is one.
 
 ```json
-"idCall": {
+"whosit": {
   "id": "pro",
   "coreApi": "^1",
   "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }],
@@ -647,8 +650,8 @@ What operators need to know:
   **Apple's CDN**, which serves a changed file only hours later (`max-age` 6 h, check with
   `curl https://app-site-association.cdn-apple.com/a/v1/<host>`), and a user who once chose "open
   in Safari" stays in Safari for the whole domain. The page then does **not** present the token
-  (that would use it up) but offers "In der id-call-App öffnen" via the app's own scheme
-  `idcall://open?pair=…`.
+  (that would use it up) but offers "In der whosit-App öffnen" via the app's own scheme
+  `whosit://open?pair=…`.
 - **The CA key** lives in `EUDI_QES_CA_FILE` (mode 0600); by default `qes-demo-ca.json` next to
   the audit trail (`EUDI_AUDIT_FILE`), i.e. on the volume that already has to be persistent. A
   new CA after a restart makes every earlier signature unverifiable against the current one.

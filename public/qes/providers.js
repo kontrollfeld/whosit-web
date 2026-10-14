@@ -56,7 +56,7 @@ export async function makeDemoCert(identity) {
     const out = [new pkijs.AttributeTypeAndValue({ type: '2.5.4.3', value: new asn1js.Utf8String({ value: name }) })];
     if (given) out.push(new pkijs.AttributeTypeAndValue({ type: '2.5.4.42', value: new asn1js.Utf8String({ value: given }) }));
     if (family) out.push(new pkijs.AttributeTypeAndValue({ type: '2.5.4.4', value: new asn1js.Utf8String({ value: family }) }));
-    out.push(new pkijs.AttributeTypeAndValue({ type: '2.5.4.10', value: new asn1js.Utf8String({ value: 'EUDI Verified Call — DEMO (nicht rechtsgültig)' }) }));
+    out.push(new pkijs.AttributeTypeAndValue({ type: '2.5.4.10', value: new asn1js.Utf8String({ value: 'whosit — DEMO (nicht rechtsgültig)' }) }));
     return out;
   };
   cert.subject.typesAndValues = attrs(cn);

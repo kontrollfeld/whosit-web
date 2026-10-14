@@ -65,7 +65,7 @@ export async function addSignature(bytes, { provider, signerName, reason, firstS
 
   const placeholder = (pdfBuffer) => plainAddPlaceholder({
     pdfBuffer,
-    reason: reason || 'EUDI Verified Call',
+    reason: reason || 'whosit',
     name: signerName || '',
     // Written whatever we pass: left out, every signature carried the literal "(undefined)".
     contactInfo: '',

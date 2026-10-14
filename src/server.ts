@@ -385,7 +385,7 @@ app.get('/.well-known/apple-app-site-association', (_req, res) => {
 });
 
 // Android App Links: with EUDI_ANDROID_PACKAGE + EUDI_ANDROID_SHA256 set, the Digital
-// Asset Links file lets id-call.eu links open the installed Android app (verified links).
+// Asset Links file lets whosit.eu links open the installed Android app (verified links).
 // SHA256 = comma-separated cert fingerprint(s) from Play App Signing. Unset: 404.
 const ANDROID_PACKAGE = (process.env.EUDI_ANDROID_PACKAGE || '').trim();
 const ANDROID_SHA256 = (process.env.EUDI_ANDROID_SHA256 || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -487,7 +487,7 @@ app.get('/wallet-pass', (req, res) => {
   if (inv) {
     const v = verifyInvite(inv);
     if (!v.ok) { res.status(400).json({ error: `invalid invite (${v.reason})` }); return; }
-    const title = String(req.query.title || 'EUDI Verified Call').slice(0, 120);
+    const title = String(req.query.title || 'whosit – EUDI Verified Call').slice(0, 120);
     const lang = ['de', 'en', 'fr'].includes(String(req.query.lang)) ? String(req.query.lang) : 'de';
     const start = new Date(String(req.query.start || ''));
     const end = new Date(String(req.query.end || ''));
@@ -507,7 +507,7 @@ app.get('/wallet-pass', (req, res) => {
     return;
   }
   const room = String(req.query.room || '');
-  const title = String(req.query.title || 'EUDI Verified Call').slice(0, 120);
+  const title = String(req.query.title || 'whosit – EUDI Verified Call').slice(0, 120);
   const lang = ['de', 'en', 'fr'].includes(String(req.query.lang)) ? String(req.query.lang) : 'de';
   const start = new Date(String(req.query.start || ''));
   const end = new Date(String(req.query.end || ''));
@@ -1128,7 +1128,7 @@ function send(ws: WebSocket, obj: unknown): void {
 
 // The public origin the wallet/EUDIPLO must reach us at. An explicit non-localhost
 // PUBLIC_URL wins; otherwise derive it from the (Traefik/Coolify) proxy headers, so
-// it just works behind id-call.eu without any env config.
+// it just works behind whosit.eu without any env config.
 function publicOriginFrom(req: http.IncomingMessage): string {
   const env = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
   // Honor an explicitly-set PUBLIC_URL (incl. http://localhost for local dev + the
@@ -1879,7 +1879,7 @@ loadExtensions().then((resolved) => {
   // (see ./core/startup-checks).
   assertProductionConfig({ embedEnabled: enabledFeatures().has('embed') });
   server.listen(PORT, () => {
-    console.log(`id-call-web listening on :${PORT}`);
+    console.log(`whosit-web listening on :${PORT}`);
     console.log(`Edition: ${CONFIGURED_EDITION}${PROMO_ALL_PRO ? ' + PROMO (effective: pro)' : ''}`);
     console.log(`WRP policy: name=${activePolicyName()} purpose=${WRP_PURPOSE_ID} attrs=[${policyDescriptor().allowedAttributes.join(',')}] retention=none enforcement=${policyDescriptor().enforcement}`);
     // Under WHOSE registration this instance queries wallets. The worst mix-up in

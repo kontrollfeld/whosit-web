@@ -1,7 +1,7 @@
 {
-  "name": "id-call-web",
+  "name": "whosit-web",
   "version": "2.0.1",
-  "description": "EUDI Verified Call — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
+  "description": "whosit (EUDI Verified Call) — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
   "keywords": [
     "eudi",
     "eudi-wallet",
@@ -13,13 +13,13 @@
     "self-hosted",
     "privacy"
   ],
-  "homepage": "https://github.com/kontrollfeld/id-call-web#readme",
+  "homepage": "https://github.com/kontrollfeld/whosit-web#readme",
   "bugs": {
-    "url": "https://github.com/kontrollfeld/id-call-web/issues"
+    "url": "https://github.com/kontrollfeld/whosit-web/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kontrollfeld/id-call-web.git"
+    "url": "git+https://github.com/kontrollfeld/whosit-web.git"
   },
   "author": "Kontrollfeld GmbH",
   "main": "dist/server.js",

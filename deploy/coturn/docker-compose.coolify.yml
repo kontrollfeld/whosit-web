@@ -56,7 +56,7 @@ services:
     environment:
       # Must match the application's TURN_SECRET. Set it as a secret in Coolify.
       TURN_SECRET: ${TURN_SECRET:?TURN_SECRET is missing - generate one with openssl rand -hex 32}
-      TURN_REALM: ${TURN_REALM:-id-call.eu}
+      TURN_REALM: ${TURN_REALM:-whosit.eu}
       # Public IP of the host. Without it coturn advertises unusable candidates; "it works that
       # out itself" is exactly what does not hold behind NAT or a cloud load balancer.
       TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:?TURN_EXTERNAL_IP is missing - the public IP of the host}
@@ -74,7 +74,7 @@ services:
     command: >
       turnserver
       --listening-port=3478
-      --realm=${TURN_REALM:-id-call.eu}
+      --realm=${TURN_REALM:-whosit.eu}
       --external-ip=${TURN_EXTERNAL_IP}
       --use-auth-secret
       --static-auth-secret=${TURN_SECRET}
