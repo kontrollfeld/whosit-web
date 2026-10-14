@@ -29,8 +29,9 @@ const PORT_PRO_MODULE = 3775;
 const PORT_COMMUNITY_MODULE = 3776;
 
 /** The capabilities of the module in pro/ — where we genuinely provide something in return.
- *  Declared in pro/package.json, not in the core's registry. */
-const PRO_IDS = ['audit-trail', 'qes-csc', 'qes-device'];
+ *  Declared in pro/package.json, not in the core's registry. The audit trail is a module of
+ *  its own since 2026-10 (@whosit/audit-trail) and is tested in its repository. */
+const PRO_IDS = ['qes-csc', 'qes-device'];
 
 /** Community features whose loss MUST be noticed immediately (the 2026-08-19 split, plus
  *  multi-party on 2026-09-25: its code is all AGPL, so a Pro label was only a switch). */
@@ -198,21 +199,21 @@ try {
   startServer(PORT_OFF, {
     EUDI_EDITION: 'pro',
     ...withProModule,
-    EUDI_FEATURES_OFF: 'file-transfer,screen-share,multi-party,audit-trail,wrp-policy,pseudonym-id,does-not-exist',
+    EUDI_FEATURES_OFF: 'file-transfer,screen-share,multi-party,qes-csc,wrp-policy,pseudonym-id,does-not-exist',
   });
   const off = await waitForCapabilities(PORT_OFF);
   for (const id of ['file-transfer', 'screen-share', 'multi-party']) {
     check(`${id} switched off`, !off.enabled.includes(id), "the operator's decision had no effect");
   }
-  check('a Pro feature can be switched off too', !off.enabled.includes('audit-trail'),
+  check('a module feature can be switched off too', !off.enabled.includes('qes-csc'),
     'holding a licence does not mean you must run the feature');
   for (const id of ['wrp-policy', 'pseudonym-id']) {
     check(`${id} NOT switchable`, off.enabled.includes(id),
       'a privacy guarantee that can be switched off is not a guarantee');
   }
   check('features not listed stay untouched', off.enabled.includes('emoji'), JSON.stringify(off.enabled));
-  check('the remaining Pro features stay active in Pro',
-    off.enabled.includes('qes-csc') && off.enabled.includes('qes-device'), JSON.stringify(off.enabled));
+  check('the remaining module feature stays active',
+    off.enabled.includes('qes-device'), JSON.stringify(off.enabled));
 
   console.log('\nThe launch promo raises the features but does not disguise where they came from');
   check('the effective edition is pro', promo.edition === 'pro', JSON.stringify(promo.edition));

@@ -100,8 +100,6 @@ jobs:
         run: npm run test:editions
       - name: Module loader (manifests, core API, conflicts, abort in production)
         run: npm run test:modules
-      - name: Audit trail (hash chain across restarts)
-        run: npm run test:audit
       - name: Verification callback (auth, replay)
         run: npm run test:webhook
       - name: Verifier session deleted right after use (zero retention)
