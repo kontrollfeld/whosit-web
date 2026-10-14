@@ -72,7 +72,7 @@ EXPOSE 3000
 # back a deployment that was fine.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# The verification trail is NOT loaded automatically — EUDI_PRO_MODULE=./pro has to be set. If
-# the module is missing despite the variable being set, startup aborts in production rather than
-# quietly carrying on without retention (see src/pro-loader.ts).
+# Modules are NOT loaded automatically — EUDI_MODULES=./pro (or the older EUDI_PRO_MODULE) has to
+# be set. If a listed module is missing, does not fit or conflicts, startup aborts in production
+# rather than quietly carrying on without it (see src/module-loader.ts).
 CMD ["node", "dist/server.js"]

@@ -51,8 +51,9 @@ const block = [
     features.filter((f) => unswitchable.includes(f.id))),
   ...group('INCLUDED IN THIS EDITION — switch off any of these with EUDI_FEATURES_OFF:',
     features.filter((f) => f.edition === 'community' && !unswitchable.includes(f.id))),
-  ...group('COMMERCIAL LICENCE REQUIRED — inactive here, listed so you know what exists:',
-    features.filter((f) => f.edition === 'pro')),
+  '# Modules (EUDI_MODULES) bring further capabilities and list them in their own manifest.',
+  '# GET /capabilities shows everything that is active, modules included.',
+  '#',
   END,
 ].join('\n');
 

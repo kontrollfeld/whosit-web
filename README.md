@@ -494,9 +494,10 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDI_REGISTRATION_CERT_FILE` / `EUDI_REGISTRATION_CERT` | *(optional)* Import a registration certificate (JWT) instead of having EUDIPLO issue one |
 | `EUDI_TRUST_LIST_IDS` | Id(s) of the trust list(s) on your EUDIPLO instance that decide which PID issuers are accepted — the last path segment of `…/issuers/<tenant>/trust-list/<id>` |
 | `ALLOWED_ORIGINS` | *(optional)* permitted WebSocket origins (CSWSH protection); default: same host |
-| `EUDI_EDITION` | `community` (default) or `pro` — unlocks the three commercially licensed features |
-| `EUDI_PRO_MODULE` | Path to the Pro module, e.g. `./pro`. Only with a valid licence. Set but not loadable → startup aborts in production, instead of silently running without retention |
-| `EUDI_FEATURES_OFF` | Comma-separated list of features to switch off, e.g. `file-transfer,screen-share` |
+| `EUDI_MODULES` | Modules to load, comma-separated: directories or installed packages, e.g. `./pro`. See [Modules](#modules). A listed module that does not load, does not fit or conflicts → startup aborts in production, instead of silently running without it |
+| `EUDI_PRO_MODULE` | The earlier single-module variable — still read, as one more entry of `EUDI_MODULES` |
+| `EUDI_EDITION` | `community` (default) or `pro` — reported in `/capabilities`. It no longer unlocks anything: a module's features are on exactly when the module is loaded |
+| `EUDI_FEATURES_OFF` | Comma-separated list of features to switch off, e.g. `file-transfer,screen-share` — module features included |
 | `EUDI_QES_CA_FILE` | *(Pro)* Key and certificate of the demo CA for device-bound signatures; default `qes-demo-ca.json` next to `EUDI_AUDIT_FILE`. Must be on a persistent volume |
 | `EUDI_IOS_APP_URL` | *(Pro)* Where browser users get the iPhone app for "Mit dem Smartphone signieren"; default the public TestFlight link |
 
@@ -557,13 +558,47 @@ calendar entries, an Apple Wallet pass, document sharing and signing, iframe emb
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
 **Three features are commercially licensed** — where there is a real obligation behind them, and
-the code lives in [`pro/`](pro/):
+the code lives in the module [`pro/`](pro/) (see [Modules](#modules)):
 
 | Feature | Why |
 |---|---|
 | Verification trail with retention and export | Responsibility for retained evidence: deadlines, export, liability |
 | Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
 | Device-bound signatures (Secure Enclave / StrongBox) | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
+
+### Modules
+
+Functions beyond the core come as **modules**: a directory or npm package with an `idCall`
+manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is one.
+
+```json
+"idCall": {
+  "id": "pro",
+  "coreApi": "^1",
+  "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }],
+  "clientAliases": ["pro-client"]
+}
+```
+
+- **The manifest is read first, without running module code.** A module built for another core
+  API (`coreApi`), one that claims a feature of the core, or two modules claiming the same id,
+  feature or path are refused before anything is wired. Then each module's `register(defaults)`
+  returns what it adds through the ports in [`src/core/ports.ts`](src/core/ports.ts): a
+  verification sink, signalling plugins, a signer, browser files.
+- **A module can only add.** It cannot redeclare or switch off a capability of the core, so the
+  attribute allowlist, purpose limitation, pseudonym and PII-free record stay out of its reach.
+- **Its features are on exactly when it is loaded,** and `EUDI_FEATURES_OFF` switches them off
+  like any other. `GET /capabilities` lists the loaded modules with their versions.
+- **Browser files** a module ships are served under `/modules/<id>/`, plus any `clientAliases`.
+- **Several modules side by side** are fine; their verification sinks all receive every record.
+- **Failure:** in production a listed module that does not load stops the start. In development
+  it is skipped with a warning.
+- **Check without starting:** `EUDI_MODULES=./pro npm run modules -- check` lists the modules,
+  their features and whether they fit, and exits non-zero if one would not load.
+
+The module API is versioned (`MODULE_API_VERSION` in [`src/core/modules.ts`](src/core/modules.ts))
+and still internal — every incompatible change raises it, so a mismatch shows at startup rather
+than in the middle of a call.
 
 ### Device-bound signatures
 
@@ -574,7 +609,7 @@ the key custody can be proven out before one does:
    in the **Secure Enclave** (iOS) or **StrongBox** (Android), usable only after biometric
    authentication, and exports nothing but the public key. Without StrongBox the Android app
    offers no device signature at all — it does not fall back to the weaker TEE.
-2. The browser module `pro/client/device-local.js` (served under `/pro-client/`, never part of
+2. The browser module `pro/client/device-local.js` (served under `/modules/pro/` and `/pro-client/`, never part of
    the AGPL client) builds a CSR and has the device sign it — the first biometric prompt.
 3. The server hands it to the demo CA (`pro/qes-device.ts`) — only for a participant verified in
    this call, over their own signalling connection. The CA checks the proof of possession and
@@ -649,8 +684,9 @@ trail whose code nobody may inspect is a weaker verification trail — whoever b
 be able to see the code it rests on. The protection is legal, not technical: there is no licence
 key to circumvent.
 
-Nothing under `src/` imports from `pro/`; the AGPL edition builds and runs completely without the
-directory (verified by `npm run check:licence-boundary`). `docker build .` therefore produces an
+Nothing under `src/` imports from `pro/` or any other module; the AGPL edition builds and runs
+completely without them (verified by `npm run check:licence-boundary`). The core's feature
+registry does not name module features either — each module declares its own. `docker build .` therefore produces an
 image **without** `pro/` that may be redistributed freely;
 `docker build --build-arg WITH_PRO=1 .` produces the Pro image.
 

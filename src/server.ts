@@ -60,14 +60,14 @@ assertHostGateOrExit(
   policyDescriptor().walletRequestable.includes('family_name'),
 );
 import type { Room, Participant, Role, Mode } from './rooms';
-import { loadExtensions } from './pro-loader';
+import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
 import { createPairing, joinPairing, pairingOfOwner, pairingOfPhone, endPairing } from './device-pairing';
-import { COMMUNITY_FEATURE_IDS, PRO_FEATURE_IDS, parseFeaturesOff } from './core/features';
+import { COMMUNITY_FEATURE_IDS, parseFeaturesOff } from './core/features';
 import { configuredEdition, effectiveEdition, promoAllPro } from './core/edition';
 import { verifierMode, NEEDS_VERIFIER } from './core/verifier-mode';
 import { assertProductionConfig } from './core/startup-checks';
@@ -246,13 +246,14 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_URL = (process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 
-// Pluggable pieces (room store, verification sink, signaling plugins). Starts as the
-// Community defaults and is replaced once loadExtensions() resolves — before listen(),
-// so no request is ever served with a half-initialized set. See ./pro-loader.
-let ext: Extensions = { roomStore: communityRoomStore, verificationSink: noopVerificationSink, plugins: [], enabledFeatures: [] };
+// Pluggable pieces (room store, verification sink, signaling plugins) and the loaded modules.
+// Starts as the Community defaults and is replaced once loadExtensions() resolves — before
+// listen(), so no request is ever served with a half-initialized set. See ./module-loader.
+let ext: Extensions = { roomStore: communityRoomStore, verificationSink: noopVerificationSink, plugins: [], enabledFeatures: [], modules: [] };
 
-// Which edition this instance declares itself as. `pro` switches on the Pro features
-// (audit-trail, qes-csc — the latter only with the Pro module loaded); everything else is Community. The
+// Which edition this instance declares itself as. It no longer decides the module capabilities —
+// those are on exactly when their module is loaded (see enabledFeatures()). What still reads it:
+// the credential profiles (./credential-profiles) and the label in /capabilities. The
 // launch promo (EUDI_PROMO_ALL_PRO) forces the EFFECTIVE edition to `pro` for everyone —
 // see ./core/edition. CONFIGURED_EDITION keeps the real, licensed edition for transparency.
 const CONFIGURED_EDITION = configuredEdition();
@@ -260,9 +261,10 @@ const CONFIGURED_EDITION = configuredEdition();
 const VERIFIER_OFF = verifierMode() === 'none';
 const PROMO_ALL_PRO = promoAllPro();
 const EDITION: 'community' | 'pro' = effectiveEdition();
-// Capabilities switched off by the operator. Resolved ONCE at startup, so the startup message
-// cannot diverge from what the instance actually does.
-const FEATURES_OFF = parseFeaturesOff();
+// Capabilities switched off by the operator. Resolved ONCE at startup, right after the modules
+// have loaded (their capability ids are only known then), so the startup message cannot diverge
+// from what the instance actually does.
+let FEATURES_OFF = parseFeaturesOff();
 
 // onReady must fire at most once per room (maybeConnect may run several times).
 const readyFired = new WeakSet<Room>();
@@ -271,8 +273,8 @@ const readyFired = new WeakSet<Room>();
 // logged and swallowed so a plugin can never break signaling.
 function firePlugins(fn: (p: SignalingPlugin) => void | Promise<void>): void {
   for (const p of ext.plugins) {
-    try { Promise.resolve(fn(p)).catch((e) => console.warn(`[pro] plugin ${p.name} hook failed:`, e?.message || e)); }
-    catch (e: any) { console.warn(`[pro] plugin ${p.name} hook failed:`, e?.message || e); }
+    try { Promise.resolve(fn(p)).catch((e) => console.warn(`[modules] plugin ${p.name} hook failed:`, e?.message || e)); }
+    catch (e: any) { console.warn(`[modules] plugin ${p.name} hook failed:`, e?.message || e); }
   }
 }
 // Record a verification event. Goes to the always-on, PII-free audit log (./audit) which
@@ -617,19 +619,34 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
 }));
 
-// Browser modules shipped by the Pro module (ext.clientAssetsDir), e.g. the device signature
-// provider. Served from pro/, never from public/: that is what keeps them out of the AGPL client.
-// Resolved per request because the extensions load after the routes are registered. CORS open,
-// because the native app imports them from its local bundle origin — a module script is subject
-// to CORS, a classic one would not be.
-let proClientStatic: express.RequestHandler | null = null;
-app.use('/pro-client', (req, res, next) => {
-  if (!ext.clientAssetsDir) return next();
+// Browser files shipped by modules (their clientAssetsDir), e.g. the device signature provider,
+// under /modules/<id>/ and under the aliases a module declares (`/pro-client/` for paths that
+// shipped app builds have baked in). Served from the module's directory, never from public/:
+// that is what keeps them out of the AGPL client. Resolved per request because the modules load
+// after the routes are registered. CORS open, because the native app imports them from its local
+// bundle origin — a module script is subject to CORS, a classic one would not be.
+const moduleStatic = new Map<string, express.RequestHandler>();
+function serveModuleFiles(dir: string): express.RequestHandler {
+  let h = moduleStatic.get(dir);
+  if (!h) {
+    h = express.static(dir, { setHeaders: (r) => r.setHeader('Cache-Control', 'no-cache') });
+    moduleStatic.set(dir, h);
+  }
+  return h;
+}
+app.use((req, res, next) => {
+  const [, first, second] = req.path.split('/');
+  const mod = first === 'modules'
+    ? ext.modules?.find((m) => m.id === second)
+    : ext.modules?.find((m) => m.clientAliases.includes(first));
+  if (!mod?.clientAssetsDir) return next();
+  const prefix = first === 'modules' ? `/modules/${second}` : `/${first}`;
   res.setHeader('Access-Control-Allow-Origin', '*');
-  proClientStatic ??= express.static(ext.clientAssetsDir, {
-    setHeaders: (r) => r.setHeader('Cache-Control', 'no-cache'),
-  });
-  proClientStatic(req, res, next);
+  // express.static resolves against req.url — hand it the part below the module's prefix, and
+  // restore it if nothing was found so later routes see the original request.
+  const original = req.url;
+  req.url = req.url.slice(prefix.length) || '/';
+  serveModuleFiles(mod.clientAssetsDir)(req, res, (err?: any) => { req.url = original; next(err); });
 });
 
 // The native app fetches these read-only, credential-free endpoints from its local
@@ -704,12 +721,12 @@ app.get('/ice', publicCors, (_req, res) => {
   res.json({ iceServers, ttl: TURN_TTL });
 });
 
-// Which features this instance enables — the browser hides Pro-only UI unless listed.
-// Community: only community features. Pro (EUDI_EDITION=pro): + the whole Pro set. Plus any
-// features a loaded Pro module switches on via the seam (ext.enabledFeatures).
+// Which features this instance enables — the browser hides optional UI unless listed.
+// The core's capabilities, plus those the loaded modules declare in their manifests
+// (ext.enabledFeatures). The edition does not add anything here: a capability without the code
+// that implements it would be a promise this instance cannot keep.
 function enabledFeatures(): Set<string> {
   const enabled = new Set<string>(COMMUNITY_FEATURE_IDS);
-  if (EDITION === 'pro') PRO_FEATURE_IDS.forEach((id) => enabled.add(id));
   for (const id of ext.enabledFeatures) enabled.add(id);
   // Config-gate: only advertise the wallet pass when a signing certificate is set up,
   // so the client button never dead-ends on an unconfigured instance.
@@ -718,17 +735,15 @@ function enabledFeatures(): Set<string> {
   // stays with a plain room link, rather than promising an appointment link that carries
   // nothing after the next restart.
   if (!inviteConfigured()) enabled.delete('planned-invites');
-  // Qualified signing is implemented in the commercially licensed Pro module (pro/qes-csc.ts),
-  // not here. Without that module the AGPL core has nothing that could sign qualified — so it
-  // must not advertise CSC/QTSP providers, whatever EUDI_EDITION says. This is what makes
-  // `qes-csc` a Pro feature in substance rather than a switch in open code.
+  // The two signature capabilities rest on ports that only a module can fill. A module that
+  // declares one but does not deliver the port must not get it advertised — the AGPL core has
+  // nothing that could sign qualified or certify a device key.
   if (!ext.qualifiedSigner) enabled.delete('qes-csc');
-  // Same reasoning for device-bound signatures: the certificate authority lives in pro/.
   if (!ext.certificateIssuer) enabled.delete('qes-device');
   // Without a verifier nothing that rests on a verified identity exists (./core/verifier-mode).
   if (VERIFIER_OFF) for (const id of NEEDS_VERIFIER) enabled.delete(id);
   // LAST: the operator's off switch. After the config gates, so that it also applies when a
-  // Pro module contributed a capability via ext.enabledFeatures — the operator's decision
+  // module contributed a capability via ext.enabledFeatures — the operator's decision
   // takes precedence over everything else. UNSWITCHABLE is already filtered out in
   // parseFeaturesOff (see ./core/features).
   for (const id of FEATURES_OFF.off) enabled.delete(id);
@@ -746,6 +761,9 @@ app.get('/capabilities', publicCors, (_req, res) => {
   res.json({
     edition: EDITION, configuredEdition: CONFIGURED_EDITION, promo: PROMO_ALL_PRO,
     enabled: [...enabledFeatures()],
+    // Which modules run here, and in which version — so `npm run check:instances` can compare a
+    // running instance against what it is meant to run. Id and version only: no paths.
+    modules: (ext.modules ?? []).map((m) => ({ id: m.id, version: m.version })),
     // 'none' = no wallet verification on this instance (EUDI_VERIFIER=none): the client fixes
     // both sides to anonymous and shows a permanent "test mode" banner. Enforced here, not there.
     verifier: VERIFIER_OFF ? 'none' : 'eudiplo',
@@ -1841,10 +1859,11 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   }
 }
 
-// Resolve Community/Pro extensions BEFORE serving, so every request sees a fully
-// initialized set. Community (no EUDI_PRO_MODULE) resolves synchronously-fast.
+// Load the modules BEFORE serving, so every request sees a fully initialized set. Without
+// EUDI_MODULES this resolves at once to the Community defaults.
 loadExtensions().then((resolved) => {
   ext = resolved;
+  FEATURES_OFF = parseFeaturesOff(undefined, ext.enabledFeatures);
   // Point the always-on audit log at the resolved verification sink. Community's sink is
   // a no-op, so the audit log is the only record; Pro's is the retainable trail.
   setAuditForwarder((ev) => {
@@ -1910,7 +1929,7 @@ loadExtensions().then((resolved) => {
       console.log(`Disabled (EUDI_FEATURES_OFF): ${[...FEATURES_OFF.off].join(', ')}`);
     }
     if (FEATURES_OFF.unknown.length) {
-      console.log(`⚠️  EUDI_FEATURES_OFF names unknown features: ${FEATURES_OFF.unknown.join(', ')} — typo? Valid names are in src/core/features.ts and GET /capabilities.`);
+      console.log(`⚠️  EUDI_FEATURES_OFF names unknown features: ${FEATURES_OFF.unknown.join(', ')} — typo, or the feature of a module that is not loaded? Valid names are in src/core/features.ts, the loaded modules' manifests and GET /capabilities.`);
     }
     if (FEATURES_OFF.refused.length) {
       console.log(`⚠️  Not switchable, therefore ignored: ${FEATURES_OFF.refused.join(', ')} — the verified call and the privacy guarantees (attribute whitelist, pseudonym, PII-free record) apply in every instance. A guarantee you can switch off would not be one.`);

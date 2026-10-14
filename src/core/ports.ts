@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Extension seam ("ports") between the open-source Community core and an optional,
- * closed-source Pro edition. The core depends ONLY on these interfaces; concrete
- * implementations are resolved at startup by ../pro-loader.
+ * Extension seam ("ports") between the open-source core and its modules. The core depends ONLY
+ * on these interfaces; concrete implementations are resolved at startup by ../module-loader.
  *
- * Community ships the default implementations (see ./community). Pro can provide its
+ * Community ships the default implementations (see ./community). A module can provide its
  * own — e.g. a database-backed RoomStore, an audit-trail VerificationSink, or extra
- * SignalingPlugins — without the core importing any Pro code.
+ * SignalingPlugins — without the core importing any module code.
+ *
+ * These interfaces are the module API, versioned as MODULE_API_VERSION in ./modules. A change
+ * that would break an existing module raises that version.
  */
 import type { WebSocket } from 'ws';
 import type { Room, Participant, Role, Mode } from '../rooms';
+import type { LoadedModule } from './modules';
 
 export type { Room, Participant, Role, Mode };
 
@@ -217,12 +220,13 @@ export interface ContributedSignatureProvider {
   appUrl?: string;
 }
 
-/** The pluggable pieces the server resolves once at startup. */
+/** The pluggable pieces the server resolves once at startup. A module's `register()` returns a
+ *  subset of these; the loader merges all modules into one. */
 export interface Extensions {
   roomStore: RoomStore;
   verificationSink: VerificationSink;
   plugins: SignalingPlugin[];
-  /** Extra feature ids a Pro edition switches on (beyond the active edition's defaults). */
+  /** Capability ids the loaded modules bring — from their manifests (see ./modules). */
   enabledFeatures: string[];
   /** Qualified remote signing — only a Pro module provides one. Optional, so a Pro build
    *  compiled against an earlier version of this port still satisfies the interface. */
@@ -231,6 +235,8 @@ export interface Extensions {
   certificateIssuer?: CertificateIssuer;
   /** Signature providers the Pro module adds; offered only while their feature is enabled. */
   signatureProviders?: ContributedSignatureProvider[];
-  /** Directory of browser modules the Pro module ships, served under /pro-client/. */
+  /** Directory of browser files a module ships, served under /modules/<id>/ (and its aliases). */
   clientAssetsDir?: string;
+  /** The loaded modules — set by the loader, not by a module. */
+  modules?: LoadedModule[];
 }

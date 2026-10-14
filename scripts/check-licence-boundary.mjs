@@ -4,17 +4,21 @@
  * Making the licence boundary checkable — otherwise it is decoration.
  *
  * The repository carries two licences: everything under the AGPL (../LICENSE) except `pro/`
- * (commercial, pro/LICENSE). That split holds under one condition only:
+ * (commercial, pro/LICENSE). More modules follow in repositories of their own, loaded through
+ * EUDI_MODULES (src/module-loader.ts). The split holds under one condition only:
  *
- *   **The AGPL edition must build and run completely without `pro/`.**
+ *   **The AGPL core must build and run completely without any module.**
  *
- * If anything under `src/` imported from `pro/`, the free part would depend on commercially
- * licensed code — it could then no longer be shipped on its own, and the separation would be
+ * If anything under `src/` imported from a module, the free part would depend on code under
+ * another licence — it could then no longer be shipped on its own, and the separation would be
  * worthless. This script checks exactly that, in both directions:
  *
- *   1. No import from `pro/` in `src/`, `public/` or `scripts/`.
- *   2. `pro/` is not a prerequisite: `tsc` over `src/` must succeed without the directory. The
- *      loader catches its absence at runtime (try/catch), and that is verified here too.
+ *   1. No import from `pro/` or from a module package (`@id-call/…`) in `src/`, `public/` or
+ *      `scripts/`.
+ *   2. No module is a prerequisite: `tsc` over `src/` must succeed without `pro/`, and the
+ *      loader catches a failing module at runtime — verified here too.
+ *   3. The core does not name module capabilities: they are declared in the module's manifest,
+ *      not in src/core/features.ts.
  *
  * Runs in CI and locally via `npm run check:licence-boundary`.
  */
@@ -41,9 +45,9 @@ function walk(dir, exts = ['.ts', '.js', '.mjs']) {
   return out;
 }
 
-console.log('\nThe AGPL part must not depend on pro/');
-// Catches `from './pro/x'`, `require('../pro/x')` and dynamic imports alike.
-const OFFENDING = /(?:from|import|require)\s*\(?\s*['"][^'"]*(?:^|\/)pro\//;
+console.log('\nThe AGPL part must not depend on a module');
+// Catches `from './pro/x'`, `require('../pro/x')`, `import('@id-call/x')` and dynamic imports alike.
+const OFFENDING = /(?:from|import|require)\s*\(?\s*['"](?:[^'"]*(?:^|\/)pro\/|@id-call\/)/;
 const scanned = [...walk('src'), ...walk('scripts'), ...walk('public')];
 const offenders = [];
 for (const f of scanned) {
@@ -54,7 +58,7 @@ for (const f of scanned) {
     if (OFFENDING.test(code)) offenders.push(`${relative('.', f)}:${i + 1}`);
   }
 }
-check(`${scanned.length} files checked, no import from pro/`, offenders.length === 0,
+check(`${scanned.length} files checked, no import from pro/ or a module package`, offenders.length === 0,
   `forbidden imports: ${offenders.join(', ')}`);
 
 console.log('\nThe main build does not know about pro/');
@@ -74,12 +78,24 @@ try { lic = readFileSync('pro/LICENSE', 'utf8'); } catch {}
 check('pro/LICENSE present', !!lic, "without a licence file the repository's applies by default — i.e. the AGPL");
 check('it explicitly sets itself apart from the AGPL', /NOT COVERED BY THE AGPL/i.test(lic), lic.slice(0, 80));
 
-console.log('\nThe loader does not require pro/');
-const loader = readFileSync('src/pro-loader.ts', 'utf8');
-check('loading is wrapped in try/catch', /try\s*\{[\s\S]*await import\(/.test(loader),
-  'a missing Pro module would abort startup');
-check('without EUDI_PRO_MODULE it returns the defaults immediately',
-  /if \(!spec\) return defaults;/.test(loader), 'the Community path is not guaranteed');
+console.log('\nThe loader does not require a module');
+const loader = readFileSync('src/module-loader.ts', 'utf8');
+check('importing a module is wrapped in try/catch', /try\s*\{[\s\S]*await import\(/.test(loader),
+  'a failing module would crash startup instead of being reported');
+check('without configured modules it returns the defaults immediately',
+  /if \(specs\.length === 0\) return defaults;/.test(loader), 'the Community path is not guaranteed');
+
+console.log('\nThe core does not name module capabilities');
+const registry = readFileSync('src/core/features.ts', 'utf8');
+check("no `edition: 'pro'` entry in src/core/features.ts", !/edition:\s*'pro'/.test(registry),
+  'a capability whose code lives in a module belongs in that module\'s manifest');
+let manifest = null;
+try { manifest = JSON.parse(readFileSync('pro/package.json', 'utf8')).idCall; } catch {}
+if (manifest) {
+  const named = (manifest.features || []).map((f) => f.id).filter((id) => new RegExp(`id:\\s*'${id}'`).test(registry));
+  check('the capabilities of pro/ are not listed in the core registry', named.length === 0,
+    `listed in the core as well: ${named.join(', ')}`);
+}
 
 console.log(failures === 0 ? '\nLicence boundary intact.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

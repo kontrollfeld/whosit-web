@@ -26,8 +26,10 @@ const PORT_COMMUNITY = 3771;
 const PORT_PRO = 3772;
 const PORT_PROMO = 3773;
 const PORT_PRO_MODULE = 3775;
+const PORT_COMMUNITY_MODULE = 3776;
 
-/** The two Pro features — where we genuinely provide something in return, with the code in pro/. */
+/** The capabilities of the module in pro/ — where we genuinely provide something in return.
+ *  Declared in pro/package.json, not in the core's registry. */
 const PRO_IDS = ['audit-trail', 'qes-csc', 'qes-device'];
 
 /** Community features whose loss MUST be noticed immediately (the 2026-08-19 split, plus
@@ -42,7 +44,7 @@ const MOVED_TO_COMMUNITY = [
 // test needs no `npm run build:pro` first. Its audit trail writes into a throwaway directory.
 const PRO_MODULE = './pro/index.ts';
 const auditDir = mkdtempSync(join(tmpdir(), 'id-call-editions-'));
-const withProModule = { EUDI_PRO_MODULE: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl'), EUDI_QES_CA_FILE: join(auditDir, 'ca.json') };
+const withProModule = { EUDI_MODULES: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl'), EUDI_QES_CA_FILE: join(auditDir, 'ca.json') };
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -69,6 +71,7 @@ function startServer(port, extraEnv) {
       // would prove nothing. Preventing exactly that mix-up is the point of this test.
       EUDI_PROMO_ALL_PRO: '',
       EUDI_PRO_MODULE: '',
+      EUDI_MODULES: '',
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -104,12 +107,14 @@ try {
   startServer(PORT_PRO, { EUDI_EDITION: 'pro' });
   startServer(PORT_PROMO, { EUDI_EDITION: 'community', EUDI_PROMO_ALL_PRO: 'true', ...withProModule });
   startServer(PORT_PRO_MODULE, { EUDI_EDITION: 'pro', ...withProModule });
+  startServer(PORT_COMMUNITY_MODULE, { EUDI_EDITION: 'community', ...withProModule });
 
-  const [community, pro, promo, proModule] = await Promise.all([
+  const [community, pro, promo, proModule, communityModule] = await Promise.all([
     waitForCapabilities(PORT_COMMUNITY),
     waitForCapabilities(PORT_PRO),
     waitForCapabilities(PORT_PROMO),
     waitForCapabilities(PORT_PRO_MODULE),
+    waitForCapabilities(PORT_COMMUNITY_MODULE),
   ]);
 
   console.log('\nCommunity instance: the Pro features stay off');
@@ -135,19 +140,42 @@ try {
   for (const id of PRO_IDS) {
     check(`${id} included`, proModule.enabled.includes(id), 'the Pro feature is not being unlocked');
   }
+  check('the module is reported with id and version',
+    proModule.modules?.length === 1 && proModule.modules[0].id === 'pro' && /^\d+\.\d+\.\d+/.test(proModule.modules[0].version),
+    JSON.stringify(proModule.modules));
+  check('a Community instance reports no modules', Array.isArray(community.modules) && community.modules.length === 0,
+    JSON.stringify(community.modules));
+  for (const p of ['modules/pro', 'pro-client']) {
+    check(`/${p}/device-local.js is served by the module`,
+      (await fetch(`http://127.0.0.1:${PORT_PRO_MODULE}/${p}/device-local.js`)).ok);
+  }
+  check('/modules/pro/ does not reach outside the module directory',
+    (await fetch(`http://127.0.0.1:${PORT_PRO_MODULE}/modules/pro/..%2F..%2Fpackage.json`)).status !== 200);
+
+  console.log('\nThe module decides, not the edition');
+  // A capability is on exactly when the code that implements it is loaded. EUDI_EDITION=pro
+  // without the module used to advertise audit-trail although nothing kept a trail; with the
+  // module and EUDI_EDITION=community the capability was hidden although the code ran.
+  for (const id of PRO_IDS) {
+    check(`${id} included with the module, edition community`, communityModule.enabled.includes(id),
+      'the edition label hides a capability that is actually there');
+  }
   check('Pro contains everything from Community',
     community.enabled.every((id) => proModule.enabled.includes(id)),
     `missing in Pro: ${community.enabled.filter((id) => !proModule.enabled.includes(id)).join(',')}`);
 
-  console.log('\nPro edition WITHOUT the module: qualified signing is not claimed');
-  // The signing lives in pro/qes-csc.ts. EUDI_EDITION=pro alone is a switch in open code; if it
-  // were enough, qes-csc would be Pro in name only and the AGPL core would advertise CSC
-  // providers it cannot serve.
-  check('audit-trail included (edition gate)', pro.enabled.includes('audit-trail'));
+  console.log('\nPro edition WITHOUT the module: nothing of the module is claimed');
+  // The code lives in pro/. EUDI_EDITION=pro alone is a switch in open code; if it were enough,
+  // the module's capabilities would be Pro in name only and the AGPL core would advertise a
+  // trail it does not keep and CSC providers it cannot serve.
+  check('audit-trail NOT included', !pro.enabled.includes('audit-trail'),
+    'advertised without the module — nothing keeps a trail');
   check('qes-csc NOT included', !pro.enabled.includes('qes-csc'),
     'advertised without the Pro module — the AGPL core cannot sign qualified');
   check('qes-device NOT included', !pro.enabled.includes('qes-device'),
     'advertised without the Pro module — the AGPL core has no certificate authority');
+  check('/modules/pro/ serves nothing without the module',
+    (await fetch(`http://127.0.0.1:${PORT_PRO}/modules/pro/device-local.js`)).status === 404);
   check('/pro-client/ serves nothing without the Pro module',
     (await fetch(`http://127.0.0.1:${PORT_PRO}/pro-client/device-local.js`)).status === 404);
   const providers = await (await fetch(`http://127.0.0.1:${PORT_PRO}/signature-providers`)).json();
@@ -190,8 +218,9 @@ try {
   check('the effective edition is pro', promo.edition === 'pro', JSON.stringify(promo.edition));
   check('the configured edition stays honestly community', promo.configuredEdition === 'community', JSON.stringify(promo.configuredEdition));
   check('the promo flag is reported', promo.promo === true, JSON.stringify(promo.promo));
+  // These are on because the module is loaded — the promo is not what unlocks them any more.
   for (const id of PRO_IDS) {
-    check(`${id} unlocked by the promo`, promo.enabled.includes(id));
+    check(`${id} available with the module during the promo`, promo.enabled.includes(id));
   }
 } catch (e) {
   console.error(`\n✗ Test setup failed: ${e.message}`);
