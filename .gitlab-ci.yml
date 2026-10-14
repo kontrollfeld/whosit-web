@@ -82,6 +82,9 @@ test:
     - npm run test:netcheck
     - npm run test:startup
     - npm run test:editions
+    - npm run test:modules
+    # pro/'s manifest must keep fitting this core (core API, no core capability claimed).
+    - EUDI_MODULES=./pro npm run modules -- check
     - npm run test:audit
     - npm run test:webhook
     # Zero retention at the verifier: the session holding the claims is deleted right after use.
