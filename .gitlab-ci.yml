@@ -11,9 +11,8 @@
 # checks, `pull_request` only, no write permissions — so a contributor sees whether their patch
 # holds up before a maintainer ports it here.
 #
-# Why a verifying pipeline at all: until 2026-08-19 there was none. The only automation bumped the
-# version and triggered the deploy — so every push to the default branch went to production
-# untested. In a public repository that takes merge requests from strangers, that is not an option.
+# Why a verifying pipeline at all: in a public repository that takes merge requests from strangers,
+# nothing may reach the default branch — and from there a deployment — untested.
 
 default:
   image: node:22
@@ -60,7 +59,7 @@ test:
     # no longer called that — and an unknown id is ignored, so they would never find out.
     - npm run check:env-features
 
-    # No executable code from anyone else's server — see the script's header for what that cost.
+    # No executable code from anyone else's server — see the script's header for why.
     - npm run check:no-external-scripts
 
     - npm run build
@@ -135,16 +134,16 @@ reuse:
   before_script: []
   # No npm cache here. The default cache unpacks .npm/_cacache into the working directory, and
   # `reuse lint` walks the working directory — every cached tarball then counts as a file without
-  # a licence header (115 of 304 files, and a red job for a repository that is in fact compliant).
+  # a licence header, and the job turns red for a repository that is in fact compliant.
   # The same applies to the jobs below that never call npm.
   cache: []
   script:
     - reuse lint
 
-# SBOM — the bill of materials for our dependencies. Two reasons: the Cyber Resilience Act requires
+# SBOM — the bill of materials for the dependencies. Two reasons: the Cyber Resilience Act requires
 # it in the technical documentation from 2027-12-11 (CycloneDX or SPDX, at least the direct
-# dependencies), and public-sector procurement asks for it. It does not have to be public — kept
-# here as a job artefact, available on request.
+# dependencies), and public-sector procurement asks for it. It does not have to be public — it is
+# kept here as a job artefact.
 sbom:
   stage: test
   script:
@@ -176,15 +175,14 @@ container:
     - 'echo "Files in /app/pro: $COUNT"'
     - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
     # ── publish, on the default branch only ──────────────────────────────────────────────
-    # BUILD ONCE, DEPLOY THAT. Until now every instance was built from source by its own
-    # deployment, which is how lhd.id-call.eu ended up four releases behind while reporting
-    # success: a build that is skipped looks identical to a build that ran. A pushed, immutable
+    # BUILD ONCE, DEPLOY THAT. When every instance builds from source in its own deployment, a
+    # build that is skipped looks identical to a build that ran. A pushed, immutable
     # tag removes the question — either an instance runs this tag or it does not, and
     # `npm run check:instances` can tell from outside which it is.
     #
     # LICENCE, and it is not a formality: the `pro` image contains commercially licensed code
     # that pro/LICENSE forbids DISTRIBUTING. It goes to this project's own registry, which is
-    # private, and must never be pushed anywhere public or handed to a customer. The `agpl` tag
+    # private, and must never be pushed anywhere public or handed to a third party. The `agpl` tag
     # is the one that may go anywhere.
     - |
       if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
@@ -203,16 +201,15 @@ container:
       fi
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
-# Do the instances we run actually run what we shipped?
+# Do the deployed instances actually run what was shipped?
 #
-# The job that would have caught the thing nobody caught: on 2026-09-15 lhd.id-call.eu was found
-# serving a build from 15 August. Nothing had failed loudly — one webhook, one skipped build step,
-# and an instance that stayed green while going stale. With a paid white-label offering, "updates
-# reach every instance" IS the product, so it gets checked rather than assumed.
+# An instance can go stale without anything failing loudly — a missed webhook, a skipped build
+# step, and an instance that stays green. With several instances, "updates reach every instance"
+# gets checked rather than assumed.
 #
 # Needs the variable EUDI_INSTANCES (comma-separated base URLs, Protected). Deliberately NOT in
-# the repository: which customers run an instance is business data and this repository is
-# mirrored publicly.
+# the repository: which instances exist is deployment data, and this repository is mirrored
+# publicly.
 #
 # Runs on a SCHEDULE, not on every push — right after a deploy an instance is legitimately still
 # restarting, and a job that cries wolf gets ignored. Set one up under CI/CD → Schedules; without
@@ -231,11 +228,8 @@ instanzen:
 # The version stamp is NOT written by CI — it is committed, and this job only checks that nobody
 # forgot to: public/version.json must carry the version from package.json.
 #
-# It used to be a job that bumped the version and pushed the result back. That needs a token with
-# write access to the repository, and on GitLab.com that means a Project Access Token — a paid
-# feature. A personal token would work but is account-wide and expires within a year, and an
-# expired token means the stamp stops silently. That failure mode has already cost this project
-# two weeks of a deployment quietly serving stale code. A check cannot rot.
+# A job that bumped the version and pushed the result back would need a token with write access
+# to the repository, and an expired token means the stamp stops silently. A check cannot rot.
 #
 # The commit SHA is a separate matter: it cannot be known before the commit exists, so no committed
 # file can carry it. The Dockerfile re-stamps it at build time from SOURCE_COMMIT (see there) — the

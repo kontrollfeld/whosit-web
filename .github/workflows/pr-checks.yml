@@ -26,8 +26,8 @@ permissions:
 
 jobs:
   # The one check that must hold BEFORE a maintainer ports anything (see CONTRIBUTING.md,
-  # "For maintainers"): a single uncovered contribution in the combined Pro build would oblige us to
-  # publish all of it under the AGPL. Read-only on purpose — it needs no token that could lapse, and
+  # "For maintainers"): a single uncovered contribution in the combined Pro build would oblige the
+  # maintainers to publish all of it under the AGPL. Read-only on purpose — it needs no token that could lapse, and
   # the agreement is recorded in the ported commit, not here.
   legal:
     runs-on: ubuntu-latest

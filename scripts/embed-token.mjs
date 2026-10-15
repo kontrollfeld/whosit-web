@@ -11,7 +11,7 @@
  *     --request family_name,age_over_18 \
  *     [--disclose ""] [--mode video] [--lock] [--ttl-days 365]
  *
- * Prints the token. Hand it to the customer to use as embed.js `token` / data-token.
+ * Prints the token. Hand it to the embedding site to use as embed.js `token` / data-token.
  */
 import { createHmac } from 'node:crypto';
 

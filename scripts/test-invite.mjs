@@ -5,7 +5,7 @@
  *
  * What is being checked is the property that matters: the order of arrival must NO LONGER decide
  * who is the host and what is requested. That is why the guest joins FIRST here — precisely the
- * case that used to swap the roles.
+ * case that would otherwise swap the roles.
  *
  * The test runs with empty attribute sets (both sides anonymous). That is deliberate: the server
  * then requires no wallet presentation and no EUDIPLO is needed, while role binding, pinning and
@@ -132,9 +132,8 @@ try {
   const early = await join({ roomId: later.json.room, inv: later.json.guestToken, clientId: 'test-early' });
   check('opened too early -> rejected',
     early.first.type === 'invite-invalid' && early.first.reason === 'too-early', JSON.stringify(early.first));
-  // Two separate times: `opensAt` is the nbf, `startsAt` the start of the appointment. There
-  // used to be only one field called startsAt which actually carried the nbf — so the waiting
-  // screen announced the lead time as the start (15 minutes too early).
+  // Two separate times: `opensAt` is the nbf, `startsAt` the start of the appointment. Mixing
+  // them up makes the waiting screen announce the lead time as the start (15 minutes too early).
   check('returns both the opening AND the start time',
     typeof early.first.opensAt === 'number' && typeof early.first.startsAt === 'number', JSON.stringify(early.first));
   check('the opening is exactly 15 minutes before the start',
@@ -162,8 +161,8 @@ try {
 
   // --- Rejoining and seat ownership ---------------------------------------------------
   // The practical case: someone opens the appointment link, loses the tab (or the network) and
-  // wants back in. Until now a NEW browser identifier counted as a second person and the room
-  // reported "full". Now the invitation decides who owns the seat.
+  // wants back in. A NEW browser identifier must not count as a second person and make the room
+  // report "full": the invitation decides who owns the seat.
   console.log('\nRejoining through the same invitation link');
   const rj = await mint({ mode: 'chat', requestedAttrs: [], disclosedAttrs: [], ...soon });
   const rHost = await join({ roomId: rj.json.room, inv: rj.json.hostToken, clientId: 'rj-host' });
@@ -173,7 +172,7 @@ try {
 
   // A second window while the first is still open. The link MUST let them in even then: a
   // hung session counts as open for up to a minute, and a rejection would lock out exactly the
-  // person who owns the seat (which happened to the host on 2026-08-11).
+  // person who owns the seat.
   const rGuestLive = await join({ roomId: rj.json.room, inv: rj.json.guestToken, clientId: 'rj-guest-tab2' });
   check('the same link gets in even while a session is still open',
     rGuestLive.first.type === 'joined' && rGuestLive.first.role === 'callee', JSON.stringify(rGuestLive.first));

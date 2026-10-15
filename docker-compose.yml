@@ -68,9 +68,8 @@ services:
       VERIFIER_REQUEST_ID: "${VERIFIER_REQUEST_ID}"
       # Without a trust list EUDIPLO rejects every presentation (see .env.example).
       EUDI_TRUST_LIST_IDS: "${EUDI_TRUST_LIST_IDS:-}"
-      # Surfaced to the browser so the client can use YOUR TURN relay. Wiring the app to
-      # mint ephemeral TURN-REST credentials from TURN_SECRET is the one remaining
-      # integration step — see README.selfhost.md → "TURN".
+      # Your TURN relay; the app mints ephemeral TURN-REST credentials from TURN_SECRET
+      # (see README.selfhost.md → "TURN").
       TURN_URL: "turn:${DOMAIN}:3478"
       TURN_SECRET: "${TURN_SECRET}"
       TURN_REALM: "${DOMAIN}"

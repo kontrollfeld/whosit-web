@@ -20,7 +20,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 
 const SECRET = (process.env.EUDI_STAFF_SECRET || '').trim();
 
-/** Without a secret this layer is off — /invite stays open, as before. */
+/** Without a secret this layer is off — /invite stays open. */
 export function staffGateActive(): boolean {
   return SECRET.length > 0;
 }

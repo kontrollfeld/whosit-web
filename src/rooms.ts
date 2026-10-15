@@ -39,7 +39,7 @@ export interface Participant {
   claims?: Record<string, any>; // PID claims this participant presented
   offer?: Offer;
   /** EUDIPLO's session id for the CURRENT offer — the handle used to delete the session
-   *  (and the claims it holds) at the verifier as soon as we are done. Kept next to the
+   *  (and the claims it holds) at the verifier as soon as it is no longer needed. Kept next to the
    *  offer rather than inside it because an offer is replaced on every retry while the old
    *  session still has to be purged. See ./verifier-session. */
   verifierSessionId?: string;
@@ -112,7 +112,7 @@ function resetIdentity(p: Participant): void {
   // to keep, and nobody would ever ask for it again.
   purgeVerifierSession(p.verifierSessionId, 'left');
   p.verifierSessionId = undefined;
-  p.sessionId = randomUUID();      // die alte Verifier-Sitzung darf nicht weiterlaufen
+  p.sessionId = randomUUID();      // the old verifier session must not continue
   p.webhookToken = randomUUID();
 }
 
@@ -152,11 +152,10 @@ export function joinRoom(
   // role — not to whichever browser tab happened to arrive first. Someone whose tab is gone
   // therefore returns through the same link, even mid-call.
   //
-  // The seat is TAKEN OVER even when the old session still counts as connected. The first
-  // draft refused this ("role-taken") to prevent a forwarded link from throwing out the
-  // active far side. That was the wrong way round, and on 2026-08-11 it locked the host out
-  // of their OWN appointment: a stalled session stays "open" for up to a minute, and
-  // re-entering — the one gesture that otherwise fixes everything — was exactly what got
+  // The seat is TAKEN OVER even when the old session still counts as connected. Refusing
+  // it would stop a forwarded link from throwing out the active far side, but it would also
+  // lock the host out of their OWN appointment: a stalled session stays "open" for up to a
+  // minute, and re-entering — the one gesture that otherwise fixes everything — would be
   // blocked.
   //
   // Whoever holds the token is entitled to that role; that is the link's promise, and a

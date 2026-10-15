@@ -2,18 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # whosit — ein Dockerfile, zwei Ergebnisse.
 #
-#   docker build .                            → AGPL-Image, frei weitergebbar
+#   docker build .                            -> the AGPL image, freely redistributable
 #   docker build --build-arg WITH_PRO=1 .     -> the Pro image, DO NOT redistribute
 #
 # Why the distinction: `pro/` is under a commercial licence that forbids distribution (see
 # pro/LICENSE). An image containing `pro/` therefore must not be published. The default build
 # leaves the directory out — the result contains AGPL code only and may go into any registry.
-#
-# This replaces the previous two-repository chain: the Pro image was built from a separate
-# repository that pulled the Community core in via `git clone` with a read token, and had to force
-# a no-cache rebuild because the clone layer otherwise reused stale code. All of that is gone.
 
-# ---- build stage: Abhängigkeiten installieren, TypeScript übersetzen ----
+# ---- build stage: install dependencies, compile TypeScript ----
 FROM node:22-slim AS build
 WORKDIR /app
 COPY package*.json ./

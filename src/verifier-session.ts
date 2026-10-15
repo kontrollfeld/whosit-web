@@ -4,14 +4,14 @@
  * Immediate purge of the verifier session at EUDIPLO.
  *
  * WHY THIS EXISTS. EUDIPLO keeps the result of a presentation — the disclosed PID claims —
- * in a session row of its own, so that a relying party can poll for it. We never poll:
- * EUDIPLO pushes the result to our webhook (see `eudiplo.createVerifierOffer`). From the
+ * in a session row of its own, so that a relying party can poll for it. This service never
+ * polls: EUDIPLO pushes the result to its webhook (see `eudiplo.createVerifierOffer`). From the
  * moment that webhook has been processed, the row serves nobody but an attacker. It is the
  * ONLY place in this architecture where PID values outlive a single request — everything on
- * our side lives in process memory (see ./rooms) and the audit trail is PII-free by
+ * this service's side lives in process memory (see ./rooms) and the audit trail is PII-free by
  * construction (see ./audit).
  *
- * Measured against EUDIPLO 8.0.2 (apps/backend/src/session/):
+ * As of EUDIPLO 8.0.2 (apps/backend/src/session/):
  *   - the claims sit in `Session.credentials`, encrypted at rest with AES-256-GCM
  *     (`EncryptedJsonTransformer`, key derived from MASTER_SECRET unless a KMS is
  *     configured). That makes a stolen database dump unreadable — and does nothing against
@@ -21,11 +21,12 @@
  *     `SESSION_TTL` (default 24 h) plus `SESSION_TIDY_UP_INTERVAL` (default 1 h). There is
  *     no on-completion hook, and no in-memory storage backend — the only two database types
  *     EUDIPLO supports are PostgreSQL and a file-backed SQLite.
- *   - `DELETE /api/session/:id` is a hard delete, scoped to our tenant, cascading to the
- *     session's log entries. The token we already hold for creating offers carries the role
+ *   - `DELETE /api/session/:id` is a hard delete, scoped to the tenant, cascading to the
+ *     session's log entries. The token already held for creating offers carries the role
  *     it requires (`presentation:request`).
  *
- * So the retention window is ours to choose, and we choose "as soon as we are done".
+ * So the retention window is this service's to choose, and it chooses "as soon as the result
+ * has been consumed".
  *
  * FIRE AND FORGET, deliberately. A failed purge must never fail a verification: the person
  * in front of the camera has done nothing wrong, and refusing the call would not delete
@@ -48,7 +49,7 @@ export type PurgeReason =
   | 'failed'              // presentation failed; a fresh offer (and session) follows
   | 'reissued'            // a new offer replaces an older one for the same participant
   | 'left'                // participant gone (hang-up, grace expiry, seat reclaimed, refused)
-  | 'credential-request'; // in-call credential request reached a terminal state (Pro)
+  | 'credential-request'; // in-call credential request reached a terminal state
 
 /**
  * Ids already handed to EUDIPLO for deletion.

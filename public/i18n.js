@@ -4,7 +4,7 @@
  *
  * Model (gettext-style): GERMAN is the source language and doubles as the key.
  *   - Static HTML keeps its German text; elements opt in via `data-i18n` (plain text),
- *     `data-i18n-html` (trusted markup from our own dictionary) or
+ *     `data-i18n-html` (trusted markup from the app's own dictionary) or
  *     `data-i18n-attr="placeholder,aria-label"` (attribute values). The element's own
  *     initial (whitespace-normalized) content IS the dictionary key.
  *   - Dynamic strings in app.js are wrapped in t('deutscher Text').

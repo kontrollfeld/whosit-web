@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH */
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* Self-hosted IBM Plex Sans (OFL) — keine Google-Fonts-Uebertragung (Datenschutz) */
+/* Self-hosted IBM Plex Sans (OFL) — no transfer to Google Fonts (privacy) */
 @font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-400.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
 @font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ibm-plex-sans-ext-400.woff2') format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 @font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/ibm-plex-sans-500.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -449,39 +449,37 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   background: var(--text-faint);
   transition: background var(--t), box-shadow var(--t);
 }
-/* Farbe nach ROLLE, nicht nach Perspektive: Gastgeber blau, Gast grün — auf beiden Geräten
-   gleich. Vorher galt „ich blau, die anderen grün", nur bekam ein Peer mit role=caller
-   ebenfalls Blau; ein Gast sah also zwei blaue Chips und die Regel stimmte nicht. Wer „ich"
-   ist, steht als „Du:" im Text und braucht keine eigene Farbe.
-   Die Rolle setzt nur die Farbe, der Zustand entscheidet, OB gefüllt wird. */
+/* Colour by ROLE, not by perspective: host blue, guest green — the same on both devices.
+   Who "I" am is stated as "Du:" in the text and needs no colour of its own.
+   The role only sets the colour; the state decides WHETHER it is filled. */
 .id-chip.role-host { --chip: var(--accent); --chip-soft: var(--accent-soft); --chip-border: var(--accent-border); --chip-strong: var(--accent-strong); }
 .id-chip.role-guest { --chip: var(--ok); --chip-soft: var(--ok-soft); --chip-border: var(--ok-border); --chip-strong: var(--ok-strong); }
 
-/* Gefüllt erst ab „ausgewiesen". Wer gerade erst beigetreten ist, darf nicht so fertig
-   aussehen wie jemand, der sich bereits ausgewiesen hat — der Punkt trägt die Rollenfarbe
-   dann schon, gedämpft. */
+/* Filled only from "verified" on. Someone who has just joined must not look as finished
+   as someone who has already presented their ID — the dot already carries the role colour
+   then, muted. */
 .id-chip.is-identified { border-color: var(--chip-border); background: var(--chip-soft); color: var(--chip-strong); }
 .id-chip.is-identified .dot { background: var(--chip); box-shadow: 0 0 0 4px var(--chip-soft); }
 .id-chip:not(.is-identified) .dot { background: var(--chip, var(--text-faint)); opacity: 0.45; }
 
-/* Ausstehende EIGENE Aktion — gesetzt in app.js nur fuer den noch nicht ausgewiesenen
- * Host bzw. den noch nicht bestaetigten Gast. Ein anonymer Host oder ein fertiger
- * Teilnehmer hat nichts zu tun und bleibt ruhig.
+/* Pending OWN action — set in app.js only for the host not yet identified or the guest
+ * not yet confirmed. An anonymous host or a finished participant has nothing to do and
+ * stays calm.
  *
- * Der Chip atmet, damit „du bist dran" nicht nur zu LESEN, sondern zu SEHEN ist: der
- * Text allein wurde uebersehen, weil das Auge auf der groessten Box landet.
- * Zwei zurueckhaltende Signale statt eines lauten — ein auslaufender Ring am Chip und
- * der vorhandene `pulse` am Punkt (dasselbe Keyframe wie die Statuszeile, eine Sprache). */
+ * The chip breathes so that "your turn" is not only READ but SEEN: text alone is easily
+ * overlooked, because the eye lands on the largest box.
+ * Two restrained signals instead of one loud one — a fading ring on the chip and the
+ * existing `pulse` on the dot (the same keyframe as the status line, one language). */
 .id-chip.pending { animation: chip-attention 2.4s ease-in-out infinite; }
 .id-chip.pending .dot { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
 @keyframes chip-attention {
   0%   { box-shadow: 0 0 0 0 var(--accent-ring); }
   70%  { box-shadow: 0 0 0 8px transparent; }
-  /* bei Spread 0 ist der Farbsprung zurueck auf 0% unsichtbar -> nahtlose Schleife */
+  /* at spread 0 the colour jump back to 0% is invisible -> seamless loop */
   100% { box-shadow: 0 0 0 0 transparent; }
 }
-/* Reduzierte Bewegung: das Signal BLEIBT, nur ohne Animation — ein statischer Ring
- * statt gar keiner Hervorhebung. */
+/* Reduced motion: the signal STAYS, just without animation — a static ring instead of
+ * no highlight at all. */
 @media (prefers-reduced-motion: reduce) {
   .id-chip.pending,
   .id-chip.pending .dot { animation: none; }
@@ -507,11 +505,11 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
 .videos.stage-mode .tile.on-stage { flex: 1 1 100%; aspect-ratio: 16 / 9; order: 1; }
 /* Shared screens: letterbox (contain) so nothing is cropped — camera stays cover. */
 .tile.is-screen video { object-fit: contain; }
-/* Nur das EIGENE Kamerabild spiegeln — so kennt man sich aus dem Spiegel, und so macht es
-   jede Videoanwendung. Ungespiegelt wirkt die eigene Vorschau verkehrt herum, weil die
-   Hand auf der „falschen" Seite erscheint. Die Gegenseite bleibt ungespiegelt, sonst wäre
-   dort jede Schrift unlesbar. Eine geteilte Bildschirmfläche ebenfalls nicht — die ist
-   kein Spiegelbild, sondern ein Dokument. */
+/* Mirror only the OWN camera image — that is how people know themselves from a mirror,
+   and how every video application does it. Unmirrored, the own preview looks reversed
+   because the hand appears on the "wrong" side. The remote side stays unmirrored, otherwise
+   any text there would be unreadable. A shared screen as well — it is not a mirror image but
+   a document. */
 .tile[data-peer="self"] video { transform: scaleX(-1); }
 .tile[data-peer="self"].is-screen video { transform: none; }
 /* Fluid stage: during a video call the section breaks out of the narrow reading column
@@ -638,15 +636,15 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
 .attr-row.locked { opacity: 0.55; cursor: default; }
 .attr-row.locked input { cursor: default; }
 
-/* WRP-Compliance-Hinweis unter jeder Attribut-Gruppe (und im Review). Unaufdringlich,
- * aber dauerhaft sichtbar: die Beschraenkung ist eine Zusage, kein Fehlerzustand — also
- * kein Warn-Gelb, sondern eine ruhige Randnotiz mit gerader Akzentkante. */
-/* Aufmerksamkeitslenkung vor dem Anruf (nur Desktop/Website).
- * `body.wizard` heißt: kleiner Screen oder App, dort führt der Schritt-Wizard schon —
- * dann greifen diese Regeln absichtlich nicht, sonst läge zweierlei Steuerung übereinander.
- * Bewusst zurückhaltend: die anderen Karten bleiben lesbar und benutzbar, sie treten nur
- * zurück. Kein `pointer-events: none` — der Host darf den Link kopieren, während er noch
- * seinen Ausweis vorzeigen muss. */
+/* WRP compliance note under every attribute group (and in the review). Unobtrusive but
+ * permanently visible: the restriction is a commitment, not an error state — so no warning
+ * yellow, but a calm side note with a straight accent edge. */
+/* Guiding attention before the call (desktop/website only).
+ * `body.wizard` means: small screen or app, where the step wizard already guides —
+ * these rules deliberately do not apply there, otherwise two kinds of guidance would overlap.
+ * Deliberately restrained: the other cards stay readable and usable, they only recede.
+ * No `pointer-events: none` — the host may copy the link while still having to present
+ * their ID. */
 body:not(.wizard) .card.is-muted {
   opacity: 0.62;
   transition: opacity var(--t);
@@ -657,7 +655,7 @@ body:not(.wizard) .card.is-active {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-/* Wer Bewegung reduziert haben will, bekommt den Zustand ohne Überblendung. */
+/* Users who prefer reduced motion get the state without a cross-fade. */
 @media (prefers-reduced-motion: reduce) {
   body:not(.wizard) .card.is-muted { transition: none; }
 }
@@ -667,8 +665,8 @@ body:not(.wizard) .card.is-active {
   border-left: 2px solid var(--border-strong);
   color: var(--text-faint); font-size: 0.78rem; line-height: 1.45;
 }
-/* Zweckbindung im Privacy-Review — der eine Satz, an den die Abfrage rechtlich gebunden
- * ist. Deutlicher als .hint, damit er beim Zustimmen nicht ueberlesen wird. */
+/* Purpose limitation in the privacy review — the one sentence the request is legally bound
+ * to. More prominent than .hint, so it is not skimmed over when consenting. */
 .purpose-binding {
   display: flex; align-items: flex-start; gap: 9px;
   margin: 12px 0 4px; padding: 10px 12px;
@@ -888,7 +886,7 @@ body:not(.wizard) .card.is-active {
 /* setup-phase two-column layout: explainer text (logo/title/intro) sticks on the
    left, the actual forms/status/QR/review sit on the right — breaks out of the narrow
    reading column on wide screens, same technique as .setup-zone below. Fallback
-   (narrow / no :has): plain single-column stack, unchanged from before. */
+   (narrow / no :has): plain single-column stack. */
 .setup-columns { display: contents; }
 @media (min-width: 1020px) {
   .setup-columns {
@@ -900,15 +898,14 @@ body:not(.wizard) .card.is-active {
     margin-left: 50%;
     transform: translateX(-50%);
   }
-  /* Erklärtext oben links, die Argumente darunter — beide gehören zum Text, nicht zum
-     Formular. Die rechte Spalte überspannt beide Zeilen, sonst begänne die zweite Zeile
-     erst unterhalb des gesamten Formulars. */
-  /* NICHT mehr sticky. Solange hier nur der Kopftext stand, war das Kleben sinnvoll. Jetzt
-     sind Kopf und Argumente-Karte zwei getrennte Rasterelemente, und Sticky wirkt pro
-     Element: Der Kopf blieb oben stehen, während die Karte darunter nach oben wegscrollte —
-     und schob sich dabei hinter den Text. Eine Spalte, die als Ganzes klebt, gäbe es nur mit
-     beiden in EINEM Element; dann stünde die Karte auf schmalen Screens aber wieder über dem
-     Formular. Die Spalte ist ohnehin lang genug, dass Kleben wenig bringt. */
+  /* Explainer text top left, the arguments below — both belong to the text, not to the
+     form. The right column spans both rows, otherwise the second row would only start
+     below the entire form. */
+  /* Not sticky: header and arguments card are two separate grid items, and sticky acts per
+     element — the header would stay put while the card below scrolled up behind the text.
+     A column that sticks as a whole would need both in ONE element, which would put the card
+     above the form again on narrow screens. The column is long enough that sticking gains
+     little anyway. */
   .setup-columns-left { grid-column: 1; grid-row: 1; }
   .setup-columns-right { min-width: 0; grid-column: 2; grid-row: 1 / 3; }
   .setup-columns > #app-strengths { grid-column: 1; grid-row: 2; margin-top: 0; }
@@ -923,8 +920,8 @@ body:not(.wizard) .card.is-active {
    cards sit side by side (cause → effect: pick "Daten teilen" → QR appears NEXT to it)
    and the zone breaks out of the narrow reading column. Fallback (no :has): stacked.
    NOT in guided mode: there the wizard hides #auth with `display: none` rather than
-   `[hidden]`, so :has() still matched and a column was held open for a card nobody could
-   see — which is why the step form looked cramped in the middle of a wide screen. */
+   `[hidden]`, so :has() would still match and hold a column open for a card nobody can
+   see. */
 .setup-zone { display: contents; }
 @media (min-width: 1020px) {
   body:not(.wizard) .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
@@ -968,10 +965,9 @@ body:not(.wizard) .card.is-active {
 .party.you > .field-label > span:first-child { color: var(--accent-strong); }
 .party.guest > .field-label > span:first-child { color: var(--ok-strong); }
 
-/* Die frühere Regel `.id-chip.you` (immer blau) ist entfallen: Chips färben sich jetzt nach
-   Rolle, nicht nach Perspektive — siehe .role-host / .role-guest weiter oben. Die .you/.guest
-   Farbgebung der Review-Spalten unterscheidet dagegen weiter „meine Seite / deine Seite" und
-   bleibt, dort ist die Perspektive genau der Punkt. */
+/* There is no `.id-chip.you` rule: chips are coloured by role, not by perspective — see
+   .role-host / .role-guest above. The .you/.guest colouring of the review columns, by
+   contrast, still distinguishes "my side / your side"; there the perspective is the point. */
 
 .review-col.you { border-top: 3px solid var(--accent); border-radius: 2px; padding-top: 10px; }
 .review-col.guest { border-top: 3px solid var(--ok); border-radius: 2px; padding-top: 10px; }
@@ -1008,9 +1004,9 @@ body:not(.wizard) .card.is-active {
    mobile = "open wallet on this device" is the primary action, QR is the alternative */
 .auth-cta { display: flex; flex-direction: column; }
 .qr-hint--mobile { display: none; }
-/* Wer fragt. Kein Warnbanner — es ist keine Stoerung, sondern eine Angabe, die zur Abfrage
-   gehoert. Aber auch keine Fussnote: linke Kante markiert, normale Textfarbe statt --text-faint,
-   damit sie nicht zwischen den Hinweisen verschwindet. */
+/* Who is asking. No warning banner — it is not a fault but information that belongs to the
+   request. But not a footnote either: left edge marked, normal text colour instead of
+   --text-faint, so it does not vanish among the hints. */
 .rp-disclosure {
   color: var(--text);
   border-left: 3px solid var(--accent-border);
@@ -1018,14 +1014,14 @@ body:not(.wizard) .card.is-active {
   margin-bottom: 14px;
 }
 @media (min-width: 641px) {
-  /* Ohne eigenes `order` bekaeme dieser Absatz den Standardwert 0 und stuende zufaellig
-     richtig. Explizit -1, damit er es bleibt, wenn hier jemand umsortiert. */
+  /* Without its own `order` this paragraph would get the default 0 and be right only by
+     chance. Explicitly -1, so it stays that way if someone reorders here. */
   .auth-cta .rp-disclosure { order: -1; }
   .auth-cta .qr-hint--desktop { order: 1; }
   .auth-cta .qr { order: 2; }
   .auth-cta #auth-link { order: 3; margin-top: 12px; }
-  /* ACHTUNG: Wer hier ohne `order` einsortiert wird, bekommt den Standardwert 0 und springt
-     damit VOR den QR-Code. Genau so stand der Erneuern-Knopf zuerst ganz oben. */
+  /* CAUTION: anything placed here without `order` gets the default 0 and thereby jumps
+     IN FRONT OF the QR code. */
   .auth-cta #auth-renew { order: 4; }
 }
 @media (max-width: 640px) {
@@ -1152,7 +1148,7 @@ body:not(.wizard) .card.is-active {
   cursor: pointer;
 }
 
-/* ---- QES im Call: Dokument teilen & gemeinsam durchgehen (public/qes/) ---- */
+/* ---- QES in the call: share & review a document together (public/qes/) ---- */
 .qes-progress { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; margin: 8px 0; }
 .qes-verify { margin: 10px 0 4px; }
 .qes-hash {
@@ -1189,7 +1185,7 @@ body:not(.wizard) .card.is-active {
   background: var(--warn-soft); border: 1px solid var(--warn-border); color: var(--warn-text);
   border-radius: var(--r-pill); padding: 3px 9px; text-transform: uppercase;
 }
-/* identity binding verdict (§6) on a signature row */
+/* identity binding verdict on a signature row */
 .qes-bind {
   flex: none; font-size: 0.78rem; font-weight: 600;
   border-radius: var(--r-pill); padding: 3px 9px;
@@ -1331,9 +1327,9 @@ body.wizard #wiz-nav button { min-width: 108px; }
 }
 .wiz-dots .dot.active { background: var(--accent); transform: scale(1.25); }
 .wiz-dots .dot.done { background: var(--ok); }
-/* step gating — nach Schritt-Art (data-wkind): mode · you · guest · invite · auth.
- * Jeder Schritt blendet die NICHT-zugehoerigen Teile aus (nie display erzwingen,
- * damit die natuerliche Darstellung erhalten bleibt). */
+/* step gating — by step kind (data-wkind): mode · you · guest · invite · auth.
+ * Each step hides the parts that do NOT belong to it (never force display, so the
+ * natural rendering is preserved). */
 body.wizard[data-wkind="mode"] #setup .party.you,
 body.wizard[data-wkind="mode"] #setup .party.guest,
 body.wizard[data-wkind="mode"] #openroom-row,
@@ -1353,9 +1349,9 @@ body.wizard[data-wkind="auth"] #setup .party.you,
 body.wizard[data-wkind="auth"] #setup .party.guest,
 body.wizard[data-wkind="auth"] #openroom-row,
 body.wizard[data-wkind="auth"] #setup .preview { display: none; }
-/* Eigene Ausweisung nur auf dem Ausweisen-Schritt */
+/* Own identification only on the identify step */
 body.wizard:not([data-wkind="auth"]) #auth { display: none; }
-/* Einladen-Box auf ihrem eigenen Schritt UND (eingeklappt) auf dem Ausweisen-Schritt */
+/* Invite box on its own step AND (collapsed) on the identify step */
 body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #share { display: none; }
 body.wizard[data-wkind="auth"] #share.wiz-collapsed > :not(h2) { display: none; }
 body.wizard[data-wkind="auth"] #share > h2 { cursor: pointer; display: flex; align-items: center; }
@@ -1393,10 +1389,10 @@ body.wizard[data-wkind="auth"] #share:not(.wiz-collapsed) > h2::after { transfor
 html.native-app header { margin-bottom: 10px; }
 html.native-app .stepper { margin-bottom: 14px; }
 
-/* Logo: der Gold-Sternkranz dreht sich sehr langsam (nur transform, GPU). Das Schild
- * bleibt statisch. Respektiert prefers-reduced-motion (dann steht der Kranz still). */
+/* Logo: the gold ring of stars rotates very slowly (transform only, GPU). The shield
+ * stays static. Respects prefers-reduced-motion (the ring then stands still). */
 
-/* Impressum-Verweise: Settings-Tab-Link + Web-Footer-Link */
+/* Imprint links: settings-tab link + web footer link */
 .settings-row .settings-link { color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600; }
 .settings-row .settings-link:hover { text-decoration: underline; }
 .app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; }
@@ -1414,10 +1410,6 @@ html.native-app .stepper { margin-bottom: 14px; }
   border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   padding: 20px 20px 6px; margin-top: 14px;
 }
-/* Sichtbar, solange eingerichtet wird — genau wie die Häkchen-Liste, die sie ersetzt.
-   Nicht mehr auf den ersten Wizard-Schritt beschränkt: in der linken Spalte steht sie dem
-   Formular nicht im Weg, und ein Argument, das nach dem ersten Klick verschwindet, ist
-   keines. */
 body:not(.in-call) .app-strengths { display: block; }
 .app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
 .strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
@@ -1430,21 +1422,21 @@ body:not(.in-call) .app-strengths { display: block; }
 .strength h3 { font-size: 0.92rem; margin: 0 0 2px; color: var(--navy); font-weight: 650; }
 .strength p { font-size: 0.86rem; margin: 0; color: var(--text-muted); line-height: 1.45; }
 
-/* ---- Tooltip: immer dunkel (Fix: --navy ist im Dark-Theme hell → weiß auf weiß) ---- */
+/* ---- Tooltip: always dark (--navy is light in the dark theme → white on white) ---- */
 .tooltip { background: #0f172a; color: #eef2f8; border: 1px solid rgba(255, 255, 255, 0.12); }
 .tooltip::after { border-top-color: #0f172a; }
 
-/* ---- Status-Zeile: Signalfarben je Zustand (data-state) ---- */
+/* ---- status line: signal colours per state (data-state) ---- */
 .status[data-state="ok"]::before { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); animation: none; }
 .status[data-state="ok"] { border-color: var(--ok-border); }
-.status[data-state="wait"]::before { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); } /* Puls aus Basis bleibt = „aktiv wartend" */
+.status[data-state="wait"]::before { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); } /* pulse from the base rule stays = "actively waiting" */
 .status[data-state="wait"] { border-color: var(--ok-border); }
 .status[data-state="prompt"]::before { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .status[data-state="prompt"] { border-color: var(--accent-border); }
 .status[data-state="error"]::before { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); animation: none; }
 .status[data-state="error"] { border-color: var(--danger); color: var(--danger-strong); }
 
-/* ---- Verbinden-Button: grüne Signalfarbe + Warte-Zustand ---- */
+/* ---- connect button: green signal colour + waiting state ---- */
 #confirm-btn { background: var(--ok-btn); box-shadow: 0 8px 18px -8px rgba(5, 150, 105, 0.5); }
 #confirm-btn:focus-visible { box-shadow: 0 0 0 3px var(--ok-soft), 0 0 0 1px var(--ok); }
 #confirm-btn.waiting, #confirm-btn.waiting:disabled {
@@ -1452,9 +1444,9 @@ body:not(.in-call) .app-strengths { display: block; }
   opacity: 1; cursor: default; animation: pulse 2s ease-in-out infinite;
 }
 
-/* Getrennt-Banner: die Statuszeile zeigt beim Verbindungsabriss weiter den letzten Stand,
-   ein eingefrorenes Fenster sieht also aus wie ein funktionierendes. Deshalb ein eigenes,
-   deutlich abgesetztes Element in Warnfarbe — mit Knopf, damit man nicht neu laden muss. */
+/* Disconnected banner: on a connection drop the status line keeps showing the last state,
+   so a frozen window looks like a working one. Hence a separate, clearly set-off element in
+   warning colour — with a button, so nobody has to reload. */
 .offline-bar {
   display: flex;
   align-items: center;
@@ -1470,17 +1462,16 @@ body:not(.in-call) .app-strengths { display: block; }
 .offline-bar svg { width: 18px; height: 18px; flex: none; }
 .offline-bar span { flex: 1; }
 .offline-bar button { flex: none; }
-/* Solange getrennt: der Rest der Oberfläche ist ein Standbild und darf nicht so wirken,
-   als sei er aktuell. Zurückgenommen statt gesperrt — Lesen bleibt möglich. Bewusst eine
-   Aufzählung statt :not() — eine Opazität auf dem Banner-Elternteil ließe sich an dessen
-   Kindern nicht wieder aufheben. */
+/* While disconnected: the rest of the UI is a still image and must not look current.
+   Dimmed rather than locked — reading stays possible. Deliberately a list instead of
+   :not() — an opacity on the banner's parent could not be undone on its children. */
 body.link-down #status-bar,
 body.link-down #stepper,
 body.link-down .card,
 body.link-down .schedule-actions { opacity: 0.55; }
 
-/* Wartebildschirm für einen noch nicht offenen Termin. Bewusst ruhig: Der Countdown soll
-   belegen, dass etwas passieren wird — nicht drängen. */
+/* Waiting screen for an appointment that is not open yet. Deliberately calm: the
+   countdown should show that something will happen — not push. */
 .invite-wait {
   display: flex;
   align-items: center;
@@ -1496,9 +1487,9 @@ body.link-down .schedule-actions { opacity: 0.55; }
   letter-spacing: 0.02em;
 }
 
-/* Netzwerk-Vorabprüfung. Zwei Stufen: gelb, wenn der Anruf über einen Umweg-Server läuft
-   (funktioniert, nur schwächer) — rot, wenn gar nichts hinausgeht. Bauform wie
-   .offline-bar, damit es sich nicht wie ein Fremdkörper anfühlt. */
+/* Network pre-flight. Two levels: yellow when the call runs through a relay server
+   (works, just weaker) — red when nothing gets out at all. Built like .offline-bar so it
+   does not feel out of place. */
 .netcheck-bar {
   display: flex;
   align-items: flex-start;
@@ -1522,14 +1513,14 @@ body.link-down .schedule-actions { opacity: 0.55; }
 .netcheck-bar summary { cursor: pointer; opacity: 0.85; }
 .netcheck-bar .hint { margin: 6px 0 0; color: inherit; opacity: 0.9; }
 
-/* „Code erneuern" — unauffällig, aber auffindbar. Er wird nur gebraucht, wenn der QR-Code
-   ins Leere läuft, und soll den Normalfall nicht überlagern. */
+/* "Code erneuern" — unobtrusive but findable. It is only needed when the QR code leads
+   nowhere, and should not overlay the normal case. */
 .auth-renew { margin-top: 12px; font-size: 0.85rem; }
 
-/* ---- Medien-Freigabe: stehender Hinweis statt verschluckter Fehler ----
-   Die Statuszeile taugt dafür nicht: sie wird beim Verbindungsaufbau zwei Zeilen später
-   überschrieben. Ein abgelehnter Kamerazugriff verschwand damit spurlos — der Anruf meldete
-   „Verbunden ✓" ohne Bild und Ton. Dieser Kasten bleibt, bis die Medien laufen. */
+/* ---- media permission: a standing notice instead of a swallowed error ----
+   The status line is no good for this: it is overwritten two lines later during connection
+   setup, so a denied camera access would vanish without trace — the call would report
+   "Verbunden ✓" without picture and sound. This box stays until media are running. */
 .media-notice {
   display: flex;
   align-items: center;
@@ -1547,16 +1538,16 @@ body.link-down .schedule-actions { opacity: 0.55; }
 .media-notice .icon { width: 20px; height: 20px; flex: none; }
 .media-notice #media-notice-text { flex: 1 1 14rem; }
 .media-notice #media-retry-btn { flex: none; }
-/* Wartend ist kein Fehler: solange der Browser-Dialog offen ist, ist alles in Ordnung. */
+/* Waiting is not an error: while the browser dialog is open, everything is fine. */
 .media-notice[data-state="wait"] {
   background: var(--accent-soft);
   border-color: var(--accent-border);
   color: var(--accent-strong);
 }
 
-/* ---- Bereitschaft pro Person: ausgewiesen → bestätigt → Medien → verbunden ----
-   Vier Punkte im Chip statt einer weiteren Textzeile. Sie beantworten die Frage, die ein
-   binäres „bestätigt ✓" offenließ: Woran hängt es gerade? */
+/* ---- readiness per person: verified → confirmed → media → connected ----
+   Four dots in the chip instead of another line of text. They answer the question a
+   binary "bestätigt ✓" left open: what is it waiting on right now? */
 .steps { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; flex: none; }
 .steps i {
   width: 5px; height: 5px; border-radius: 50%;
@@ -1565,12 +1556,12 @@ body.link-down .schedule-actions { opacity: 0.55; }
 }
 .steps i.on { opacity: 1; }
 
-/* ---- Verbinden: „du bist dran" sichtbar machen ----
-   Signalfarbe und Puls nur, wenn die Gegenseite fertig ist und wirklich nur noch diese
-   Bestätigung fehlt. Sonst pulst dauernd etwas und niemand schaut mehr hin. */
+/* ---- connect: make "your turn" visible ----
+   Signal colour and pulse only when the other side is done and really only this
+   confirmation is missing. Otherwise something pulses all the time and nobody looks. */
 #confirm-btn.urgent { animation: pulse 2s ease-in-out infinite; }
-/* `.row` ist ein nicht umbrechender Flex-Container — ohne das Umbrechen hier würde der
-   Bereitschaftstext die beiden Knöpfe zusammenquetschen statt eine eigene Zeile zu nehmen. */
+/* `.row` is a non-wrapping flex container — without wrapping here the readiness text
+   would squeeze the two buttons together instead of taking its own line. */
 .review-actions { flex-wrap: wrap; }
 .review-ready {
   flex: 1 1 100%;
@@ -1580,12 +1571,12 @@ body.link-down .schedule-actions { opacity: 0.55; }
   color: var(--ok-strong);
 }
 
-/* ---- Verbinden erreichbar halten (schmale Screens) ----
-   Der Knopf steht am Fuß einer langen Karte und liegt auf dem Handy regelmäßig außerhalb des
-   Bildes; bestätigt die Gegenseite, bemerkt niemand, dass er dran ist.
-   Bewusst KEIN Modal (Begründung im Markup) und bewusst kein IntersectionObserver: eine
-   Leiste, die je nach Scrollstand erscheint und verschwindet, ändert dabei die Seitenhöhe und
-   kann sich selbst ein- und ausblenden. Immer unten heften ist vorhersagbar. */
+/* ---- keep connect reachable (narrow screens) ----
+   The button sits at the foot of a long card and is regularly off-screen on a phone; when
+   the other side confirms, nobody notices it is their turn.
+   Deliberately NO modal (reasoning in the markup) and deliberately no IntersectionObserver:
+   a bar that appears and disappears depending on scroll position changes the page height
+   and can toggle itself. Always pinning it to the bottom is predictable. */
 @media (max-width: 640px) {
   #review:not([hidden]) .review-actions {
     position: fixed;
@@ -1598,8 +1589,8 @@ body.link-down .schedule-actions { opacity: 0.55; }
     box-shadow: 0 -6px 20px -12px rgba(0, 0, 0, 0.45);
   }
   #review:not([hidden]) .review-actions > button { flex: 1 1 0; }
-  /* Platz, damit die Leiste den Karteninhalt nie verdeckt — konstant, nicht zustandsabhängig,
-     sonst springt die Seite beim Scrollen. */
+  /* Room so the bar never covers the card content — constant, not state-dependent,
+     otherwise the page jumps while scrolling. */
   #review:not([hidden]) { padding-bottom: 96px; }
 }
 
@@ -1607,18 +1598,18 @@ body.link-down .schedule-actions { opacity: 0.55; }
   #confirm-btn.urgent { animation: none; box-shadow: 0 0 0 3px var(--ok-soft); }
 }
 
-/* ---- Einladen: die Folge nennen, bevor sie eintritt ----
-   Sobald der Gast beitritt, ist die Einrichtung schreibgeschützt (app.js, lockSetup). Die
-   Karte steht deshalb bewusst UNTER dem Formular — sie bekommt dafür einen Hinweis und wird
-   als fälliger Schritt markiert, statt gleichwertig unten mitzulaufen. */
+/* ---- invite: state the consequence before it happens ----
+   As soon as the guest joins, the setup is read-only (app.js, lockSetup). The card therefore
+   deliberately sits BELOW the form — it gets a notice and is marked as the step due, instead
+   of running along at the bottom as an equal. */
 .invite-lock-note { color: var(--warn-text); }
 #share.is-next { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-ring); }
 
-/* ---- Schalter „Schritt für Schritt einrichten" ----
-   Sitzt in der Karte, nicht in einem Menü: Wer aussteigen will, soll den Ausweg dort finden,
-   wo er geführt wird. Bleibt in jedem Schritt sichtbar — deshalb taucht `.wiz-switch` in
-   keiner der `data-wkind`-Ausblendregeln auf. Zurückhaltend gesetzt, damit er nicht mit den
-   eigentlichen Entscheidungen der Karte konkurriert. */
+/* ---- "Schritt für Schritt einrichten" switch ----
+   Sits in the card, not in a menu: whoever wants out should find the exit where they are
+   being guided. Stays visible on every step — which is why `.wiz-switch` appears in none of
+   the `data-wkind` hide rules. Set with restraint so it does not compete with the card's
+   actual decisions. */
 .wiz-switch {
   display: flex; align-items: center; gap: 8px;
   margin: -2px 0 16px;
@@ -1629,10 +1620,10 @@ body.link-down .schedule-actions { opacity: 0.55; }
 .wiz-switch input { width: 15px; height: 15px; flex: none; accent-color: var(--accent); }
 .wiz-switch:hover { color: var(--text); }
 
-/* ---- Vorschauzeile: zwei Zeilen, getrennt schaltbar ----
-   Früher trennte ein <br> die beiden Hälften. Im geführten Modus muss die Gast-Hälfte auf dem
-   Schritt „Ich teile" verschwinden: Was der Gast teilt, wird erst im nächsten Schritt gewählt,
-   und eine Zusammenfassung, die das vorwegnimmt, liest sich wie eine schon getroffene Wahl. */
+/* ---- preview line: two lines, toggled separately ----
+   In guided mode the guest half must disappear on the "Ich teile" step: what the guest
+   shares is only chosen in the next step, and a summary that anticipates it reads like a
+   choice already made. */
 .preview > span { display: block; }
 body.wizard[data-wkind="you"] .preview .prev-guest { display: none; }
 

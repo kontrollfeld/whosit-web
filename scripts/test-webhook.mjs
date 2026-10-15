@@ -11,9 +11,9 @@
  *   - NO PROTECTION: a call that only knows the sessionId would get through.
  *   - EMPTY TOKEN: `?t=` against an empty stored value would be valid in a naive implementation,
  *     because two empty buffers are equal in length and content.
- *   - REPLAY: until 2026-08-19 both sessionId AND token stayed valid indefinitely after a
- *     successful check. An intercepted callback could be replayed any number of times — each
- *     time adding a fresh entry to the verification record. A record showing more events than
+ *   - REPLAY: if sessionId AND token stayed valid after a successful check, an intercepted
+ *     callback could be replayed any number of times — each time adding a fresh entry to the
+ *     verification record. A record showing more events than
  *     actually happened is worthless as evidence.
  *   - MIX-UP: one participant's token must not work for another.
  *

@@ -93,14 +93,12 @@ const PLANNED_GRACE_MS = 15 * 60_000;
 
 // Apply the WRP whitelist to a client-supplied attribute list (see ./wrp-policy).
 //
-// This REPLACES the previous sanitizeAttrs(), which silently dropped anything it didn't
-// recognise and left no trace. What changed is not just the vocabulary but the
-// accountability: an out-of-scope attribute is now always AUDITED, and — once
+// An out-of-scope attribute is always AUDITED, never silently dropped, and — with
 // EUDI_WRP_STRICT=on — refused outright with `policy_violation`.
 //
-// Until then (transitional default) it is narrowed to the whitelist, because clients are
-// already deployed: the TestFlight build still offers birth_date/issuing_country/address
-// and does not understand a policy_violation error. Narrowing keeps those sessions working
+// Otherwise (transitional default) it is narrowed to the whitelist, because older clients
+// still offer birth_date/issuing_country/address and do not understand a policy_violation
+// error. Narrowing keeps those sessions working
 // on LESS data than they asked for. Either way the wallet request is identical — the
 // egress gate in eudiplo.ts is hard in both modes.
 function applyPolicy(
@@ -135,11 +133,10 @@ function configId(profileIds: string[], attrs: string[]): string {
  *
  * EUDIPLO consumes an offer on the FIRST presentation attempt, even when that attempt fails or
  * is cancelled. It then rejects every further presentation — towards the wallet, not towards
- * us: we learn nothing about it. Anyone rescanning the same QR code runs into a dead end that
+ * this service: nothing reports it. Anyone rescanning the same QR code runs into a dead end that
  * looks, from outside, like a wallet bug.
  *
- * The old offer is therefore discarded rather than reused. Observed in a real wallet's log on
- * 2026-08-15.
+ * The old offer is therefore discarded rather than reused.
  */
 async function reissueAuthOffer(participant: Participant, room: Room, origin: string): Promise<void> {
   participant.offer = undefined;
@@ -309,9 +306,9 @@ app.use(express.json({ limit: '256kb' }));
 //   - NEITHER set → framing denied, as without the feature.
 // Otherwise: deny framing entirely (clickjacking protection). See scripts/embed-token.mjs.
 //
-// NO WILDCARD DEFAULT: this used to be `'*'`, so enabling `embed` without configured origins
-// allowed ANY third-party page to frame the app — an attack surface created by omission rather
-// than by decision. Opening framing is now always a deliberate act; `assertProductionConfig`
+// NO WILDCARD DEFAULT: enabling `embed` without configured origins must not let ANY
+// third-party page frame the app — an attack surface created by omission rather than by
+// decision. Opening framing is always a deliberate act; `assertProductionConfig`
 // rejects a configured `*` in production.
 const EMBED_ANCESTORS = (process.env.EMBED_ALLOWED_ANCESTORS || '').trim();
 const EMBED_SECRET = (process.env.EMBED_SIGNING_SECRET || '').trim();
@@ -421,8 +418,8 @@ app.post('/invite', inviteCors, (req, res) => {
     res.status(501).json({ error: 'planned invites not configured' }); return;
   }
   // Staff token (tenant instance, see ./staff-token). Without EUDI_STAFF_SECRET the layer is
-  // off and /invite stays open as before — otherwise this change would break a running
-  // deployment where any visitor may create an appointment.
+  // off and /invite stays open, so existing deployments where any visitor may create an
+  // appointment keep working.
   if (staffGateActive()) {
     const tok = (req.headers['x-staff-token'] as string | undefined) ?? (req.body || {}).staff;
     const v = verifyStaffToken(tok);
@@ -476,7 +473,7 @@ app.post('/invite', inviteCors, (req, res) => {
   res.json({ room, hostToken, guestToken, nbf, exp, requestedAttrs, disclosedAttrs, mode });
 });
 
-// Apple Wallet Termin-Pass: a scheduled verified call as .pkpass (Community `wallet-pass`,
+// Apple Wallet appointment pass: a scheduled verified call as .pkpass (Community `wallet-pass`,
 // config-gated — see src/wallet-pass.ts). Stateless: everything the pass
 // needs travels in the query; the QR/back-link is the room URL on THIS origin.
 app.get('/wallet-pass', (req, res) => {
@@ -545,14 +542,14 @@ app.get('/', (req, res, next) => {
   }
   // `inv` marks a scheduled call: the room id sits inside the signed invitation, not in the
   // URL — so this parameter must open the app, not an operator's start page. `pair` is the
-  // phone-signature QR code (./device-pairing): missing here, a phone whose link was not taken
-  // by the app landed on the operator's start page, and the pairing page never appeared.
+  // phone-signature QR code (./device-pairing): without it, a phone whose link is not taken
+  // by the app would land on the operator's start page and never see the pairing page.
   if ('room' in req.query || 'inv' in req.query || 'pair' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
     return BRANDING ? sendBranded(res, 'index.html') : next();
   }
   // Where the operator supplies a start page, it owns "/" — see ./operator-pages. Without one
   // the bare URL opens the tool itself: this is a calling application, not a website, and an
-  // instance someone else runs should not greet visitors with our marketing.
+  // instance someone else runs should not greet visitors with the project's marketing.
   const home = OPERATOR ? resolveOperatorHome(OPERATOR) : null;
   if (home) { res.set('Cache-Control', 'no-cache').sendFile(home); return; }
   return BRANDING ? sendBranded(res, 'index.html') : next();
@@ -562,8 +559,7 @@ app.get('/', (req, res, next) => {
  * Serve HTML carrying this instance's branding (see ./branding).
  *
  * Must run BEFORE express.static, otherwise the static handler ships the file unchanged.
- * Without branding configuration this is a pure pass-through — the response then differs from
- * the previous one by not a single byte.
+ * Without branding configuration this is a pure pass-through — the file is served unchanged.
  */
 function sendBranded(res: express.Response, file: string): void {
   const full = path.join(__dirname, '..', 'public', file);
@@ -574,11 +570,10 @@ function sendBranded(res: express.Response, file: string): void {
   });
 }
 // MUST be registered BEFORE the branding interceptor below. Express takes the first matching
-// route, and that one matches every *.html — so with branding switched on it served the
-// placeholder from public/ and the operator's real imprint became unreachable under
-// /impressum.html, while /impressum still worked. That is how it reached production on
-// 2026-09-03: the interceptor only exists when branding is configured, so the ordering was
-// harmless until EUDI_BRAND_LOGO was set.
+// route, and that one matches every *.html — with branding switched on it would serve the
+// placeholder from public/ and make the operator's real imprint unreachable under
+// /impressum.html, while /impressum still worked. The interceptor only exists when branding
+// is configured, so a wrong order only shows once EUDI_BRAND_LOGO is set.
 // Operator pages (imprint, privacy notice, press) take precedence over the neutral placeholders
 // in public/. Registered before express.static, which would otherwise ship the placeholder.
 // Without EUDI_OPERATOR_PAGES nothing is registered here and the behaviour is unchanged.
@@ -661,9 +656,8 @@ const publicCors: express.RequestHandler = (_req, res, next) => {
  * Liveness — and how much would be destroyed by a restart.
  *
  * `activeRooms` exists because room state lives in this process (see ./rooms: `const rooms = new
- * Map()`). A redeployment therefore drops every call in progress, silently, mid-sentence. With one
- * instance that was a thing to remember; with an instance per customer it has to be something a
- * deployment can ASK, so a rollout can wait for a quiet moment per instance instead of taking a
+ * Map()`). A redeployment therefore drops every call in progress, silently, mid-sentence. With
+ * many instances this has to be something a deployment can ASK, so a rollout can wait for a quiet moment per instance instead of taking a
  * guess for all of them.
  *
  * Deliberately a count and nothing else: no room ids, no participants, no timestamps. This
@@ -687,11 +681,11 @@ const TURN_URL = (process.env.TURN_URL || '').trim();       // e.g. turn:call.ex
  * TURN over TLS, usually on 443 — e.g. `turns:turn.example.org:443?transport=tcp`.
  *
  * The reason is the corporate-network case: there, outbound UDP is often blocked entirely and
- * TCP limited to 80/443. Our regular relay port 3478 then fails, whether UDP or TCP, and the
+ * TCP limited to 80/443. The regular relay port 3478 then fails, whether UDP or TCP, and the
  * call cannot be established. Over 443 the traffic looks like HTTPS and passes most filters.
  *
  * Uses the same secret and the same short-lived credentials as `TURN_URL`; it is the same
- * coturn, just a different route to it. Without this variable everything stays as before — an
+ * coturn, just a different route to it. Without this variable no TLS route is advertised — an
  * unset value must never advertise an unreachable server.
  */
 const TURN_TLS_URL = (process.env.TURN_TLS_URL || '').trim();
@@ -811,7 +805,7 @@ app.get('/credential-catalog', publicCors, (_req, res) => {
   res.json({ credentials: enabledFeatures().has('in-call-credentials') ? publicCatalog() : [] });
 });
 
-// Signature providers for the in-call QES ceremony (public/qes/ §8). Hard
+// Signature providers for the in-call QES ceremony. Hard
 // edition gate like the credential catalog: CSC/QTSP entries (incl. their OAuth client
 // config) only leave the server when the Pro `qes-csc` feature is active — Community
 // always gets the mock provider only (demo signature, not legally binding).
@@ -826,7 +820,7 @@ app.get('/signature-providers', publicCors, (_req, res) => {
   });
 });
 
-// Room size: full mesh with the `multi-party` capability (Community since 2026-09-25);
+// Room size: full mesh with the `multi-party` capability (Community);
 // 1:1 when the operator switches it off. See src/rooms.ts + maxParticipants() in src/server.ts for realistic limits per call mode.
 const MAX_PARTICIPANTS_MESH = Math.max(2, Number(process.env.EUDI_MAX_PARTICIPANTS || 5));
 function isMultiParty(): boolean { return enabledFeatures().has('multi-party'); }
@@ -951,13 +945,12 @@ app.post('/webhook/:sessionId', (req, res) => {
     // must not leave their claims behind either. See ./verifier-session.
     purgeVerifierSession(participant.verifierSessionId, 'verified');
     participant.verifierSessionId = undefined;
-    // REPLAY PROTECTION: the token is consumed from here on. Previously both sessionId AND
-    // webhookToken stayed valid indefinitely after a successful check — an intercepted
-    // callback could be replayed any number of times. The attribute values would have stayed
-    // filtered by the whitelist, so this was never about a data leak but about the RECORD:
+    // REPLAY PROTECTION: the token is consumed from here on. Otherwise both sessionId AND
+    // webhookToken would stay valid indefinitely after a successful check — an intercepted
+    // callback could be replayed any number of times. The attribute values would stay
+    // filtered by the whitelist, so this is not about a data leak but about the RECORD:
     // `recordVerification` and the host gate would run again each time. An audit record
-    // showing more events than actually happened is worthless as evidence — and evidencability
-    // is the Pro promise.
+    // showing more events than actually happened is worthless as evidence.
     //
     // Rotated rather than cleared: an empty token would be valid against an empty `?t=` (see
     // above). The FAILURE path deliberately does not rotate — there `reissueAuthOffer` renews
@@ -969,14 +962,14 @@ app.post('/webhook/:sessionId', (req, res) => {
     // Channel binding: EUDIPLO fails a presentation whose KB-JWT does not carry the
     // transaction_data hashes, or carries them wrongly (sdjwtvcverifier.service.ts). A success
     // AFTER the binding was sent is therefore the proof that the wallet signed exactly this
-    // DTLS fingerprint — nothing needs recomputing on our side.
+    // DTLS fingerprint — nothing needs recomputing here.
     participant.channelBound = participant.pendingBinding === true;
     participant.pendingBinding = undefined;
     // `claims` came through normalizeClaims, which copies an allow-list of whitelisted
     // keys — so an over-disclosing presentation cannot widen what we hold here. This
     // object lives in process memory only (see rooms.ts) and is never persisted.
     participant.claims = claims;
-    // Derived attributes are computed AFTER the cryptographic check, from our own salt —
+    // Derived attributes are computed AFTER the cryptographic check, from the server's own salt —
     // never taken from the payload, so a wallet cannot dictate its own pseudonym.
     if (attrs.some(isDerived)) {
       participant.claims.pseudonym_id = derivePseudonym(room.id, participant.clientId);
@@ -1043,7 +1036,7 @@ app.post('/webhook/:sessionId', (req, res) => {
 // Registered AFTER every route of the application on purpose — a file in the operator's directory
 // must never hide a function of the application, and placed here it cannot: anything the
 // application answers never reaches this point. Without EUDI_OPERATOR_PAGES it is not registered
-// and an unknown path ends in Express's plain 404, exactly as before.
+// and an unknown path ends in Express's plain 404.
 if (OPERATOR) {
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
@@ -1133,7 +1126,7 @@ function publicOriginFrom(req: http.IncomingMessage): string {
   const env = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
   // Honor an explicitly-set PUBLIC_URL (incl. http://localhost for local dev + the
   // EUDIPLO mock). Only a placeholder is ignored; when unset we derive from the proxy
-  // headers so it just works behind Traefik/Coolify without any env config.
+  // headers so it just works behind a reverse proxy without any env config.
   if (env && !env.includes('CHANGE-ME')) return env;
   const h = req.headers;
   // On a WebSocket upgrade the forwarded proto is ws/wss; the webhook is plain
@@ -1175,17 +1168,16 @@ function broadcastStatus(room: Room): void {
   // waiting for an explicit "start" would just be friction for the common 1:1 case.
   const gatheredMultiParty = multiParty && room.participants.length > 2;
   const reviewOpen = openRoom ? true : (gatheredMultiParty ? room.starting : room.participants.length >= 2);
-  // Values flow only between people who have BOTH verified and confirmed. This used to check
-  // the SUBJECT alone: in an open room, anyone who had merely joined then received the names and
-  // claims of everyone already confirmed — reciprocity, the one thing the review screen promises
-  // ("the contents only become visible once both agree"), did not hold. Found in a live
-  // three-party call, where the third person saw the others' names before consenting.
+  // Values flow only between people who have BOTH verified and confirmed. Checking the
+  // SUBJECT alone is not enough: in an open room, anyone who had merely joined would receive the
+  // names and claims of everyone already confirmed — reciprocity, the one thing the review screen
+  // promises ("the contents only become visible once both agree"), would not hold.
   //
   // Both terms are needed and they are not the same: the SUBJECT gate stops us handing out the
   // data of someone who has not agreed to share it, the RECIPIENT gate stops us handing data to
   // someone who has not agreed to the exchange at all.
   //
-  // For 1:1 and gathered multi-party rooms nothing changes — there `revealed` already requires
+  // For 1:1 and gathered multi-party rooms the extra terms are redundant — there `revealed` already requires
   // every participant present to be verified and confirmed, so both terms are always true.
   const showValues = (recipient: Participant, subject: Participant) =>
     revealed
@@ -1198,7 +1190,7 @@ function broadcastStatus(room: Room): void {
       verified: peer.verified,
       confirmed: peer.confirmed,
       // Channel binding. The fingerprint is no secret — it is in the SDP anyway — but the
-      // client needs it FROM US in order to hold it against the remote description it
+      // client needs it FROM THE SERVER in order to hold it against the remote description it
       // actually received. Only sent along when the binding is in fact evidenced.
       channelBound: peer.channelBound === true,
       dtlsFingerprint: peer.channelBound ? peer.dtlsFingerprint : undefined,
@@ -1355,11 +1347,9 @@ wss.on('connection', (ws, request) => {
       room.openRoom = isMultiParty() && msg.openRoom === true; // late-join multi-guest room
       room.requestedAttrs = nextRequest;
       // ENFORCE BEFORE ANYTHING ELSE. From here on only `newDisclose` exists — the list the
-      // client asked for must not survive this block. Two ways it goes wrong if it does, and
-      // both actually happened:
-      //   - The wallet is only asked for what the client wanted. Seen in a real wallet's log
-      //     on 2026-08-15: "requested items: [family_name]" — the given name is missing, so
-      //     the gate can never match and refuses its own operator. The dummy verifier hides
+      // client asked for must not survive this block. Two ways it goes wrong if it does:
+      //   - The wallet is only asked for what the client wanted, e.g. "requested items:
+      //     [family_name]" — the given name is missing, so the gate can never match and refuses its own operator. The dummy verifier hides
       //     this, because it sends both names regardless.
       //   - With an EMPTY selection no offer would be created at all, the host would count as
       //     verified immediately, and since the gate only applies in the webhook they would
@@ -1396,8 +1386,8 @@ wss.on('connection', (ws, request) => {
     // This is the consent record for the symmetric double-opt-in — audited (types only)
     // because "the user agreed" is the legal basis for the exchange that follows, and it
     // must be evidenced.
-    // "Renew code" — the case we do NOT notice ourselves: the wallet consumed the offer,
-    // EUDIPLO rejects it, and we hear nothing about it. Without this path the only remedy
+    // "Renew code" — the case the server cannot detect: the wallet consumed the offer,
+    // EUDIPLO rejects it, and the server is not told. Without this path the only remedy
     // would be reloading the page.
     if (msg.type === 'renew-auth') {
       const hit = ext.roomStore.findByWs(ws);
@@ -1460,7 +1450,7 @@ wss.on('connection', (ws, request) => {
       const pairing = createPairing(owner, () => send(owner.ws, { type: 'pair-closed', reason: 'expired' }));
       // The link's origin comes from THIS request (like the wallet's webhook), not from
       // PUBLIC_URL: that constant falls back to localhost when the variable is unset, which is
-      // the normal case behind Coolify — the phone's camera then opened localhost:3000.
+      // common behind a reverse proxy — the phone's camera would then open localhost:3000.
       send(ws, { type: 'pair-created', reqId, token: pairing.token, url: `${origin}/?pair=${pairing.token}` });
       return;
     }
@@ -1488,7 +1478,7 @@ wss.on('connection', (ws, request) => {
         send(other, { type: 'pair-closed', reason: 'ended' });
         return;
       }
-      // Opaque to us: SDP and ICE candidates. Bounded, because relaying is all we do.
+      // Opaque to the server: SDP and ICE candidates. Bounded, because relaying is all it does.
       const data = msg.data;
       if (JSON.stringify(data ?? null).length > 65_536) return;
       send(other, { type: 'pair-signal', data });
@@ -1496,8 +1486,8 @@ wss.on('connection', (ws, request) => {
     }
 
     // ---- Certificate for a device-held signing key (Pro, qes-device) ----------------
-    // The device generated its key in the secure element and sends a CSR signed with it. We
-    // decide WHO may ask: only a participant verified in THIS call, over their own signalling
+    // The device generated its key in the secure element and sends a CSR signed with it. The
+    // server decides WHO may ask: only a participant verified in THIS call, over their own signalling
     // connection. The names come from their PID as the verifier reported it, never from the
     // CSR. See CertificateIssuer in ./core/ports.
     if (msg.type === 'device-cert-request') {
@@ -1530,7 +1520,7 @@ wss.on('connection', (ws, request) => {
     }
 
     // ---- In-call credential requests (Pro, server-enforced) -------------------
-    // Host asks a participant for a further catalog credential (e.g. Wohnraum-ID)
+    // Host asks a participant for a further catalog credential
     // DURING the call. See src/credential-requests.ts for the state machine.
     if (msg.type === 'credential-request') {
       if (!enabledFeatures().has('in-call-credentials')) return; // hard edition gate
@@ -1647,12 +1637,11 @@ wss.on('connection', (ws, request) => {
     // Then actually REMOVE me from the room. `hangup` is an explicit, deliberate end —
     // unlike a WebSocket close, which keeps the participant alive for GRACE_MS so a phone
     // returning from the wallet app can resume (see the 'close' handler below). Conflating
-    // the two left a hung-up participant in the room as verified+confirmed, so re-opening
-    // the room URL resumed that ghost, got `ready` again and rendered a "connecting" call
-    // against a peer whose PeerConnection was long gone — a permanent
-    // "Verbindung wird aufgebaut …" with the old call's names still on screen.
-    // Now the slot is freed: re-opening a finished room either says "room full" (it stays
-    // locked) or, once empty, hands out a fresh room. The resume path is untouched.
+    // the two would leave a hung-up participant in the room as verified+confirmed, so re-opening
+    // the room URL would resume that ghost, get `ready` again and render a permanent
+    // "connecting" call against a peer whose PeerConnection was long gone.
+    // With the slot freed, re-opening a finished room either says "room full" (it stays
+    // locked) or, once empty, hands out a fresh room. The resume path is unaffected.
     if (msg.type === 'hangup') {
       const hit = ext.roomStore.findByWs(ws);
       if (!hit) return;
@@ -1779,7 +1768,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // otherwise the two keep tearing the session away from each other.
   if (result.replaced) {
     send(result.replaced, { type: 'session-taken-over' });
-    try { result.replaced.close(4001, 'session taken over'); } catch { /* schon zu */ }
+    try { result.replaced.close(4001, 'session taken over'); } catch { /* already closed */ }
     console.log(`[room] ${participant.role} (${clientId.slice(0, 8)}) taken over in another tab`);
   }
   if (result.reclaimed) {

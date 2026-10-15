@@ -5,9 +5,8 @@
  *
  * Two reasons this exists; the second matters more day to day:
  *
- * 1. SECURITY: `eudiplo.ts` used to fall back to an instance we operate, root secret included.
- *    An incompletely configured deployment would then quietly authenticate against someone
- *    else's verifier instead of surfacing the mistake.
+ * 1. SECURITY: an incompletely configured deployment must not quietly authenticate against
+ *    someone else's verifier instead of surfacing the mistake.
  * 2. SELF-HOSTING: every deployment brings its OWN verifier — its own EUDIPLO instance, its own
  *    access certificate on its own domain. Configuration is therefore the single most common
  *    source of failure, and without this check it only shows up when a citizen opens their
@@ -45,7 +44,7 @@ export interface ConfigProblem {
 /**
  * Values that unmistakably came from a template and never belong in production.
  * Deliberately specific: a pattern like `/secret/` would wrongly match genuine random values.
- * `kontrollfeld-secret` is listed because that exact string used to be a default in the source
+ * `kontrollfeld-secret` is listed because older releases shipped that exact string as a default
  * — it is therefore publicly known, and must be rejected even when set on purpose.
  */
 const PLACEHOLDERS = [
@@ -241,8 +240,7 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
   }
 
   // --- a branded instance carrying the original operator's identity -----------------
-  // The failure this prevents was observed while setting up the first tenant instance: a
-  // deployment duplicated from an existing one keeps every variable, and the ones that assert
+  // The failure this prevents: a deployment duplicated from an existing one keeps every variable, and the ones that assert
   // WHO OWNS THIS DOMAIN keep asserting the wrong owner — quietly, because everything still
   // works.
   //
@@ -272,8 +270,7 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
   }
 
   // --- framing / clickjacking -------------------------------------------------------
-  // Only relevant when `embed` is active and the signed-token mode is not in use. A missing
-  // value used to produce `frame-ancestors *`, i.e. framing from anywhere.
+  // Only relevant when `embed` is active and the signed-token mode is not in use.
   if (ctx.embedEnabled && !isSet(env.EMBED_SIGNING_SECRET)) {
     const anc = (env.EMBED_ALLOWED_ANCESTORS || '').trim();
     if (!anc) {

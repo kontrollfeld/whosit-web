@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Thin transport client for the shared EUDIPLO instance (reused from eudi_wallet_login).
+ * Thin transport client for the EUDIPLO verifier instance.
  *
  * EUDIPLO does the OpenID4VP heavy lifting (mdoc/SD-JWT, X.509, signed/encrypted
  * requests). This module is protocol-agnostic: it authenticates (tenant secret rotates →
@@ -54,11 +54,9 @@ export {
 /**
  * NO DEFAULTS for the instance address or credentials.
  *
- * There used to be fallbacks here pointing at an instance we operate, root secret included.
- * That was already questionable and is now simply wrong: every deployment brings its OWN
- * verifier (its own EUDIPLO instance, its own access certificate on its own domain). A default
- * would let an incompletely configured server run quietly against someone else's host —
- * meanwhile shut down — instead of surfacing the configuration error.
+ * Every deployment brings its OWN verifier (its own EUDIPLO instance, its own access
+ * certificate on its own domain). A default would let an incompletely configured server run
+ * quietly against someone else's host instead of surfacing the configuration error.
  *
  * If something is missing, startup aborts (`assertProductionConfig` in ./core/startup-checks),
  * or the first token request fails with a message naming the missing variable — never its
@@ -102,8 +100,8 @@ export interface Offer {
   crossDeviceUri: string; // cross-device (render as QR, scan with a separate phone)
   /**
    * EUDIPLO's own session id for this offer — the handle needed to DELETE the session once
-   * we are done with it (see ./verifier-session). NOT our `participant.sessionId`: that one
-   * is ours, appears in the webhook URL, and means nothing to the verifier.
+   * the call is done with it (see ./verifier-session). NOT `participant.sessionId`: that one
+   * belongs to this service, appears in the webhook URL, and means nothing to the verifier.
    *
    * Optional because an older instance (or the dummy) may not report it. Without it the
    * session cannot be purged early and falls back to the instance's TTL — which is why the
@@ -133,7 +131,7 @@ async function postJson(path: string, body: unknown, token?: string): Promise<an
 }
 
 /** Root login → rotate the tenant secret → tenant token. The tenant secret is
- *  not static (it gets rotated), so we recover it through the root account. */
+ *  not static (it gets rotated), so it is recovered through the root account. */
 async function rotateAndGetToken(): Promise<string> {
   // Legacy path for a SHARED instance whose tenant secret one does not know. For the normal
   // case — your own instance — EUDIPLO_CLIENT_SECRET is the way. Without root credentials this
@@ -168,8 +166,8 @@ async function getToken(forceRotate = false): Promise<string> {
   }
 
   // Reuse the last known tenant secret first; only rotate when it no longer works.
-  // This keeps secret rotations rare so we don't fight the eudi_wallet_login app
-  // over the shared tenant.
+  // This keeps secret rotations rare, so other clients of a shared tenant are not
+  // repeatedly locked out.
   if (!forceRotate && cachedTenantSecret) {
     try {
       const t = await postJson('/api/oauth2/token', { client_id: TENANT_ID, client_secret: cachedTenantSecret });
@@ -203,8 +201,8 @@ const registeredConfigs = new Set<string>();
 
 /**
  * What a verifier config is for. `pid` = the pre-connect identity gate, subject to the
- * WRP attribute whitelist. `catalog` = an in-call credential request (Pro, e.g.
- * Wohnraum-ID, see src/credential-requests.ts): a different credential type with its own
+ * WRP attribute whitelist. `catalog` = an in-call credential request (see
+ * src/credential-requests.ts): a different credential type with its own
  * claim vocabulary and its own consent step, so the PID whitelist does not apply — but it
  * must be named explicitly, so no caller reaches the unchecked path by forgetting an
  * argument.
@@ -218,7 +216,7 @@ export type VerifierConfigKind = 'pid' | 'catalog';
  * in — the paths are what the wallet actually receives, so this catches a hand-built
  * query, a drifted profile definition and a tampered claim path alike.
  * Also enforces `intent_to_retain: false` on every claim: a retention flag on the wire
- * would contradict the zero-retention architecture even if we then discarded the data.
+ * would contradict the zero-retention architecture even if the data were then discarded.
  */
 function assertPidQueryWithinPolicy(dcql: DcqlQuery): void {
   const permitted = permittedPidClaimPaths();
@@ -349,7 +347,7 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
  * to `webhookUrl` when the wallet responds.
  *
  * NO `client_id` / `client_id_scheme` in the body: EUDIPLO derives the client_id from the
- * access certificate (`x509_hash:<SHA-256 of the DER>`, measured 2026-08-09), so the fields
+ * access certificate (`x509_hash:<SHA-256 of the DER>`), so the fields
  * never had an effect. 6.2.0 dropped them silently; since 7.0 the offer schema is strict and
  * answers them with HTTP 400 — every sign-in would fail.
  */
@@ -372,7 +370,7 @@ export async function createVerifierOffer(
     // schema, and rejects forged POSTs from anyone who only guesses the sessionId.
     webhook: { url: webhookUrl, auth: { type: 'none' } },
     // Same-device return: after the wallet finishes, EUDIPLO redirects the user-agent
-    // here. We point it at the room URL — on iOS a Universal Link reopens the app, in a
+    // here. It points at the room URL — on iOS a Universal Link reopens the app, in a
     // browser it returns to the tab. Harmless for cross-device (redirect fires on the
     // wallet device); the webhook + client polling drive the flow regardless.
     ...(redirectUri ? { redirectUri } : {}),
@@ -420,7 +418,7 @@ function warnIfUnpurgeable(offer: Offer): void {
  * Delete a verifier session at EUDIPLO — hard, not "mark as done".
  *
  * `DELETE /api/session/:id` (session.controller.ts) removes the row that holds the
- * presented claims and cascades to that session's log entries. It is scoped to our tenant
+ * presented claims and cascades to that session's log entries. It is scoped to the caller's tenant
  * and answers 204 even for an id that does not exist, so a double call is harmless and a
  * foreign id is not an information leak either.
  *

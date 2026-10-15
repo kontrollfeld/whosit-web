@@ -3,8 +3,8 @@
 /**
  * The startup check — a bolt that is only useful if it actually engages.
  *
- * Why this test exists: until 2026-08-19 `eudiplo.ts` had defaults pointing at someone else's
- * verifier instance, root secret included. An incompletely configured instance would therefore
+ * Why this test exists: `eudiplo.ts` once had defaults pointing at a fixed verifier instance,
+ * root secret included. An incompletely configured instance would therefore
  * start without complaint and quietly authenticate against a verifier that was not its own. The
  * defaults are gone; to stop them coming back, the check itself is checked here.
  *
@@ -98,7 +98,7 @@ for (const [variable, value] of [
 }
 
 console.log('\nThe old default secret from the source code is rejected by name');
-// 'kontrollfeld-secret' was a fallback in the code until 2026-08-19 and is therefore publicly
+// 'kontrollfeld-secret' was once a fallback in the code and is therefore publicly
 // known. It MUST fail even when someone sets it deliberately.
 const compromised = problems({ ...OK_ENV, EUDIPLO_CLIENT_SECRET: undefined, EUDIPLO_ROOT_ID: 'kontrollfeld', EUDIPLO_ROOT_SECRET: 'kontrollfeld-secret' });
 check('recognised as fatal', fatalNames(compromised).includes('EUDIPLO_ROOT_SECRET'), JSON.stringify(compromised));

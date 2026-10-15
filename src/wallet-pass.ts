@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Apple Wallet Termin-Pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
+ * Apple Wallet appointment pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
  * a scheduled verified call
  * as a .pkpass "appointment ticket": appears on the lock screen at call time
  * (relevantDate) and carries the room link as QR + back-field (Universal Link →

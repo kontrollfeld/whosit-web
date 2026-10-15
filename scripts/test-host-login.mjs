@@ -7,8 +7,7 @@
  * both given and family name, no matter what was asked for. A real wallet presents only what the
  * DCQL asks for. The bug this test guards against lived in exactly that gap: offer creation
  * received the list the client wanted instead of the enforced one, the wallet was asked only for
- * `family_name` (observed in a real wallet's log on 2026-08-15), and the gate rejected its own
- * operator. Against the mock, that would have been green.
+ * `family_name`, and the gate rejected its own operator. Against the mock, that would have been green.
  *
  * The verifier here therefore releases only claims that were genuinely requested — and makes the
  * question itself checkable.
@@ -153,9 +152,9 @@ const logs = new Map();
 /**
  * Report an occupied port immediately instead of interrogating SOMEONE ELSE'S server.
  *
- * Without this the test ran against servers left over from an earlier round and reported
- * timeouts whose cause was documented nowhere — the checks then said nothing about the code you
- * had just changed.
+ * Without this the test can run against servers left over from an earlier run and report
+ * timeouts with no visible cause — the checks then say nothing about the code you have just
+ * changed.
  */
 async function assertPortFree(port) {
   try {
@@ -173,7 +172,7 @@ async function assertPortFree(port) {
 function startServer(port, extraEnv) {
   const base = `http://127.0.0.1:${port}`;
   // detached: `npx` is only the wrapper; signalling it leaves the actual Node process alive.
-  // That is exactly how servers were left behind and skewed the next run. With a process group
+  // Servers left behind that way skew the next run. With a process group
   // of its own, the signal at the end reaches the whole chain.
   const s = spawn('npx', ['tsx', 'src/server.ts'], {
     detached: true,

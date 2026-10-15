@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Do the instances we run actually run what we shipped?
+ * Do the deployed instances actually run what was shipped?
  *
- * WHY THIS EXISTS. On 2026-09-15 the first tenant instance (lhd.id-call.eu) was found serving
- * 1.16.67 / f0b3c23 — four releases behind, frozen since 15 August. Nothing had failed: the
- * deploy trigger knew exactly one webhook, and a Coolify deployment that reports "Build step
- * skipped" looks like a success. The instance was branded, reachable, green, and stale.
+ * WHY THIS EXISTS. A deployment can go stale without anything failing: a deploy trigger that
+ * misses one instance, or a deployment that reports "Build step skipped", looks like a success
+ * while the instance stays branded, reachable, green, and several releases behind.
  *
- * That is survivable with one instance and unacceptable with a paid white-label offering, where
- * "updates reach every instance automatically" is the product. A promise nobody verifies is a
- * promise nobody keeps, so this verifies it — from the OUTSIDE, over HTTP, against the running
- * instance, which is the only vantage point a deploy pipeline cannot lie to.
+ * With several instances, "updates reach every instance automatically" has to be verified. This
+ * verifies it — from the OUTSIDE, over HTTP, against the running instance, which is the only
+ * vantage point a deploy pipeline cannot lie to.
  *
  * WHAT IT CHECKS, per instance:
  *   1. the revision it serves (/version.json) against the one expected
@@ -20,8 +18,8 @@
  *      a branded instance that never names its actual relying party, or one that offers hosting
  *      to anyone.
  *
- * THE LIST IS NOT IN THIS REPOSITORY. Which customers run an instance is business data, and this
- * repository is mirrored publicly. Pass it in:
+ * THE LIST IS NOT IN THIS REPOSITORY. Which instances exist is deployment data, not source.
+ * Pass it in:
  *
  *   EUDI_INSTANCES="https://www.whosit.eu,https://lhd.whosit.eu" node scripts/check-instances.mjs
  *   node scripts/check-instances.mjs --list ./instanzen.txt --commit f0b3c23

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* SignatureProvider abstraction for the in-call QES ceremony (public/qes/ §5).
+/* SignatureProvider abstraction for the in-call QES ceremony.
  *
  * A provider signs a document digest on behalf of THIS participant. The ceremony code
- * (doc-share.js, later ceremony.js) only ever talks to this interface, so mock (demo),
- * CSC remote signing (Pro, Phase 6) and wallet-native QES (ARF, stub) stay swappable:
+ * (doc-share.js) only ever talks to this interface, so mock (demo),
+ * CSC remote signing (Pro) and wallet-native QES (ARF, stub) stay swappable:
  *
  *   { id, label, kind, qualified, maxLevel,
  *     authorize(ctx): Promise<void>,             // OAuth/SCA step; no-op for mock
@@ -17,7 +17,7 @@
  *
  * IMPORTANT: the MockSigningProvider produces a DEMO signature — a self-signed,
  * session-lifetime certificate whose subject is filled from the participant's own
- * verified PID claims (so the identity-binding demo of Phase 4 works end-to-end).
+ * verified PID claims (so the identity-binding demo works end-to-end).
  * It is NOT a qualified signature and NOT legally binding; the UI must keep the
  * permanent "Demo" banner visible wherever such a signature appears (`qualified:false`
  * travels with every result). Qualified signatures arrive with the CSC/QTSP provider.
@@ -147,8 +147,8 @@ export async function buildDetachedCmsWith(data, certsDer, signFn) {
   return cms.toSchema().toBER(false);
 }
 
-/** The demo shape of the above: a WebCrypto key signs. (Kept under its old name for the
- *  mock and scripts/test-qes.mjs; goes with the mock once the device provider has proven out.) */
+/** The demo shape of the above: a WebCrypto key signs. (Used by the mock and
+ *  scripts/test-qes.mjs.) */
 export async function buildDetachedCms(data, cert, privateKey) {
   return buildDetachedCmsWith(data, [cert.toSchema(true).toBER(false)], async (bytes) =>
     p1363ToDer(await self.crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, bytes)));
@@ -177,7 +177,7 @@ function mockProvider(entry, getIdentity) {
   };
 }
 
-/** Pro CSC remote signing (Phase 6) — declared here so the seam is visible. The signing flow
+/** Pro CSC remote signing — declared here so the seam is visible. The signing flow
  *  itself (QTSP OAuth, signHash) is implemented server-side in the commercially licensed
  *  pro/qes-csc.ts; this client only ever sees a 'csc' entry when that module is loaded. */
 function cscProvider(entry) {
@@ -201,7 +201,7 @@ function walletNativeProvider(entry) {
 
 /**
  * A provider a Pro module contributes (kind 'device-local'). Its implementation is NOT part of
- * this client: the server names a module under /pro-client/ and we load it from there — so an
+ * this client: the server names a module under /pro-client/ and it is loaded from there — so an
  * AGPL build without the Pro module never even receives the code. Everything the module needs
  * from here is handed over, rather than imported: in the app the module comes from the server
  * origin while this file comes from the local bundle, and a relative import would cross that

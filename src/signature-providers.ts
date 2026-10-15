@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Signature providers for the in-call QES ceremony (public/qes/, §5/§8).
+ * Signature providers for the in-call QES ceremony (public/qes/).
  *
  * A provider tells the CLIENT how to sign: 'mock' (Community demo — self-signed
  * certificate, NOT legally binding), 'csc' (Pro — remote QES at a QTSP via the CSC
- * API; Phase 6) or 'wallet-native' (stub for ARF wallet QES). The configuration is a
+ * API) or 'wallet-native' (stub for ARF wallet QES). The configuration is a
  * JSON file (path via EUDI_SIGNATURE_PROVIDERS); without one, Community serves a
  * single built-in mock entry so the demo ceremony works out of the box.
  *
@@ -66,7 +66,7 @@ let cached: SignatureProviderEntry[] | null = null;
 /**
  * Load + validate the provider config once; falls back to the built-in mock.
  * The committed ./signature-providers.json mirrors the built-in default and serves
- * as the operator's starting point (see README / public/qes/ §8).
+ * as the operator's starting point (see README).
  */
 export function loadSignatureProviders(): SignatureProviderEntry[] {
   if (cached) return cached;

@@ -3,10 +3,10 @@
 /**
  * Operator pages: whoever runs an instance provides its imprint, not this repository.
  *
- * Until 2026-09-01 `public/impressum.html` named Kontrollfeld GmbH — address, both managing
- * directors, phone number, register entry — and shipped with every self-hosted instance. The
- * operator thereby published the wrong provider (section 5 DDG requires the actual one), and we
- * were named as responsible for instances we neither run nor know of.
+ * An imprint shipped in `public/impressum.html` with real provider details would go out with
+ * every self-hosted instance. The operator would thereby publish the wrong provider (section 5
+ * DDG requires the actual one), and the software's author would be named as responsible for
+ * instances it neither runs nor knows of.
  *
  * `EUDI_OPERATOR_PAGES` points at a directory whose pages take precedence. Three properties have
  * to hold, and the third is the one that is easy to lose:
@@ -80,8 +80,8 @@ const body = async (port, path) => {
 try {
   const withPages = start(PORT_WITH, { EUDI_OPERATOR_PAGES: dir });
   const without = start(PORT_WITHOUT, {});
-  // Third instance: operator pages AND branding. This combination broke production on
-  // 2026-09-03 — see the check further down.
+  // Third instance: operator pages AND branding. This combination once broke — see the check
+  // further down.
   const branded = start(PORT_BRANDED, { EUDI_OPERATOR_PAGES: dir, EUDI_BRAND_LOGO: '/operator/logo/x.svg' });
   await waitFor(PORT_WITH);
   await waitFor(PORT_WITHOUT);
@@ -110,12 +110,10 @@ try {
 
   console.log('\nThe fork at "/" — start page versus application');
   {
-    // Nothing covered this until 2026-09-12, and it is the one place where a mistake breaks
-    // every invitation link that was ever sent. `?room=` must reach the application even when
+    // This is the one place where a mistake breaks every invitation link that was ever sent. `?room=` must reach the application even when
     // the operator has put a start page in front of it.
-    // Since 2026-09-13 the software ships no front page at all: "/" IS the tool. That is the
-    // honest default — an instance someone else runs should not greet visitors with marketing
-    // for id-call.eu, which is what it did until the pages moved to their own repository.
+    // The software ships no front page at all: "/" IS the tool. That is the honest default — an
+    // instance someone else runs should not greet visitors with marketing for another service.
     const withoutHome = await body(PORT_WITH, '/');
     check('without start.html the bare URL opens the application',
       withoutHome.text.includes('id="setup"') || withoutHome.text.includes('data-i18n'),
@@ -177,7 +175,7 @@ try {
 
   console.log('\nWith branding switched on as well');
   {
-    // The regression this prevents reached production. Branding registers an interceptor for
+    // The regression this prevents: branding registers an interceptor for
     // every *.html path in order to inject the operator's logo and colour. It was registered
     // BEFORE the operator pages, and Express takes the first matching route — so /impressum.html
     // served the placeholder from public/ while /impressum still served the real page. The
@@ -192,7 +190,7 @@ try {
 
   console.log('\nA page added while the service is running');
   {
-    // The failure this prevents actually happened in production: the available pages were
+    // The failure this prevents: the available pages were
     // determined once at startup, the operator copied their imprint into the directory
     // afterwards, and the route kept answering 404 — with the variable set and the file in
     // place. Resolution therefore happens per request, and this is where that is held.
@@ -212,7 +210,7 @@ try {
 
   console.log('\nThe operator\'s own site: short paths, root files, redirects, 404');
   {
-    // Added 2026-10-07 so an operator's website can grow (FAQ, articles, sitemap) without a
+    // So an operator's website can grow (FAQ, articles, sitemap) without a
     // release of this application. Everything here is consulted only after the application's own
     // routes — the check with health.html below is the one that must never break.
     mkdirSync(join(dir, 'artikel', 'zwei'), { recursive: true });

@@ -32,7 +32,7 @@ import { createHmac, randomBytes } from 'crypto';
 /**
  * Per-process, in-memory salt. Deliberately NOT configurable: a salt in the environment
  * would survive restarts and turn an ephemeral pseudonym into a stable, correlatable id
- * across calls — exactly the property we are avoiding.
+ * across calls — exactly the property to avoid.
  */
 const PROCESS_SALT = randomBytes(32);
 
@@ -56,7 +56,7 @@ export function derivePseudonym(roomId: string, clientId: string): string {
  */
 /**
  * `kind` is a domain separator, not a label: the same value under two kinds yields two
- * unrelated hashes, so fields cannot be correlated across a log. `session` was added for the
+ * unrelated hashes, so fields cannot be correlated across a log. `session` serves the
  * join line — a sessionId is one half of an access credential (the other is the webhook
  * token) and has no business appearing in a log in the clear.
  */

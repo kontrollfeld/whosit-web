@@ -306,9 +306,9 @@ try {
 
   console.log('\nThe QR link points at the instance, also without PUBLIC_URL');
   {
-    // The normal case behind Coolify: PUBLIC_URL unset. Until 2026-09-26 the link was built from
-    // the PUBLIC_URL constant, whose fallback is localhost — the phone's camera opened
-    // localhost:3000. It now comes from the request, like the wallet's webhook.
+    // The normal case behind a reverse proxy: PUBLIC_URL unset. Built from the PUBLIC_URL
+    // constant, whose fallback is localhost, the link would open localhost:3000 on the phone.
+    // It comes from the request instead, like the wallet's webhook.
     const PORT2 = APP_PORT + 10;
     const env2 = { ...process.env,
       PORT: String(PORT2), EUDI_EDITION: 'pro', EUDI_PRO_MODULE: './pro/index.ts',

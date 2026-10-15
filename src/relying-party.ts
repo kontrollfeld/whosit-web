@@ -6,17 +6,17 @@
  * On a white-labelled instance these come apart. The page carries the customer's name, logo and
  * colour (see ./branding), but the wallet shows whoever owns the ACCESS CERTIFICATE behind the
  * EUDIPLO tenant. That is not a configuration detail: EUDIPLO derives `client_id` as
- * `x509_hash:<SHA-256 of the DER>` from the certificate (measured 2026-08-09), so
+ * `x509_hash:<SHA-256 of the DER>` from the certificate, so
  * `VERIFIER_CLIENT_ID` has no effect and the tenant alone decides the visible identity.
  *
- * Measured on the first tenant instance (lhd.id-call.eu, August 2026): the page said "LHD
- * Bürgerservice", the wallet said "Kontrollfeld". Nothing in the interface explained the gap.
+ * On a white-labelled tenant instance the page showed the customer's name while the wallet
+ * showed the certificate owner. Nothing in the interface explained the gap.
  *
  * Whoever is shown one organisation and asked by another cannot give informed consent to the
  * request, and Art. 5a(4) EU 2024/1183 binds a request to a declared purpose and a declared
  * relying party. So the gap is not hidden, it is STATED — in the verification dialogue, above the
- * QR code, before anyone opens a wallet. Until now it was only a line in the startup log
- * (`src/server.ts`), which is the one place the person being asked never looks.
+ * QR code, before anyone opens a wallet. A line in the startup log (`src/server.ts`) alone
+ * would not do: that is the one place the person being asked never looks.
  *
  * This applies to every kind of operator, not only public ones. A bank, an insurer, a clinic, a
  * letting agent and a city desk differ in what they may ask for; they do not differ in owing the
@@ -25,7 +25,7 @@
  * Two variables:
  *
  *   EUDI_RP_NAME     The legal entity that holds the access certificate behind
- *                    EUDIPLO_CLIENT_ID — "Kontrollfeld GmbH", not a domain, not a tenant id.
+ *                    EUDIPLO_CLIENT_ID — a legal name, not a domain, not a tenant id.
  *   EUDI_BRAND_NAME  Already exists (./branding): whose name the page carries.
  *
  * NOT switchable off, deliberately: an operator who could suppress the sentence would be back at
