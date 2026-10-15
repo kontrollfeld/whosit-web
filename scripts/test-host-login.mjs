@@ -276,6 +276,22 @@ try {
   const st3 = [...host3.seen].reverse().find((m) => m.type === 'status');
   check('the host does NOT count as verified without a wallet', st3?.self?.verified !== true, `verified=${st3?.self?.verified}`);
 
+  console.log('\nwantAuth on a rejoin does not lower the host gate (OSS-S01)');
+  const r3b = room();
+  const host3b = participant(GATED_PORT, { roomId: r3b, clientId: 'c-host-3b' });
+  sockets.push(host3b);
+  await host3b.wait('auth');
+  host3b.send({ type: 'set-config', mode: 'video', requestedAttrs: [], disclosedAttrs: [] });
+  await new Promise((r) => setTimeout(r, 400));
+  host3b.close();
+  await new Promise((r) => setTimeout(r, 400));
+  const host3c = participant(GATED_PORT, { roomId: r3b, clientId: 'c-host-3b', wantAuth: true });
+  sockets.push(host3c);
+  await host3c.wait('joined');
+  await new Promise((r) => setTimeout(r, 600));
+  check('the rejoining host is not marked verified without a wallet', !host3c.seen.some((m) => m.type === 'status' && m.self?.verified === true));
+  check('the rejoining host is asked for a wallet presentation', !!host3c.find('auth'));
+
   console.log('\nAn unlisted name is rejected');
   const r4 = room();
   const host4 = participant(GATED_PORT, { roomId: r4, clientId: 'c-host-4' });
