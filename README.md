@@ -317,14 +317,23 @@ endpoints and replaces the wallet scan with a small "mock wallet" page. That way
 flow (verify → review → connect) runs on `localhost` — camera included, because `localhost` is a
 *secure context* (no HTTPS or ngrok needed).
 
-**Three terminals:**
+**Once, install the dependencies:**
+
+```bash
+npm ci
+```
+
+**Then three terminals:**
 
 ```bash
 # 1) Mock EUDIPLO  (endpoints + mock wallet page on :8080)
 npm run mock:eudiplo            # SELF_URL=http://localhost:8080 (default)
 
-# 2) The app against the mock
+# 2) The app against the mock — the mock ignores the client ID and secret, but without
+#    them the app never sends it a request ("verifier offer failed" in the browser)
 EUDIPLO_BASE_URL=http://localhost:8080 \
+EUDIPLO_CLIENT_ID=local-mock \
+EUDIPLO_CLIENT_SECRET=local-mock-secret \
 PUBLIC_URL=http://localhost:3000 \
 ALLOWED_ORIGINS=http://localhost:3000 \
 npm run dev
