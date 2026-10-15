@@ -22,3 +22,42 @@ secrets/
 # npm cache directory used by CI (`npm ci --cache .npm`). Never belongs in a commit, and listing it
 # here also keeps local tooling that walks the working tree from tripping over it.
 .npm/
+
+# Local environment variants. The templates are tracked.
+.env.*
+!.env.example
+!.env.selfhost.example
+
+# Keys and certificates. The only one that belongs in the repository is Apple's public
+# intermediate certificate for wallet passes.
+*.pem
+*.key
+*.p12
+*.pfx
+!assets/pass/AppleWWDRCAG4.pem
+
+# Runtime data of a local run (Pro audit trail, QES demo CA) and operator pages kept next to the
+# compose file (EUDI_OPERATOR_PAGES).
+/data/
+/pages/
+
+# Editors and IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating systems
+._*
+Thumbs.db
+desktop.ini
+
+# Build, test and tool caches
+*.tsbuildinfo
+coverage/
+.nyc_output/
+.eslintcache
+.cache/
+npm-debug.log*
