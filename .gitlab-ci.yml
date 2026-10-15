@@ -71,6 +71,9 @@ test:
     # install fails, the two tests say so and skip; everything else still runs.
     - |
       mkdir -p .modules
+      # Its own package.json makes .modules the project root for npm — without it npm walks up to
+      # the core's package.json, ignores .modules/.npmrc and asks registry.npmjs.org.
+      echo '{"private":true}' > .modules/package.json
       printf '@whosit:registry=%s/groups/144814503/-/packages/npm/\n%s/groups/144814503/-/packages/npm/:_authToken=%s\n' "$CI_API_V4_URL" "${CI_API_V4_URL#https:}" "$CI_JOB_TOKEN" > .modules/.npmrc
       if (cd .modules && npm install --no-audit --no-fund --no-save @whosit/qes-device); then
         export WHOSIT_QES_DEVICE_MODULE="$PWD/.modules/node_modules/@whosit/qes-device"
