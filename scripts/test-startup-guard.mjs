@@ -173,5 +173,17 @@ console.log('\nRunning without a verifier: explicit, and only then');
   check('the missing-verifier message names the way out', /EUDI_VERIFIER=none/.test(problems({}).find((p) => p.variable === 'EUDIPLO_BASE_URL')?.problem || ''));
 }
 
+console.log('\nThe dummy verifier: refused unless explicitly allowed');
+{
+  const mockProblem = (env) => problems(env).find((p) => /EUDI_ALLOW_MOCK_VERIFIER/.test(p.problem));
+  check('http://mock-eudiplo:8080 -> fatal', mockProblem({ ...OK_ENV, EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080' })?.fatal === true);
+  check('a /mock path -> fatal', mockProblem({ ...OK_ENV, EUDIPLO_BASE_URL: 'https://verifier.agency.example-real.eu/mock/' })?.fatal === true);
+  const allowed = problems({ ...OK_ENV, EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080', EUDI_ALLOW_MOCK_VERIFIER: 'true' });
+  check('with EUDI_ALLOW_MOCK_VERIFIER=true -> not fatal', fatalNames(allowed).length === 0, JSON.stringify(allowed));
+  check('with the opt-in a warning remains', allowed.some((p) => p.variable === 'EUDIPLO_BASE_URL' && !p.fatal));
+  check('a normal verifier -> no such problem', !mockProblem(OK_ENV));
+  check('EUDI_VERIFIER=none -> not checked', !mockProblem({ EUDI_VERIFIER: 'none', EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080' }));
+}
+
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
