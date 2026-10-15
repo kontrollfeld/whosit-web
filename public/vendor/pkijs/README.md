@@ -1,8 +1,8 @@
 # Vendored: PKI.js 3.4.0 + asn1js 3.0.10 (single-file ESM bundle)
 
 Self-hosted X.509/CMS toolkit for the in-call signing ceremony (`public/qes/`):
-mock-certificate generation (Phase 2), CMS/CAdES parsing and the certificate ↔ PID
-identity match (Phases 3–5). Lazy-loaded only when a signing step starts. Self-hosting
+mock-certificate generation, CMS/CAdES parsing and the certificate ↔ PID
+identity match. Lazy-loaded only when a signing step starts. Self-hosting
 keeps the CSP free of external script sources (kein externes Script, keine CDN-Abhängigkeit).
 
 - Sources: https://www.npmjs.com/package/pkijs (BSD-3-Clause, see LICENSE),

@@ -65,7 +65,7 @@ const verifier = http.createServer(async (req, res) => {
 // ------------------------------------------------------------------- Clients ----
 function socket(onOpen, port = APP_PORT) {
   const seen = [];
-  // Without PUBLIC_URL the server derives its origin from the proxy headers, as behind Coolify.
+  // Without PUBLIC_URL the server derives its origin from the proxy headers, as behind a reverse proxy.
   // Here there is no proxy, so say what one would: plain http.
   const ws = new WebSocket(`ws://127.0.0.1:${port}`, { headers: { 'x-forwarded-proto': 'http' } });
   const c = {
@@ -160,7 +160,7 @@ const app = spawn('npx', ['tsx', 'src/server.ts'], {
     EUDI_EDITION: 'pro',
     EUDI_PRO_MODULE: './pro/index.ts',
     EUDI_AUDIT_FILE: join(work, 'audit.jsonl'),
-    EUDI_IOS_APP_ID: 'W63PMKNPKY.com.kontrollfeld.eudiverifiedcall',
+    EUDI_IOS_APP_ID: 'ABCDE12345.com.example.app',
     EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
     EUDIPLO_CLIENT_ID: 'test-tenant',
     EUDIPLO_CLIENT_SECRET: 'test-tenant-secret',

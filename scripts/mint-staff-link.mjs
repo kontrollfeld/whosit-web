@@ -6,7 +6,7 @@
  *
  * Usage:
  *   EUDI_STAFF_SECRET=… node scripts/mint-staff-link.mjs \
- *     --base https://musterstadt.whosit.eu --label "buergerservice-schalter-3" [--days 365]
+ *     --base https://call.example.org --label "buergerservice-schalter-3" [--days 365]
  *
  * The finished link goes to the clipboard and NOWHERE ELSE. It is a bearer token: whoever holds
  * it can issue appointments on the authority's behalf. Printed to the terminal it would end up in

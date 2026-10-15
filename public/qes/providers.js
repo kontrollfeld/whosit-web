@@ -184,8 +184,8 @@ function cscProvider(entry) {
   return {
     id: entry.id, label: entry.label, kind: 'csc',
     qualified: true, maxLevel: entry.maxLevel || 'B-T',
-    async authorize() { throw new Error('NotYetAvailable: CSC signing lands in Phase 6'); },
-    async sign() { throw new Error('NotYetAvailable: CSC signing lands in Phase 6'); },
+    async authorize() { throw new Error('NotYetAvailable: CSC signing is not yet available'); },
+    async sign() { throw new Error('NotYetAvailable: CSC signing is not yet available'); },
   };
 }
 

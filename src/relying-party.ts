@@ -3,14 +3,14 @@
 /**
  * WHO is actually asking for someone's ID — and does the page say so?
  *
- * On a white-labelled instance these come apart. The page carries the customer's name, logo and
+ * On a branded instance these can come apart. The page carries the operator's chosen name, logo and
  * colour (see ./branding), but the wallet shows whoever owns the ACCESS CERTIFICATE behind the
  * EUDIPLO tenant. That is not a configuration detail: EUDIPLO derives `client_id` as
  * `x509_hash:<SHA-256 of the DER>` from the certificate, so
  * `VERIFIER_CLIENT_ID` has no effect and the tenant alone decides the visible identity.
  *
- * On a white-labelled tenant instance the page showed the customer's name while the wallet
- * showed the certificate owner. Nothing in the interface explained the gap.
+ * Without a disclosure the page would show the brand name while the wallet shows the certificate
+ * owner, and nothing in the interface would explain the gap.
  *
  * Whoever is shown one organisation and asked by another cannot give informed consent to the
  * request, and Art. 5a(4) EU 2024/1183 binds a request to a declared purpose and a declared
@@ -49,9 +49,9 @@ export interface RelyingPartyDisclosure {
  *
  * Disclosure is required when the page is branded AND any of:
  *
- *   - the instance queries through the DEFAULT tenant. Then the certificate is the original
- *     operator's, whatever any name variable claims — this case ignores the names on purpose,
- *     because an operator who sets EUDI_RP_NAME to the customer's own name while running on
+ *   - the instance queries through the DEFAULT tenant. Then the certificate is the default
+ *     tenant owner's, whatever any name variable claims — this case ignores the names on purpose,
+ *     because an operator who sets EUDI_RP_NAME to the branded organisation's own name while running on
  *     someone else's certificate has described the situation wrongly, and the description must
  *     not be able to switch the disclosure off.
  *   - EUDI_RP_NAME is unset. Unknown is not the same as identical; the honest reading of a

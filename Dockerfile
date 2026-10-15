@@ -42,12 +42,10 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/pro ./pro
 COPY public ./public
 COPY assets ./assets
-# Catalogue for in-call credentials: the default path is <app root>/credential-catalog.json
-COPY credential-catalog.json ./
 
 # Version stamp. `public/version.json` is committed and carries the version from package.json —
 # but the commit SHA in it is only as fresh as the last manual stamp. Deployment platforms hand the
-# revision they are building to the build (Coolify sets SOURCE_COMMIT), so when it is present,
+# revision they are building to the build (commonly as SOURCE_COMMIT), so when it is present,
 # re-stamp: then the footer of the running instance proves which revision is actually live.
 #
 # Without the argument the committed file is left untouched, which is what a plain `docker build .`
@@ -63,7 +61,7 @@ EXPOSE 3000
 # looks for after a break-in.
 #
 # This matters beyond convenience: deployment platforms run their check INSIDE the container
-# (Coolify does), and their default command assumes curl. Without this instruction the container
+# (some do), and their default command assumes curl. Without this instruction the container
 # is reported unhealthy while the application answers perfectly well, and a rolling update rolls
 # back a deployment that was fine.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \

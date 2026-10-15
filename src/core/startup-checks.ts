@@ -277,7 +277,7 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
     }
   }
 
-  // --- a branded instance carrying the original operator's identity -----------------
+  // --- a branded instance carrying a copied environment's identity ------------------
   // The failure this prevents: a deployment duplicated from an existing one keeps every variable, and the ones that assert
   // WHO OWNS THIS DOMAIN keep asserting the wrong owner — quietly, because everything still
   // works.
