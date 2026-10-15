@@ -24,7 +24,9 @@
  *   EUDI_INSTANCES="https://www.whosit.eu,https://lhd.whosit.eu" node scripts/check-instances.mjs
  *   node scripts/check-instances.mjs --list ./instanzen.txt --commit f0b3c23
  *
- * Expected revision: --commit, else $CI_COMMIT_SHORT_SHA, else the committed public/version.json.
+ * Expected revision: --commit, else $EUDI_EXPECTED_COMMIT, else $CI_COMMIT_SHORT_SHA, else the
+ * committed public/version.json. EUDI_EXPECTED_COMMIT is the same as --commit, for pipelines that
+ * pass settings by environment; only the first 7 characters are compared.
  * Exit code 1 if any instance lags or is unreachable — so a scheduled job turns red rather than
  * a person having to remember to look.
  */

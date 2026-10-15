@@ -40,7 +40,7 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   // Community — always enabled.
-  { id: 'calls', title: '1:1 Video/Audio/Chat', edition: 'community', clientGated: false },
+  { id: 'calls', title: 'Video/Audio/Chat calls', edition: 'community', clientGated: false },
   { id: 'eudi-verification', title: 'EUDI PID verification + privacy gate', edition: 'community', clientGated: false },
   { id: 'copy-link', title: 'Copy invite link', edition: 'community', clientGated: false },
   { id: 'self-host', title: 'Self-hosting stack', edition: 'community', clientGated: false },

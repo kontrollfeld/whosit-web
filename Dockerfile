@@ -55,6 +55,13 @@ COPY scripts/gen-version.mjs ./scripts/gen-version.mjs
 RUN if [ -n "$SOURCE_COMMIT" ]; then node scripts/gen-version.mjs; fi
 EXPOSE 3000
 
+# Run unprivileged. The only runtime write inside /app is the Pro audit trail and the QES demo CA,
+# which default to ./data (EUDI_AUDIT_FILE / EUDI_QES_CA_FILE); create it owned by `node` so it also
+# works without a volume. A volume mounted over /app/data (or any path configured via those
+# variables) must be writable by uid 1000 — that is the operator's job.
+RUN mkdir -p /app/data && chown node:node /app/data
+USER node
+
 # The image says for itself whether it is healthy. Node asks its own endpoint — deliberately
 # without curl or wget: adding a HTTP client to a production image just so the image can poll
 # itself widens the attack surface for nothing, and it is exactly the kind of tool an attacker

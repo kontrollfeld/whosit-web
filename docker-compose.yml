@@ -12,7 +12,7 @@
 #
 # Optional EUDIPLO DUMMY for frontend work (no wallet, no cryptography, no substitute for a
 # verifier):  docker compose --profile mock up
-# See README.selfhost.md for the full walkthrough.
+# See README.md ("Self-hosting in 5 steps") for the full walkthrough.
 
 name: whosit-web
 
@@ -36,6 +36,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      # SECURITY: read access to the Docker socket is effectively root on the host (the API can
+      # start privileged containers; ":ro" only protects the socket file, not the API). For a
+      # hardened setup put a socket proxy in front, e.g. tecnativa/docker-socket-proxy
+      # (CONTAINERS=1 only), and point --providers.docker.endpoint at it.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-acme:/acme
     networks: [web]
@@ -47,15 +51,21 @@ services:
     # them "/" simply opens the call screen.
     # volumes:
     #   - ./pages:/data/pages:ro
+    # (and, in the environment block below: EUDI_OPERATOR_PAGES: /data/pages)
     restart: unless-stopped
     expose:
       - "3000"                    # internal only; Traefik terminates TLS and proxies
+    # .env is passed in full; the environment block below overrides it (and derives from DOMAIN).
+    env_file:
+      - path: .env
+        required: false
     environment:
+      # EUDI_OPERATOR_PAGES: /data/pages   # uncomment together with the ./pages volume above
       PUBLIC_URL: "https://${DOMAIN}"
       PORT: "3000"
       ALLOWED_ORIGINS: "https://${DOMAIN}"
-      # community (default) is the full product, group calls included; pro adds audit-trail and
-      # qes-csc and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
+      # community (default) is the full product, group calls included; pro adds audit-trail,
+      # qes-csc and qes-device and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
       EUDI_EDITION: "${EUDI_EDITION:-community}"
       # EUDI_VERIFIER=none: no verifier at all, anonymous calls only (see .env.selfhost.example).
       EUDI_VERIFIER: "${EUDI_VERIFIER:-}"
@@ -66,14 +76,12 @@ services:
       EUDIPLO_CLIENT_ID: "${EUDIPLO_CLIENT_ID:-}"
       # The recommended access path (a fixed tenant client); the ROOT pair above is legacy.
       EUDIPLO_CLIENT_SECRET: "${EUDIPLO_CLIENT_SECRET:-}"
-      VERIFIER_REQUEST_ID: "${VERIFIER_REQUEST_ID}"
       # Without a trust list EUDIPLO rejects every presentation (see .env.example).
       EUDI_TRUST_LIST_IDS: "${EUDI_TRUST_LIST_IDS:-}"
       # Your TURN relay; the app mints ephemeral TURN-REST credentials from TURN_SECRET
-      # (see README.selfhost.md → "TURN").
+      # (see README.md → "Wiring up TURN properly").
       TURN_URL: "turn:${DOMAIN}:3478"
-      TURN_SECRET: "${TURN_SECRET}"
-      TURN_REALM: "${DOMAIN}"
+      TURN_SECRET: "${TURN_SECRET:?set TURN_SECRET in .env (openssl rand -hex 32)}"
       STUN_URLS: "${STUN_URLS:-}"
       TURN_PUBLIC_FALLBACK: "${TURN_PUBLIC_FALLBACK:-}"
     labels:
@@ -98,7 +106,7 @@ services:
     command: >
       -c /etc/coturn/turnserver.conf
       --realm=${DOMAIN}
-      --static-auth-secret=${TURN_SECRET}
+      --static-auth-secret=${TURN_SECRET:?set TURN_SECRET in .env (openssl rand -hex 32)}
       --external-ip=${TURN_EXTERNAL_IP}
 
   # --- optional: EUDIPLO DUMMY (`--profile mock`) ---
