@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 - [ ] Does not affect any feature assignment
 - [ ] Community
-- [ ] Pro — and the code lives in `pro/` or behind a gate in the core
+- [ ] Pro — and the code lives in a module repository, not here
 - [ ] The registry entry in `src/core/features.ts` is up to date (including a short rationale)
 
 ## Verification

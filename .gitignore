@@ -30,3 +30,5 @@ secrets/
 # npm cache directory used by CI (`npm ci --cache .npm`). Never belongs in a commit, and listing it
 # here also keeps local tooling that walks the working tree from tripping over it.
 .npm/
+# Modules installed for tests (CI: the qes-device module for the QES end-to-end tests)
+.modules/

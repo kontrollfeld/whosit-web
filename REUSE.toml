@@ -27,13 +27,6 @@ path = "public/version.json"
 SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
-# Commercially licensed (see pro/LICENSE and
-# LICENSES/LicenseRef-Commercial-whosit.txt).
-[[annotations]]
-path = ["pro/package.json", "pro/package-lock.json", "pro/tsconfig.json"]
-SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
-SPDX-License-Identifier = "LicenseRef-Commercial-whosit"
-
 # Third-party components with their own licences — the texts sit next to the files themselves,
 # with an overview in NOTICE.
 [[annotations]]

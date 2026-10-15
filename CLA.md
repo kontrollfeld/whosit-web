@@ -10,9 +10,9 @@ By agreeing to this document you do **not** give up ownership of your work. You 
 and may use your contribution anywhere else, for any purpose, including commercially. You grant
 the project rights to use it — you do not transfer it.
 
-> **Why this is needed:** the project is dual-licensed. Most of it is AGPL; the `pro/`
-> directory is commercially licensed (see [`pro/LICENSE`](pro/LICENSE)), and the hosted service
-> at whosit.eu runs both together. That combination is only permissible because the rights are
+> **Why this is needed:** the project is dual-licensed. This repository is AGPL; the
+> commercially licensed features are modules released separately, and the hosted service at
+> whosit.eu runs both together. That combination is only permissible because the rights are
 > held in one place — nobody is bound by their own copyleft licence. A contribution without
 > these grants would make it unlawful, which means we could not merge it. We would rather
 > explain that up front than turn down finished work.

@@ -16,7 +16,7 @@
  *     all of them, and the operator's off switch reaches module capabilities too.
  *
  * The modules used here are fixtures written into a temporary directory — the test must not
- * depend on pro/, which the AGPL core may not import (see check-licence-boundary).
+ * depend on any real module, which the AGPL core may not import (see check-licence-boundary).
  *
  * Usage: npm run test:modules
  */

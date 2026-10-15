@@ -1,17 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# whosit — ein Dockerfile, zwei Ergebnisse.
+# whosit — the core image. AGPL code only, freely redistributable.
 #
-#   docker build .                            → AGPL-Image, frei weitergebbar
-#   docker build --build-arg WITH_PRO=1 .     -> the Pro image, DO NOT redistribute
+#   docker build .
 #
-# Why the distinction: `pro/` is under a commercial licence that forbids distribution (see
-# pro/LICENSE). An image containing `pro/` therefore must not be published. The default build
-# leaves the directory out — the result contains AGPL code only and may go into any registry.
-#
-# This replaces the previous two-repository chain: the Pro image was built from a separate
-# repository that pulled the Community core in via `git clone` with a read token, and had to force
-# a no-cache rebuild because the clone layer otherwise reused stale code. All of that is gone.
+# The commercially licensed features are modules released on their own (@whosit/audit-trail,
+# @whosit/qes-csc, @whosit/qes-device) and are not in this repository. An instance that runs them
+# is built FROM this image plus its modules — see the instance repository pattern in the README.
+# Until 2026-10 a second build (WITH_PRO=1) put a pro/ directory into the image; that is gone.
 
 # ---- build stage: Abhängigkeiten installieren, TypeScript übersetzen ----
 FROM node:22-slim AS build
@@ -22,19 +18,6 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-# `pro/` is a standalone package with its own tsconfig — the main build above does not know about
-# it, which guarantees the licence boundary structurally (verified by
-# `npm run check:licence-boundary`).
-ARG WITH_PRO=0
-COPY pro ./pro
-RUN if [ "$WITH_PRO" = "1" ]; then \
-      cd pro && npm ci --no-audit && npm run build; \
-    else \
-      # Empty the directory but keep it: the COPY below needs it, and this way no commercially
-      # licensed code ends up in the freely redistributable image.
-      find pro -mindepth 1 -delete; \
-    fi
-
 # ---- runtime stage: production dependencies, compiled output and static files only ----
 FROM node:22-slim
 WORKDIR /app
@@ -43,7 +26,6 @@ ENV PORT=3000
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/pro ./pro
 COPY public ./public
 COPY assets ./assets
 # Catalogue for in-call credentials: the default path is <app root>/credential-catalog.json
@@ -72,7 +54,7 @@ EXPOSE 3000
 # back a deployment that was fine.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# Modules are NOT loaded automatically — EUDI_MODULES=./pro (or the older EUDI_PRO_MODULE) has to
-# be set. If a listed module is missing, does not fit or conflicts, startup aborts in production
-# rather than quietly carrying on without it (see src/module-loader.ts).
+# Modules are NOT part of this image. An instance image adds them and lists them in EUDI_MODULES;
+# if a listed module is missing, does not fit or conflicts, startup aborts in production rather
+# than quietly carrying on without it (see src/module-loader.ts).
 CMD ["node", "dist/server.js"]

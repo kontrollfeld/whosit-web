@@ -2,11 +2,11 @@ whosit — EUDI Verified Call
 Copyright (c) 2026 Kontrollfeld GmbH and contributors
 
 This product is licensed under the GNU Affero General Public License v3.0 or later
-(see LICENSE) — with ONE exception: the `pro/` directory carries its own, commercial
-licence (see pro/LICENSE). Nothing under src/ depends on it; the AGPL part builds and
-runs without it (enforced by `npm run check:licence-boundary`).
+(see LICENSE), all of it. The commercially licensed features are modules released
+separately and are not part of this repository; the core builds and runs without them
+(enforced by `npm run check:licence-boundary`).
 
-A commercial licence for `pro/`, and for use without the AGPL's network-copyleft
+A commercial licence for those modules, and for use without the AGPL's network-copyleft
 obligations, is available separately — see LICENSE-COMMERCIAL.md.
 
 ================================================================================
@@ -58,9 +58,6 @@ Installed via `npm ci`; licence texts land in node_modules/.
   node-forge  BSD-3-Clause / GPL-2.0 (dual) — X.509/PKCS handling for Wallet passes
   dotenv      BSD-2-Clause  — loading .env in development
 Development only: typescript (Apache-2.0), tsx (MIT), @types/* (MIT).
-The Pro module (pro/, only in Pro images) additionally installs:
-  pkijs       BSD-3-Clause  — certificates of the demo CA for device-bound signatures
-  asn1js      BSD-3-Clause  — ASN.1 encoding for the above
 
 --- Public certificate ---
 
@@ -70,5 +67,5 @@ design and contains no secret. The matching private key is NOT in this repositor
 
 ================================================================================
 
-Nothing in this NOTICE modifies the terms of the AGPL, of pro/LICENSE, or of any
+Nothing in this NOTICE modifies the terms of the AGPL, of the modules' licences, or of any
 third-party licence listed above.
