@@ -45,7 +45,10 @@
         gespeichert. Auch beim Verifier bleiben sie nicht liegen: die Software l&ouml;scht die
         dortige Pr&uuml;fsitzung samt der vorgezeigten Angaben unmittelbar nach der Pr&uuml;fung.
         Schriftarten liefert der Server selbst aus; eine &Uuml;bertragung an Dritte
-        findet nicht statt. Welche weiteren Daten anfallen, h&auml;ngt vom Betrieb ab &mdash; etwa
+        findet nicht statt. Je nach Konfiguration kontaktiert der Browser zum Verbindungsaufbau
+        STUN-Server (standardm&auml;&szlig;ig von Google und Cloudflare) und &mdash; sofern kein eigener
+        TURN-Server eingerichtet ist &mdash; ein &ouml;ffentliches Relay (openrelay.metered.ca); dabei
+        werden IP-Adressen an diese Anbieter &uuml;bermittelt. Welche weiteren Daten anfallen, h&auml;ngt vom Betrieb ab &mdash; etwa
         Server-Protokolle, der eingesetzte Verifier und die Wahl des Hosting-Anbieters.
       </p>
       <p class="muted" style="margin-top:32px;font-size:.86rem;">

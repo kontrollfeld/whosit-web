@@ -51,6 +51,7 @@ import { recordAudit, setAuditForwarder } from './audit';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
+import { rateLimit, rateLimitFromEnv } from './rate-limit';
 
 // A configured host gate must also be ABLE to work. If this instance's policy permits no
 // name, there would be nothing to compare and nobody would ever get through — an unusable
@@ -413,7 +414,10 @@ const inviteCors: express.RequestHandler = (req, res, next) => {
   next();
 };
 app.options('/invite', inviteCors);
-app.post('/invite', inviteCors, (req, res) => {
+// Per-IP brake on the unauthenticated mint/sign endpoints (see ./rate-limit); 0 = off.
+const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 30);
+const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 30);
+app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
   if (!enabledFeatures().has('planned-invites')) {
     res.status(501).json({ error: 'planned invites not configured' }); return;
   }
@@ -469,14 +473,14 @@ app.post('/invite', inviteCors, (req, res) => {
   const { hostToken, guestToken } = mintInvitePair({
     room, m: mode, r: requestedAttrs, d: disclosedAttrs, nbf, exp,
   });
-  console.log(`[invite] geplant room=${room} mode=${mode} request=[${requestedAttrs.join(',')}] disclose=[${disclosedAttrs.join(',')}] gueltig=${new Date(nbf * 1000).toISOString()}…${new Date(exp * 1000).toISOString()}`);
+  console.log(`[invite] geplant room=${auditHash('room', room)} mode=${mode} request=[${requestedAttrs.join(',')}] disclose=[${disclosedAttrs.join(',')}] gueltig=${new Date(nbf * 1000).toISOString()}…${new Date(exp * 1000).toISOString()}`);
   res.json({ room, hostToken, guestToken, nbf, exp, requestedAttrs, disclosedAttrs, mode });
 });
 
 // Apple Wallet appointment pass: a scheduled verified call as .pkpass (Community `wallet-pass`,
 // config-gated — see src/wallet-pass.ts). Stateless: everything the pass
 // needs travels in the query; the QR/back-link is the room URL on THIS origin.
-app.get('/wallet-pass', (req, res) => {
+app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
   if (!enabledFeatures().has('wallet-pass')) { res.status(404).end(); return; }
   // Scheduled call: the pass carries the HOST invitation, not the room id — otherwise it
   // would lead into a room its holder cannot enter without a token.
@@ -691,14 +695,21 @@ const TURN_URL = (process.env.TURN_URL || '').trim();       // e.g. turn:call.ex
 const TURN_TLS_URL = (process.env.TURN_TLS_URL || '').trim();
 const TURN_SECRET = (process.env.TURN_SECRET || '').trim();
 const TURN_TTL = Number(process.env.TURN_TTL || 86400);     // credential lifetime, seconds
-const STUN_URLS = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
+// STUN_URLS (comma-separated) replaces the defaults; `none` advertises no STUN server at all.
+const STUN_DEFAULT = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
+const STUN_RAW = (process.env.STUN_URLS || '').trim();
+const STUN_LIST = STUN_RAW.split(',').map((u) => u.trim()).filter(Boolean);
+const STUN_URLS = STUN_RAW.toLowerCase() === 'none' ? [] : (STUN_LIST.length ? STUN_LIST : STUN_DEFAULT);
+// The public relay below is a third party with shared credentials; TURN_PUBLIC_FALLBACK=off
+// removes it (default on, as before).
+const TURN_PUBLIC_FALLBACK = (process.env.TURN_PUBLIC_FALLBACK || '').trim().toLowerCase() !== 'off';
 const FALLBACK_TURN = [
   { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 app.get('/ice', publicCors, (_req, res) => {
-  const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [{ urls: STUN_URLS }];
+  const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = (STUN_URLS.length ? [{ urls: STUN_URLS }] : []);
   if (TURN_URL && TURN_SECRET) {
     // TURN REST: username = "<unix-expiry>:<name>", credential = base64(HMAC-SHA1(secret, username)).
     const username = `${Math.floor(Date.now() / 1000) + TURN_TTL}:eudi`;
@@ -708,7 +719,7 @@ app.get('/ice', publicCors, (_req, res) => {
     // slowest path (TLS handshake, TCP overhead, everything through a proxy). It should apply
     // when nothing else works — not be preferred.
     if (TURN_TLS_URL) iceServers.push({ urls: [TURN_TLS_URL], username, credential });
-  } else {
+  } else if (TURN_PUBLIC_FALLBACK) {
     iceServers.push(...FALLBACK_TURN);
   }
   res.set('Cache-Control', 'no-store');
@@ -1545,7 +1556,7 @@ wss.on('connection', (ws, request) => {
         send(expired.requester.ws, { type: 'credential-expired', requestId: expired.requestId, from: expired.target.peerId, label: expired.credential.label });
         send(expired.target.ws, { type: 'credential-expired', requestId: expired.requestId, label: expired.credential.label });
       });
-      console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${room.id}`);
+      console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${auditHash('room', room.id)}`);
       credentialAudit(r, 'credential-requested', []);
       send(requester.ws, { type: 'credential-pending', requestId: r.requestId, to: target.peerId, credentialId: credential.id, label: credential.label });
       // The consent prompt: who asks, which credential, EXACTLY which fields — before
@@ -1713,7 +1724,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   if (isPlannedRoomId(roomId)) {
     const v = verifyInviteForRoom(inviteTok, roomId);
     if (!v.ok) {
-      console.log(`[invite] Beitritt abgelehnt room=${roomId} grund=${v.reason}`);
+      console.log(`[invite] Beitritt abgelehnt room=${auditHash('room', roomId)} grund=${v.reason}`);
       // Both times, named separately: `opensAt` is the `nbf` from the token, while the
       // appointment starts `INVITE_LEAD_S` later. The start is DERIVED, because the payload
       // does not carry it — change the lead time and the display shifts for tokens already
@@ -1739,7 +1750,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
     } catch (e) {
       if (e instanceof PolicyViolationError) {
         auditPolicyViolation(roomId, undefined, [], e.rejected, 'rejected');
-        console.log(`[invite] Beitritt abgelehnt room=${roomId} grund=policy rejected=[${e.rejected.join(',')}]`);
+        console.log(`[invite] Beitritt abgelehnt room=${auditHash('room', roomId)} grund=policy rejected=[${e.rejected.join(',')}]`);
         send(ws, { type: 'invite-invalid', reason: 'policy', rejected: e.rejected });
         return;
       }
@@ -1808,7 +1819,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   } else if (dtlsFingerprint != null) {
     console.warn(`[channel-binding] unbrauchbarer Fingerprint verworfen (${participant.role})`);
   }
-  console.log(`[join] ${participant.role} (${clientId.slice(0, 8)}) room=${roomId} resumed=${resumed} verified=${participant.verified} binding=${fp ? 'angefragt' : 'nein'} session=${auditHash('session', participant.sessionId)}`);
+  console.log(`[join] ${participant.role} (${clientId.slice(0, 8)}) room=${auditHash('room', roomId)} resumed=${resumed} verified=${participant.verified} binding=${fp ? 'angefragt' : 'nein'} session=${auditHash('session', participant.sessionId)}`);
   firePlugins((p) => p.onJoin?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, resumed }));
 
   // What this participant must present:
@@ -1907,6 +1918,9 @@ loadExtensions().then((resolved) => {
     console.log(staffGateActive()
       ? 'Staff token: ACTIVE — appointments only with a valid link'
       : 'Staff token: off — any visitor can issue appointments');
+    if (enabledFeatures().has('planned-invites') && !staffGateActive()) {
+      console.log('⚠️  planned-invites is enabled but EUDI_STAFF_SECRET is not set: POST /invite is open to anyone who can reach this server. Set EUDI_STAFF_SECRET to restrict who can issue appointments.');
+    }
     // Make disabled functions visible. A switch whose state you cannot see is one you rely on
     // mistakenly — and in operation people otherwise spend a long time hunting for why a
     // button is missing.
@@ -1927,6 +1941,9 @@ loadExtensions().then((resolved) => {
     }
     if (PROMO_ALL_PRO) {
       console.log('🎁 LAUNCH PROMO active (EUDI_PROMO_ALL_PRO) — full Pro feature set free for EVERYONE, no gate. Unset to switch back to the configured edition.');
+    }
+    if (!(TURN_URL && TURN_SECRET) && TURN_PUBLIC_FALLBACK) {
+      console.log('⚠️  No own TURN server configured (TURN_URL/TURN_SECRET): /ice hands out the public relay openrelay.metered.ca with shared credentials, so callers\' IP addresses reach that third party. Configure TURN_URL and TURN_SECRET, or set TURN_PUBLIC_FALLBACK=off.');
     }
     console.log(`PUBLIC_URL (env) = ${PUBLIC_URL}`);
     if (!process.env.PUBLIC_URL || PUBLIC_URL.includes('CHANGE-ME') || PUBLIC_URL.startsWith('http://localhost')) {

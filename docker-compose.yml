@@ -74,6 +74,8 @@ services:
       TURN_URL: "turn:${DOMAIN}:3478"
       TURN_SECRET: "${TURN_SECRET}"
       TURN_REALM: "${DOMAIN}"
+      STUN_URLS: "${STUN_URLS:-}"
+      TURN_PUBLIC_FALLBACK: "${TURN_PUBLIC_FALLBACK:-}"
     labels:
       - traefik.enable=true
       - traefik.http.routers.app.rule=Host(`${DOMAIN}`)
