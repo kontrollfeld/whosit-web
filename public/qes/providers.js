@@ -179,7 +179,7 @@ function mockProvider(entry, getIdentity) {
 
 /** Pro CSC remote signing (Phase 6) — declared here so the seam is visible. The signing flow
  *  itself (QTSP OAuth, signHash) is implemented server-side in the commercially licensed
- *  pro/qes-csc.ts; this client only ever sees a 'csc' entry when that module is loaded. */
+ *  the qes-csc module; this client only ever sees a 'csc' entry when that module is loaded. */
 function cscProvider(entry) {
   return {
     id: entry.id, label: entry.label, kind: 'csc',
@@ -200,9 +200,9 @@ function walletNativeProvider(entry) {
 }
 
 /**
- * A provider a Pro module contributes (kind 'device-local'). Its implementation is NOT part of
+ * A provider a module contributes (kind 'device-local'). Its implementation is NOT part of
  * this client: the server names a module under /pro-client/ and we load it from there — so an
- * AGPL build without the Pro module never even receives the code. Everything the module needs
+ * AGPL build without the module never even receives the code. Everything the module needs
  * from here is handed over, rather than imported: in the app the module comes from the server
  * origin while this file comes from the local bundle, and a relative import would cross that
  * boundary.

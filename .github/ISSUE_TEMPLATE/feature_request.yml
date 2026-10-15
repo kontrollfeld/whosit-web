@@ -11,7 +11,7 @@ body:
         request. It is a shame to throw away work that two sentences up front would have settled.
 
         For orientation: **Pro is what we provide something in return for** (retention with
-        liability, provider contracts), and its code lives in `pro/`. Everything else is
+        liability, provider contracts), and its code lives in a separately released module. Everything else is
         Community — see the registry in `src/core/features.ts`. Not accepted: telemetry, and
         extensions to the attribute allowlist without a legal basis.
   - type: textarea

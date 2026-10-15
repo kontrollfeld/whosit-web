@@ -50,9 +50,8 @@ test:
   script:
     - npm run typecheck
 
-    # The licence boundary is the core of the two-licence model: nothing under src/ may import from
-    # pro/, otherwise the AGPL edition would depend on commercially licensed code and could no
-    # longer be shipped on its own.
+    # This repository is AGPL only: no commercially licensed file, no import of a module. The
+    # commercially licensed features are modules in repositories of their own.
     - npm run check:licence-boundary
 
     # The capability list in .env.selfhost.example is generated from the registry. Checked
@@ -65,15 +64,20 @@ test:
 
     - npm run build
 
-    # The actual proof: the free part must build COMPLETELY without pro/. Remove the directory and
-    # the result must not change.
-    - rm -rf pro
-    - npm run build
-    - test -f dist/server.js || { echo "Build without pro/ is incomplete"; exit 1; }
-    - git checkout -- pro
-    # Only now: the tests load the Pro module from source, and it needs its own dependencies
-    # (pkijs for the demo CA). Installed after the step above, which deletes pro/ wholesale.
-    - npm ci --prefix pro --cache .npm --prefer-offline
+    # The QES end-to-end tests check the core TOGETHER with the qes-device module (commercially
+    # licensed, not in this repository), down to a valid PAdES signature. Installed from the
+    # modules group's npm registry with this job's token — nothing that expires. The module
+    # projects allow this project's job token (Settings → CI/CD → Job token permissions). If the
+    # install fails, the two tests say so and skip; everything else still runs.
+    - |
+      mkdir -p .modules
+      printf '@whosit:registry=%s/groups/144814503/-/packages/npm/\n%s/groups/144814503/-/packages/npm/:_authToken=%s\n' "$CI_API_V4_URL" "${CI_API_V4_URL#https:}" "$CI_JOB_TOKEN" > .modules/.npmrc
+      if (cd .modules && npm install --no-audit --no-fund --no-save @whosit/qes-device); then
+        export WHOSIT_QES_DEVICE_MODULE="$PWD/.modules/node_modules/@whosit/qes-device"
+      else
+        echo "qes-device module not installable — the QES end-to-end tests will skip"
+      fi
+      rm -f .modules/.npmrc
 
     # Listed individually rather than via `npm test`, so the job log shows immediately WHICH check
     # failed — a chained command line only says that something did.
@@ -83,8 +87,6 @@ test:
     - npm run test:startup
     - npm run test:editions
     - npm run test:modules
-    # pro/'s manifest must keep fitting this core (core API, no core capability claimed).
-    - EUDI_MODULES=./pro npm run modules -- check
     - npm run test:webhook
     # Zero retention at the verifier: the session holding the claims is deleted right after use.
     - npm run test:purge
@@ -125,7 +127,7 @@ secrets:
 
 # REUSE/SPDX: every file carries a copyright line and a licence ID, and every ID in use has its
 # text in LICENSES/. That makes the licensing situation machine-readable — exactly what public
-# bodies check during procurement — and it proves the boundary between AGPL and pro/ file by file
+# bodies check during procurement — and it proves file by file that this repository is AGPL only,
 # instead of merely asserting it.
 reuse:
   stage: test
@@ -155,8 +157,8 @@ sbom:
     expire_in: 90 days
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
-# The AGPL image must be free of commercially licensed code so that it may be redistributed
-# (pro/LICENSE forbids distribution). This checks that, rather than asserting it.
+# The core image: AGPL code only, so it may be redistributed. Checked rather than asserted: no
+# file in it may carry the commercial licence identifier.
 #
 # NOTE: the job cannot be called `image` — that is a reserved GitLab CI keyword.
 container:
@@ -169,12 +171,12 @@ container:
   before_script: []
   cache: []
   script:
-    - docker build -t evc:agpl .
-    - COUNT=$(docker run --rm evc:agpl sh -c 'ls -A /app/pro 2>/dev/null | wc -l')
+    - docker build --build-arg SOURCE_COMMIT="$CI_COMMIT_SHORT_SHA" -t evc:core .
+    - COUNT=$(docker run --rm evc:core sh -c 'grep -rlE --exclude-dir=node_modules "SPDX-License-Identifier.{1,4}LicenseRef-Commercial" /app 2>/dev/null | wc -l')
     # Single-quoted as ONE YAML scalar: an unquoted ": " inside a plain scalar makes YAML read the
     # item as a mapping, and the whole pipeline fails as "yaml invalid" with 0 jobs.
-    - 'echo "Files in /app/pro: $COUNT"'
-    - test "$COUNT" -eq 0 || { echo "The freely redistributable image contains pro/ code"; exit 1; }
+    - 'echo "Commercially licensed files in the image: $COUNT"'
+    - test "$COUNT" -eq 0 || { echo "The core image contains commercially licensed code"; exit 1; }
     # ── publish, on the default branch only ──────────────────────────────────────────────
     # BUILD ONCE, DEPLOY THAT. Until now every instance was built from source by its own
     # deployment, which is how lhd.id-call.eu ended up four releases behind while reporting
@@ -182,20 +184,14 @@ container:
     # tag removes the question — either an instance runs this tag or it does not, and
     # `npm run check:instances` can tell from outside which it is.
     #
-    # LICENCE, and it is not a formality: the `pro` image contains commercially licensed code
-    # that pro/LICENSE forbids DISTRIBUTING. It goes to this project's own registry, which is
-    # private, and must never be pushed anywhere public or handed to a customer. The `agpl` tag
-    # is the one that may go anywhere.
+    # One image since pro/ left the repository. Instances build FROM a commit tag of it and add
+    # their modules (instance repositories); `stable` remains for whoever follows the latest.
     - |
       if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
         echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-        docker tag evc:agpl "$CI_REGISTRY_IMAGE:agpl-$CI_COMMIT_SHORT_SHA"
-        docker push "$CI_REGISTRY_IMAGE:agpl-$CI_COMMIT_SHORT_SHA"
-        docker build --build-arg WITH_PRO=1 --build-arg SOURCE_COMMIT="$CI_COMMIT_SHORT_SHA" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+        docker tag evc:core "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
         docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
-        # `stable` is what an instance follows by default. Moving it is the rollout; the SHA tag
-        # stays put so a rollback is naming an older tag, not rebuilding an older commit.
-        docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE:stable"
+        docker tag evc:core "$CI_REGISTRY_IMAGE:stable"
         docker push "$CI_REGISTRY_IMAGE:stable"
         echo "Published $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA (and :stable)"
       else

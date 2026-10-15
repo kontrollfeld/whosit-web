@@ -31,7 +31,7 @@ confidentially.
 <!-- Delete the lines that do not apply -->
 
 - [ ] Self-hosted (Community)
-- [ ] Self-hosted with `pro/` (commercial licence)
+- [ ] Self-hosted with commercially licensed modules
 - [ ] A hosted instance operated by us
 - [ ] iOS or Android app
 

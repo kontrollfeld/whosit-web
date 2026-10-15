@@ -25,7 +25,7 @@ mirror is force-updated on every sync, so a merge commit created on GitHub would
 
 - [ ] Does not affect any feature assignment
 - [ ] Community
-- [ ] Pro — and the code lives in `pro/` or behind a gate in the core
+- [ ] Pro — and the code lives in a module, not in this repository
 - [ ] The registry entry in `src/core/features.ts` is up to date (including a short rationale)
 
 ## Verification

@@ -16,7 +16,7 @@
  *     corrupted one.
  *
  * WebRTC itself cannot run here (Node has no RTCPeerConnection); the DataChannel is replaced by a
- * pair of in-memory ends. Everything else is the real server, the real Pro module and the real
+ * pair of in-memory ends. Everything else is the real server, the real qes-device module and the real
  * client modules.
  *
  * Usage: npm run test:qes-pairing
@@ -29,6 +29,9 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { requireQesDeviceModule, importClient } from './lib/qes-device-module.mjs';
+
+const QES_DEVICE = requireQesDeviceModule('test-qes-pairing');
 
 globalThis.self = globalThis;
 
@@ -157,8 +160,9 @@ const app = spawn('npx', ['tsx', 'src/server.ts'], {
     ...process.env,
     PORT: String(APP_PORT),
     PUBLIC_URL: `http://127.0.0.1:${APP_PORT}`,
-    EUDI_EDITION: 'pro',
-    EUDI_PRO_MODULE: './pro/index.ts',
+    EUDI_EDITION: 'community',
+    EUDI_PRO_MODULE: '',
+    EUDI_MODULES: QES_DEVICE,
     EUDI_AUDIT_FILE: join(work, 'audit.jsonl'),
     EUDI_IOS_APP_ID: 'W63PMKNPKY.com.kontrollfeld.eudiverifiedcall',
     EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
@@ -181,7 +185,7 @@ try {
   }
   const base = `http://127.0.0.1:${APP_PORT}`;
 
-  console.log('\nThe browser is offered the phone, and gets its code from pro/');
+  console.log('\nThe browser is offered the phone, and gets its code from the module');
   const { providers: list } = await (await fetch(`${base}/signature-providers`)).json();
   const phoneEntry = list.find((p) => p.id === 'phone');
   check('a "sign with your phone" provider is offered', phoneEntry?.module === 'pro-client/paired-phone.js', JSON.stringify(list));
@@ -235,7 +239,7 @@ try {
 
   console.log('\nThe phone signs in the name of the browser participant');
   const [{ createProvider }, providers, pades, verify] = await Promise.all([
-    import(join(root, 'pro', 'client', 'device-local.js')),
+    importClient(QES_DEVICE, 'device-local.js'),
     import(join(root, 'public', 'qes', 'providers.js')),
     import(join(root, 'public', 'qes', 'pades.js')),
     import(join(root, 'public', 'qes', 'verify.js')),
@@ -254,7 +258,7 @@ try {
 
   console.log('\nThe byte framing over the DataChannel');
   {
-    const { sendBytes, receiver, listen, CHUNK } = await import(join(root, 'pro', 'client', 'pair-channel.js'));
+    const { sendBytes, receiver, listen, CHUNK } = await importClient(QES_DEVICE, 'pair-channel.js');
     // Attached the way the modules attach it: a DataChannel delivers MessageEvents, not strings.
     {
       let hit = null;
@@ -311,7 +315,7 @@ try {
     // localhost:3000. It now comes from the request, like the wallet's webhook.
     const PORT2 = APP_PORT + 10;
     const env2 = { ...process.env,
-      PORT: String(PORT2), EUDI_EDITION: 'pro', EUDI_PRO_MODULE: './pro/index.ts',
+      PORT: String(PORT2), EUDI_EDITION: 'community', EUDI_PRO_MODULE: '', EUDI_MODULES: QES_DEVICE,
       EUDI_AUDIT_FILE: join(work, 'audit2.jsonl'), EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
       EUDIPLO_CLIENT_ID: 'test-tenant', EUDIPLO_CLIENT_SECRET: 'test-tenant-secret', EUDI_PROMO_ALL_PRO: '' };
     // Empty, not deleted: a deleted variable would be filled from a local .env by dotenv.
