@@ -560,27 +560,33 @@ microphone and camera toggles, screen sharing, stage layout, hand raising, file 
 calendar entries, an Apple Wallet pass, document sharing and signing, iframe embedding,
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
-**Three features are commercially licensed** — where there is a real obligation behind them, and
-the code lives in the module [`pro/`](pro/) (see [Modules](#modules)):
+**Three features are commercially licensed** — where there is a real obligation behind them. They
+come as modules (see [Modules](#modules)): the two signature features in [`pro/`](pro/) in this
+repository, the verification trail as the separate package `@whosit/audit-trail`.
 
-| Feature | Why |
-|---|---|
-| Verification trail with retention and export | Responsibility for retained evidence: deadlines, export, liability |
-| Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
-| Device-bound signatures (Secure Enclave / StrongBox) | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
+| Feature | Module | Why |
+|---|---|---|
+| Verification trail with retention and export | `@whosit/audit-trail` (separate package) | Responsibility for retained evidence: deadlines, export, liability |
+| Qualified remote signatures (CSC/QTSP) | [`pro/`](pro/) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
+| Device-bound signatures (Secure Enclave / StrongBox) | [`pro/`](pro/) | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
 
 ### Modules
 
 Functions beyond the core come as **modules**: a directory or npm package with a `whosit`
-manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is one.
+manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is one, in this
+repository; `@whosit/audit-trail` is another, released on its own and installed from a package
+registry. The core does not care which: a module is a path or a package name.
 
 ```json
 "whosit": {
-  "id": "pro",
+  "id": "audit-trail",
   "coreApi": "^1",
-  "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }],
-  "clientAliases": ["pro-client"]
+  "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }]
 }
+```
+
+```bash
+EUDI_MODULES=./pro,@whosit/audit-trail      # or a path: ./instance/node_modules/@whosit/audit-trail
 ```
 
 - **The manifest is read first, without running module code.** A module built for another core
@@ -665,9 +671,9 @@ What operators need to know:
   plugin's contract; `npm run test:qes-pairing` the pairing (token, relay, the owner's
   certificate, the DataChannel framing).
 
-The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative — it is the
-single source of truth for the split and gives a reason for every entry. `GET /capabilities`
-shows what a running instance actually offers.
+The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative for the core — it
+gives a reason for every entry; each module declares its own features in its manifest.
+`GET /capabilities` shows what a running instance actually offers, modules included.
 
 **Every feature can be switched off:** `EUDI_FEATURES_OFF=file-transfer,screen-share` — intended
 for operators who must disable functionality for compliance reasons. Excluded are the call itself
@@ -675,16 +681,18 @@ and the privacy guarantees: a guarantee the operator can switch off would not be
 
 ## Licence
 
-**AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) for everything **except** [`pro/`](pro/).
+**AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) for everything **except** [`pro/`](pro/). The
+commercially licensed modules released on their own (`@whosit/audit-trail`) are not part of this
+repository at all.
 
 Strong copyleft with a network clause: anyone operating a *modified* version as a service must
 offer its source code to their users. Running it unmodified, self-hosting it and using it
 commercially are all free.
 
 **`pro/` carries its own commercial licence** ([`pro/LICENSE`](pro/LICENSE)): readable and
-auditable, but production use requires a licence. The code is in the open because a verification
-trail whose code nobody may inspect is a weaker verification trail — whoever buys evidence should
-be able to see the code it rests on. The protection is legal, not technical: there is no licence
+auditable, but production use requires a licence. The code is in the open because a signature
+whose code nobody may inspect is a weaker signature — whoever relies on it should be able to see
+how the hash reached the provider, and what the authority checked before certifying a key. The protection is legal, not technical: there is no licence
 key to circumvent.
 
 Nothing under `src/` imports from `pro/` or any other module; the AGPL edition builds and runs
