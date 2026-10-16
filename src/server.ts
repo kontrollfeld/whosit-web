@@ -414,9 +414,10 @@ const inviteCors: express.RequestHandler = (req, res, next) => {
   next();
 };
 app.options('/invite', inviteCors);
-// Per-IP brake on the unauthenticated mint/sign endpoints (see ./rate-limit); 0 = off.
-const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 30);
-const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 30);
+// Optional per-IP brake on the unauthenticated mint/sign endpoints (see ./rate-limit).
+// Off unless configured; 0 = off.
+const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 0);
+const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 0);
 app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
   if (!enabledFeatures().has('planned-invites')) {
     res.status(501).json({ error: 'planned invites not configured' }); return;
