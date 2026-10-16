@@ -41,9 +41,8 @@ export type AuditEventType =
   | 'consent-granted'
   | 'consent-declined'
   /** A tenant instance's host gate refused someone (see ../host-gate).
-   *  Deliberately its own event type: someone who WANTED to act on an authority's behalf belongs
-   *  Recorded traceably — but without a name, only as an event: a refusal must not become the
- *  one place where PID values suddenly appear in the log. */
+   *  Deliberately its own event type, recorded without a name: a refusal must not become the
+   *  one place where PID values suddenly appear in the log. */
   | 'host-denied';
 
 export type AuditStatus = 'success' | 'failure' | 'rejected' | 'narrowed' | 'pending' | 'refused';
@@ -102,7 +101,7 @@ const STDOUT_ON = (process.env.EUDI_AUDIT_STDOUT ?? 'on') !== 'off';
  *   - must START WITH A LETTER → drops dates, postcodes, numbers, which a character
  *     class alone would have let through ('1964-08-12' is identifier-shaped).
  * Every real claim key satisfies both: `given_name`, `age_over_18`, `pseudonym_id`,
- * `de.wohnraum.1.tenant_id`, `mso_mdoc:…#intent_to_retain`.
+ * `com.example.1.member_id`, `mso_mdoc:…#intent_to_retain`.
  *
  * Its limit, stated rather than papered over: a short alphabetic token ('DE', 'true') is
  * shape-indistinguishable from a claim key, so this filter cannot catch one. No regex can.
@@ -127,7 +126,7 @@ function sanitizeKeys(list: readonly string[] | undefined): string[] {
   return out;
 }
 
-/** Which of our event types the Pro sink's published union accepts. */
+/** Which of these event types the Pro sink's published union accepts. */
 const SINK_TYPES: ReadonlySet<string> = new Set<VerificationEventType>([
   'verified', 'verification-failed',
   'credential-requested', 'credential-presented', 'credential-declined',

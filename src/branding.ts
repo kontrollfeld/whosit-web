@@ -84,7 +84,7 @@ const esc = (s: string) => s.replace(/[<>&"]/g, (ch) => ({ '<': '&lt;', '>': '&g
  *
  * ORDER MATTERS: the `<style>` block MUST come after `style.css`/`pages.css`, i.e. directly
  * before `</head>`. Placed earlier, the stylesheet wins the cascade and the branding has no
- * effect — exactly the bug that showed up on the first attempt.
+ * effect.
  */
 export function snippets(b: Branding | null): { head: string; tail: string } {
   if (!b) return { head: '', tail: '' };
@@ -113,8 +113,6 @@ export function snippets(b: Branding | null): { head: string; tail: string } {
  *
  * The title is REPLACED, not appended. A second `<title>` before `</head>` would have no
  * effect: the browser takes the first one, and the tab would keep showing the wrong brand.
- * Measured exactly that way on a branded authority subdomain on 2026-08-15 — two titles in
- * the document, the wrong one visible.
  */
 export function brandHtml(html: string, b: Branding | null): string {
   const { head, tail } = snippets(b);

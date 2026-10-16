@@ -3,20 +3,19 @@
 /**
  * No code from anyone else's server.
  *
- * Until 2026-09-02 `public/index.html` pulled the QR library from jsdelivr — unpinned, without an
- * `integrity` attribute, on the very page that builds the wallet request. Whoever controlled that
- * repository could have injected script there and rewritten the presentation offer while the user
- * believed they were identifying themselves to us. Every visitor was also announced to a third
- * party, which contradicted the privacy notice, and where such CDNs are blocked the QR code
- * simply did not appear.
+ * A script pulled from a CDN — unpinned, without an `integrity` attribute — on the very page that
+ * builds the wallet request would let whoever controls that CDN path inject script and rewrite the
+ * presentation offer while the user believes they are identifying themselves to the operator.
+ * Every visitor would also be announced to a third party, contradicting the privacy notice, and
+ * where such CDNs are blocked the QR code would simply not appear.
  *
- * Fonts have been self-hosted from the start for the same reason, and pdfjs, pkijs and signpdf
- * live in public/vendor/. This check makes the rule hold for what comes next: everything
- * executable is served from our own origin.
+ * Fonts are self-hosted for the same reason, and pdfjs, pkijs and signpdf live in
+ * public/vendor/. This check makes the rule hold: everything executable is served from the
+ * instance's own origin.
  *
  * Checked: <script src>, <link href> for stylesheets, CSS @import, and runtime fetch/import of
  * remote code. NOT checked: ordinary links (<a href>) — a link is navigation the user chooses,
- * not code we execute.
+ * not code the page executes.
  *
  * Usage: npm run check:no-external-scripts
  */

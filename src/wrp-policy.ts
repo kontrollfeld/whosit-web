@@ -5,7 +5,7 @@
  *
  * To be an approvable Wallet Relying Party under eIDAS 2.0 (EU 2024/1183) / the ARF, this
  * service must NOT act as an open proxy for arbitrary identity queries. So the set of
- * attributes a client may ever cause us to ask a wallet for is fixed HERE, at compile
+ * attributes a client may ever cause this service to ask a wallet for is fixed HERE, at compile
  * time, and cannot be widened by any request, room config, embed parameter or env var.
  *
  * Why its own module (and not, say, inside eudiplo.ts): this is the one artifact an
@@ -25,7 +25,7 @@
  *
  * Why selection and not free configuration: a second deployment can serve a different legal
  * entity (an authority under its own WRP registration) whose lawful attribute set differs
- * from ours. Letting the environment invent an attribute would hand the boundary to whoever
+ * from the default one. Letting the environment invent an attribute would hand the boundary to whoever
  * controls the deployment and break the "read one file end-to-end" promise above. Letting it
  * pick from a fixed menu keeps both: the menu is here, in code, and every entry is bounded by
  * `KNOWN_PID_ATTRIBUTES` — which in turn cannot grow without a mapping in
@@ -122,8 +122,8 @@ export const WRP_POLICIES: Record<string, WrpPolicy> = {
   },
 };
 
-// Backwards compatibility: the template used to be named after its first prospective user.
-// The old name stays valid so that an already-configured EUDI_WRP_POLICY does not trigger a
+// Backwards compatibility: an older name of the template.
+// It stays valid so that an already-configured EUDI_WRP_POLICY does not trigger a
 // startup abort (assertPolicyOrExit lets no unknown name through — correct in general, but
 // here it would be a self-inflicted outage). Points at the same policy.
 WRP_POLICIES['lhd-buergerservice'] = WRP_POLICIES['kommune-buergerservice'];
@@ -144,12 +144,11 @@ export function activePolicyName(): string {
  * the active policy, never unioned, so the result is always a SUBSET of a set that was
  * written down, reviewed and committed above.
  *
- * Why it exists: a hosted instance runs under the operator's registration but serves ONE
- * customer's purpose, and that purpose is almost always narrower than the registration. The
- * registration is drawn wide enough to cover every deployment; a single deployment covers one.
- * A support line that only needs "who am I talking to" should not ask for a date of birth
- * merely because the registration would permit it, whether it belongs to an insurer, a notary,
- * a clinic, a landlord or a public authority. Data minimisation (Art. 5a(4) EU 2024/1183) is an
+ * Why it exists: an instance runs under one registration but serves a single purpose, and that
+ * purpose is often narrower than the registration. The registration is drawn wide enough to
+ * cover every deployment; a single deployment covers one. A support line that only needs
+ * "who am I talking to" should not ask for a date of birth merely because the registration
+ * would permit it. Data minimisation (Art. 5a(4) EU 2024/1183) is an
  * obligation per PROCESSING, not per registration — so an instance must be able to ask for LESS
  * without a code change, while asking for MORE stays a code change forever.
  *
@@ -175,7 +174,7 @@ export function wrpNarrowed(): boolean {
  * Refuse to start on a policy name that does not exist.
  *
  * Falling back silently would be the worst outcome: a deployment meant to run under an
- * authority's narrow registration would quietly serve ours instead, and nothing in the UI
+ * authority's narrow registration would quietly serve the default one instead, and nothing in the UI
  * would say so. Called from the server's startup path.
  */
 export function assertPolicyOrExit(log: (m: string) => void = console.error): void {
@@ -258,8 +257,8 @@ export function assertNarrowOrExit(log: (m: string) => void = console.error): vo
 /**
  * Attributes this codebase COULD ask for but this deployment's policy does not permit.
  *
- * DERIVED, not written down: known vocabulary minus the active policy. That matters since
- * policies became selectable — a hard-coded list would keep publishing `address` as "given
+ * DERIVED, not written down: known vocabulary minus the active policy. That matters because
+ * policies are selectable — a hard-coded list would keep publishing `address` as "given
  * up" on an instance whose registration actually permits it, i.e. the endpoint would lie at
  * exactly the point where it is meant to be checkable.
  *
@@ -269,10 +268,10 @@ export function assertNarrowOrExit(log: (m: string) => void = console.error): vo
  *     once valid and is now deliberately gone, instead of reading "not permitted" and
  *     hunting for a typo;
  *   - `policyDescriptor()` publishes them, which turns the allow-list into a FALSIFIABLE
- *     claim: not just "we ask for these four" but "these three we gave up". For an
+ *     claim: not just "these four are asked for" but "these three were given up". For an
  *     auditor that documents a data-minimisation decision rather than a mere absence.
  *
- * These are exactly what an ALREADY-SHIPPED client (the TestFlight build, a cached embed)
+ * These are exactly what an ALREADY-SHIPPED client (an older app build, a cached embed)
  * can still put on the wire, which is what the transitional mode below exists for.
  */
 export const RETIRED_ATTRIBUTES: readonly AllowedPidAttribute[] = KNOWN_PID_ATTRIBUTES.filter(
@@ -287,8 +286,8 @@ export const DERIVED_ATTRIBUTES: readonly AllowedPidAttribute[] = ['pseudonym_id
 /**
  * Of the allowed attributes, those actually asked of the wallet over OpenID4VP.
  *
- * DERIVED rather than enumerated, ever since policies became selectable: a fixed list would
- * have kept requesting only the original three under a policy with additional attributes —
+ * DERIVED rather than enumerated, because policies are selectable: a fixed list would
+ * keep requesting a fixed subset under a policy with additional attributes —
  * the permission would sit in the policy, the request would stay narrow, and nobody would see
  * the contradiction.
  *
@@ -315,18 +314,18 @@ export const WRP_COMPLIANCE_NOTE = ACTIVE.complianceNote;
  * Enforcement mode for out-of-scope REQUESTS.
  *
  *   off (default, "transitional") — narrow the request to the whitelist, audit the
- *     violation, carry on. Exists because clients are already deployed: the iOS/Android
- *     build in TestFlight still offers birth_date / issuing_country / address, and it does
+ *     violation, carry on. Exists because clients are already deployed: older app
+ *     builds still offer birth_date / issuing_country / address, and they do
  *     not understand a `policy_violation` error, so refusing would surface as an opaque
  *     failure with the room config silently not applying. Narrowing keeps those users
  *     working — on less data than they asked for, which is the safe direction.
  *   on ("strict") — refuse with `policy_violation` (HTTP 400 / WS error), the clearest
- *     position for an approval audit. Flip this once the updated app has rolled out.
+ *     position for an approval audit. Enable it once deployed clients handle `policy_violation`.
  *
  * What does NOT change between the modes: the DCQL query sent to the wallet, the claims
  * accepted back, and the audit record. A narrowed request and a refused one both result in
  * zero out-of-scope attributes reaching a wallet — the egress gate in `eudiplo.ts` is hard
- * in both modes. This knob is about how loudly we fail, not about what we ask for.
+ * in both modes. This knob is about how loudly a request fails, not about what is asked for.
  *
  * Read per call rather than cached at import: keeps it testable and lets an operator flip
  * it with a restart-free config reload if one is ever added.
@@ -430,7 +429,7 @@ export function assertAllowedAttributes(attrs: unknown): AllowedPidAttribute[] {
 /**
  * The non-throwing gate: returns the allowed subset plus what was dropped and why.
  *
- * Two callers need exactly this, for the same reason — something outside our control
+ * Two callers need exactly this, for the same reason — something outside this service's control
  * already carries an out-of-scope attribute and refusing would strand a working session:
  *   - the transitional request path (an already-deployed client), and
  *   - a Pro RoomStore handing back a room PERSISTED before the WRP scoping.

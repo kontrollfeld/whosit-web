@@ -4,7 +4,7 @@
  * Credential profiles — the wallet/format-agnostic layer of the verifier.
  *
  * The app is a thin EUDIPLO client (see `eudiplo.ts`); EUDIPLO speaks OpenID4VP to the
- * wallet. What makes us wallet-agnostic is NOT reimplementing the protocol but VARYING
+ * wallet. What makes the verifier wallet-agnostic is NOT reimplementing the protocol but VARYING
  * the request and NORMALIZING the response:
  *   - a `CredentialProfile` declares ONE credential kind in ONE format/ecosystem
  *     (format + type + per-format claim paths + trust framework),
@@ -14,13 +14,13 @@
  *   - `normalizeClaims()` maps a heterogeneous webhook payload (mdoc-namespaced OR
  *     SD-JWT-nested) back into ONE canonical claim vocabulary the rest of the app uses.
  *
- * Edition gate (server-enforced, hard moat): Community may only use the PID mdoc profile;
+ * Edition gate (server-enforced): Community may only use the PID mdoc profile;
  * Pro (`EUDI_EDITION=pro`) may use the others too. Which permitted profiles are actually
  * OFFERED is an explicit opt-in via `EUDI_CREDENTIAL_PROFILES` (default: `pid_mdoc` only) —
  * so a deploy never silently changes the live request before the operator has confirmed the
  * EUDIPLO instance supports the extra formats.
  *
- * NOTE (see plan assumption #4): the SD-JWT-VC PID claim names below are best-effort per
+ * NOTE: the SD-JWT-VC PID claim names below are best-effort per
  * the ARF PID rulebook and MUST be verified against the target PID issuer / EUDIPLO
  * instance. They are centralized here so a correction is a one-line change.
  */
@@ -32,7 +32,7 @@ import {
   type AllowedPidAttribute,
 } from './wrp-policy';
 
-/** OpenID4VP credential formats we can request via EUDIPLO's DCQL. */
+/** OpenID4VP credential formats that can be requested via EUDIPLO's DCQL. */
 export type CredentialFormat = 'mso_mdoc' | 'dc+sd-jwt' | 'jwt_vc_json';
 
 /**
@@ -78,9 +78,9 @@ export interface DcqlCredentialQuery {
   meta: Record<string, unknown>;   // { doctype_value } | { vct_values } | { type_values }
   claims: Array<{ path: (string | number)[]; intent_to_retain?: boolean }>;
   /**
-   * WHICH ISSUERS we trust for this credential — the mirror image of the access certificate:
-   * there the verifier identifies itself to the wallet, here we decide whose signature under
-   * a presented PID we accept.
+   * WHICH ISSUERS are trusted for this credential — the mirror image of the access certificate:
+   * there the verifier identifies itself to the wallet, here it decides whose signature under
+   * a presented PID it accepts.
    *
    * `etsi_tl` points at an ETSI TS 119 602 trust list (LoTE). The verifier fetches it, looks
    * up the issuer of the presented credential, and additionally checks its revocation status
@@ -92,9 +92,8 @@ export interface DcqlCredentialQuery {
    * set"). External lists would need `{ url, verifierKey | verifierX509Der }` — not offered here.
    *
    * WITHOUT this entry the verifier has no trust anchor and rejects EVERY presentation
-   * ("Configured trust lists: none configured", measured live on 2026-08-09 against EUDIPLO
-   * 6.2.0). Version 5.0.0 did not check revocation status and therefore ran without one — the
-   * migration made the gap visible, it did not create it.
+   * ("Configured trust lists: none configured", EUDIPLO 6.2.0). Version 5.0.0 did not check
+   * revocation status and therefore ran without one.
    */
   trusted_authorities?: Array<{ type: 'etsi_tl'; values: Array<{ trustListId: string }> }>;
 }
@@ -122,7 +121,7 @@ export interface PresentedCredential {
 }
 
 // ---- config ----------------------------------------------------------------
-// Effective edition (honors the launch promo EUDI_PROMO_ALL_PRO) — same source of truth
+// Effective edition (honors EUDI_PROMO_ALL_PRO) — same source of truth
 // as the feature gates in server.ts. See ./core/edition.
 const PRO = effectiveEdition() === 'pro';
 // Which profiles are OFFERED — an explicit opt-in allow-list (comma-separated ids).
@@ -133,8 +132,8 @@ const PRO = effectiveEdition() === 'pro';
 const CONFIGURED = (process.env.EUDI_CREDENTIAL_PROFILES || 'pid_mdoc')
   .split(',').map((s) => s.trim()).filter(Boolean);
 const PID_DOCTYPE = process.env.PID_MDOC_DOCTYPE || 'eu.europa.ec.eudi.pid.1';
-// Confirmed live 2026-07-10 against the German sandbox (SPRIND wallet ↔ our EUDIPLO):
-// the SD-JWT PID is issued with vct `urn:eudi:pid:de:1` by preprod.pid-provider.bundesdruckerei.de.
+// In the German sandbox the SD-JWT PID is issued with vct `urn:eudi:pid:de:1` by
+// preprod.pid-provider.bundesdruckerei.de.
 const PID_VCT = process.env.PID_SDJWT_VCT || 'urn:eudi:pid:de:1';
 /**
  * Trust lists (ids of lists managed by the EUDIPLO instance, comma-separated) against which
@@ -190,9 +189,9 @@ const SDJWT_PATHS: Record<SemanticAttr, (string | number)[][]> = {
   given_name: [['given_name']],
   age_over_18: [['age_equal_or_over', '18']], // some issuers use a flat 'age_over_18'
   pseudonym_id: [],
-  birth_date: [['birthdate']], // SD-JWT VC schreibt `birthdate`, mdoc `birth_date`
+  birth_date: [['birthdate']], // SD-JWT VC uses `birthdate`, mdoc `birth_date`
   issuing_country: [['issuing_country']],
-  address: [['address']],      // ganzes Objekt: street_address, locality, postal_code, country
+  address: [['address']],      // whole object: street_address, locality, postal_code, country
 };
 
 /**
@@ -201,8 +200,8 @@ const SDJWT_PATHS: Record<SemanticAttr, (string | number)[][]> = {
  *
  * Why this has to be its own table rather than a special case in the body: without it such an
  * attribute silently falls through — requested, presented by the wallet, and discarded while
- * reading. Measured exactly that way on 2026-08-12: `birth_date` only made it through from
- * mdoc, `address` only from SD-JWT. Whoever adds an attribute here adds it to the request
+ * reading (`birth_date` would only come through from mdoc, `address` only from SD-JWT).
+ * Whoever adds an attribute here adds it to the request
  * mappings above as well — that is why both directions sit side by side.
  *
  * Only the canonical value is read; an age assertion is never turned into a date of birth or
@@ -266,14 +265,12 @@ const pidSdJwt: CredentialProfile = {
   label: 'PID (SD-JWT VC)',
   format: 'dc+sd-jwt',
   credentialType: PID_VCT,
-  // Community since 2026-08-09 (previously 'pro'). The reason is NOT generosity but a
-  // consequence that would otherwise contradict the edition rule: channel binding (DTLS
-  // fingerprint in `transaction_data` → KB-JWT) is implemented in the EUDIPLO verifier for
-  // SD-JWT VC only; the mdoc branch knows no transaction data. Were SD-JWT to stay
-  // Pro-exclusive, the STRONGEST security property would be permanently behind a paywall —
-  // and of all people the self-hoster with confidentiality requirements (a municipality, a
-  // counselling service) would get the weaker identity binding. That violates "the guarantee
-  // in Community, retention and analysis in Pro" (see src/core/features.ts).
+  // Community, because channel binding (DTLS fingerprint in `transaction_data` → KB-JWT) is
+  // implemented in the EUDIPLO verifier for SD-JWT VC only; the mdoc branch knows no
+  // transaction data. Restricting SD-JWT to Pro would put the STRONGEST security property
+  // behind the edition gate, and a self-hoster with confidentiality requirements (a
+  // municipality, a counselling service) would get the weaker identity binding. Security
+  // guarantees belong in Community (see src/core/features.ts).
   edition: 'community',
   claimPaths: (attr) => SDJWT_PATHS[attr] ?? [],
   supports: (attr) => (SDJWT_PATHS[attr] ?? []).length > 0,
@@ -398,16 +395,16 @@ function rawClaims(payload: any): Record<string, any> {
 /**
  * Which profile — and therefore which FORMAT — did the wallet actually present?
  *
- * Needed for the audit record: it used to note WHICH attribute types were presented, but not
- * over which trust path. In a later incident one could otherwise not reconstruct whether a
+ * Needed for the audit record: besides WHICH attribute types were presented, it records over
+ * which trust path. Otherwise, in a later incident one could not reconstruct whether a
  * session ran over mdoc or SD-JWT VC — and the two differ considerably in the maturity of the
  * verifier implementation.
  *
  * Two routes, in this order:
  *   1. The DCQL response references the credential id from the request (`credentials[].id`),
- *      and our ids ARE the profile ids (see buildDcql) — that is the exact route.
+ *      and the request's ids ARE the profile ids (see buildDcql) — that is the exact route.
  *   2. If only ONE profile was offered, the format is unambiguous even without a back
- *      reference. That is the common case today (default `pid_mdoc`).
+ *      reference. That is the common case (default `pid_mdoc`).
  *
  * Returns `undefined` when neither applies — the record then honestly says nothing, rather
  * than carrying a guess.

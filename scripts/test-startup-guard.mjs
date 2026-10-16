@@ -3,8 +3,8 @@
 /**
  * The startup check — a bolt that is only useful if it actually engages.
  *
- * Why this test exists: until 2026-08-19 `eudiplo.ts` had defaults pointing at someone else's
- * verifier instance, root secret included. An incompletely configured instance would therefore
+ * Why this test exists: `eudiplo.ts` once had defaults pointing at a fixed verifier instance,
+ * root secret included. An incompletely configured instance would therefore
  * start without complaint and quietly authenticate against a verifier that was not its own. The
  * defaults are gone; to stop them coming back, the check itself is checked here.
  *
@@ -76,6 +76,11 @@ for (const missing of ['EUDIPLO_BASE_URL', 'EUDIPLO_CLIENT_ID', 'EUDIPLO_CLIENT_
 console.log('\nThe legacy root path is a valid substitute for the tenant secret');
 const rootOnly = { EUDIPLO_BASE_URL: OK_ENV.EUDIPLO_BASE_URL, EUDIPLO_CLIENT_ID: 'agency-tenant', EUDIPLO_ROOT_ID: 'root', EUDIPLO_ROOT_SECRET: 'another-real-looking-secret-4a7b' };
 check('verifier access not flagged', !names(problems(rootOnly)).includes('EUDIPLO_CLIENT_SECRET'), JSON.stringify(problems(rootOnly)));
+const rootNote = problems(rootOnly).find((p) => p.variable === 'EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET');
+check('but flagged as deprecated, non-fatal', !!rootNote && rootNote.fatal === false, JSON.stringify(problems(rootOnly)));
+check('the note names the replacement variables', /EUDIPLO_CLIENT_ID/.test(rootNote?.problem || '') && /EUDIPLO_CLIENT_SECRET/.test(rootNote?.problem || ''), JSON.stringify(rootNote));
+check('the note does not echo the secret', !JSON.stringify(rootNote).includes('another-real-looking-secret'), JSON.stringify(rootNote));
+check('no note when the tenant secret is set too', !names(problems({ ...rootOnly, EUDIPLO_CLIENT_SECRET: OK_ENV.EUDIPLO_CLIENT_SECRET })).includes('EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET'));
 // Half of the legacy path must NOT be enough — otherwise the token request would fail later.
 const halfRoot = { EUDIPLO_BASE_URL: OK_ENV.EUDIPLO_BASE_URL, EUDIPLO_CLIENT_ID: 'agency-tenant', EUDIPLO_ROOT_SECRET: 'secret-without-its-id-8c2d' };
 check('half a legacy path (no ROOT_ID) is not enough', fatalNames(problems(halfRoot)).includes('EUDIPLO_CLIENT_SECRET'), JSON.stringify(problems(halfRoot)));
@@ -98,9 +103,8 @@ for (const [variable, value] of [
 }
 
 console.log('\nThe old default secret from the source code is rejected by name');
-// 'kontrollfeld-secret' was a fallback in the code until 2026-08-19 and is therefore publicly
-// known. It MUST fail even when someone sets it deliberately.
-const compromised = problems({ ...OK_ENV, EUDIPLO_CLIENT_SECRET: undefined, EUDIPLO_ROOT_ID: 'kontrollfeld', EUDIPLO_ROOT_SECRET: 'kontrollfeld-secret' });
+// A publicly known former default secret must stay rejected.
+const compromised = problems({ ...OK_ENV, EUDIPLO_CLIENT_SECRET: undefined, EUDIPLO_ROOT_ID: 'example-root', EUDIPLO_ROOT_SECRET: 'kontrollfeld-secret' });
 check('recognised as fatal', fatalNames(compromised).includes('EUDIPLO_ROOT_SECRET'), JSON.stringify(compromised));
 const msg = (compromised.find((p) => p.variable === 'EUDIPLO_ROOT_SECRET') || {}).problem || '';
 check('the message explains that it must be rotated', /rotate/i.test(msg), msg);
@@ -171,6 +175,18 @@ console.log('\nRunning without a verifier: explicit, and only then');
   const prodNone = runAssert('production', { EUDI_VERIFIER: 'none' });
   check('production + none -> starts', prodNone.status === 0 && String(prodNone.stdout).includes('CONTINUED'), `status=${prodNone.status} ${prodNone.stderr}`);
   check('the missing-verifier message names the way out', /EUDI_VERIFIER=none/.test(problems({}).find((p) => p.variable === 'EUDIPLO_BASE_URL')?.problem || ''));
+}
+
+console.log('\nThe dummy verifier: refused unless explicitly allowed');
+{
+  const mockProblem = (env) => problems(env).find((p) => /EUDI_ALLOW_MOCK_VERIFIER/.test(p.problem));
+  check('http://mock-eudiplo:8080 -> fatal', mockProblem({ ...OK_ENV, EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080' })?.fatal === true);
+  check('a /mock path -> fatal', mockProblem({ ...OK_ENV, EUDIPLO_BASE_URL: 'https://verifier.agency.example-real.eu/mock/' })?.fatal === true);
+  const allowed = problems({ ...OK_ENV, EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080', EUDI_ALLOW_MOCK_VERIFIER: 'true' });
+  check('with EUDI_ALLOW_MOCK_VERIFIER=true -> not fatal', fatalNames(allowed).length === 0, JSON.stringify(allowed));
+  check('with the opt-in a warning remains', allowed.some((p) => p.variable === 'EUDIPLO_BASE_URL' && !p.fatal));
+  check('a normal verifier -> no such problem', !mockProblem(OK_ENV));
+  check('EUDI_VERIFIER=none -> not checked', !mockProblem({ EUDI_VERIFIER: 'none', EUDIPLO_BASE_URL: 'http://mock-eudiplo:8080' }));
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);

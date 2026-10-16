@@ -4,11 +4,11 @@
  * Signed invitations for SCHEDULED calls.
  *
  * WHY THIS IS NEEDED. Rooms live purely in process memory and vanish once the last
- * participant leaves (see ./rooms). A shared link used to carry only the room id — neither the
- * role nor the configuration. At appointment time it therefore produced a FRESH room with
- * default settings, and whoever arrived first became host. An asymmetric arrangement ("I
- * disclose my given name, you show your family name") could not be delivered at all: it lived
- * only in the inviter's open tab.
+ * participant leaves (see ./rooms). A link carrying only the room id — neither the role nor
+ * the configuration — would at appointment time produce a FRESH room with default settings,
+ * and whoever arrived first would become host. An asymmetric arrangement ("I disclose my given
+ * name, you show your family name") could not be delivered at all: it would live only in the
+ * inviter's open tab.
  *
  * SOLUTION. The invitation carries the arrangement itself, HMAC-signed: room, role, mode, both
  * attribute directions, time window. No server state, no database, survives restart and
@@ -54,7 +54,7 @@ export interface InvitePayload {
   r: SemanticAttr[];
   /** What the HOST discloses about themselves. */
   d: SemanticAttr[];
-  /** Gültig ab / bis, Sekunden seit Epoche. */
+  /** Valid from / until, seconds since epoch. */
   nbf: number;
   exp: number;
 }
@@ -93,9 +93,7 @@ export type InviteReason =
 export type InviteResult =
   | { ok: true; payload: InvitePayload }
   /** `opensAt` = `nbf`, i.e. when the link BECOMES usable — not the appointment time, which
-   *  is `INVITE_LEAD_S` later. The field was called `startsAt` until 2026-08-11; that name is
-   *  what made the confusion possible — the waiting screen announced the lead time as the
-   *  start. */
+   *  is `INVITE_LEAD_S` later. */
   | { ok: false; reason: InviteReason; opensAt?: number };
 
 /** Do not even hash absurdly long input (log and memory hygiene). */

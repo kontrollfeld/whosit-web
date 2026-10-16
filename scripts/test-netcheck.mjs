@@ -4,8 +4,7 @@
  * The network pre-flight classifier — no browser, no network.
  *
  * What is checked is the mapping "candidates found -> verdict". The inputs are NOT invented
- * shapes: they come from a real measurement against id-call.eu on 2026-08-12 (Chrome,
- * getStats). The "relay over TCP" case in particular is genuine — the SDP line there says
+ * shapes: they come from a real measurement (Chrome, getStats). The "relay over TCP" case in particular is genuine — the SDP line there says
  * `udp`, and only `relayProtocol` reveals the truth.
  *
  * Usage: npm run test:netcheck
@@ -30,7 +29,7 @@ function check(name, actual, expected) {
 
 console.log('\nVerdict from the candidate types');
 
-// Gemessen: normales Heimnetz, UDP offen (host + srflx + relay/udp).
+// Measured: ordinary home network, UDP open (host + srflx + relay/udp).
 check('UDP offen → direkte Verbindung', classifyCandidates([
   { candidateType: 'host', protocol: 'udp' },
   { candidateType: 'srflx', protocol: 'udp' },

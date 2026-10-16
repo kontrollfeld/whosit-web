@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Apple Wallet Termin-Pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
+ * Apple Wallet appointment pass (Community `wallet-pass`, config-gated via EUDI_PASS_*) —
  * a scheduled verified call
  * as a .pkpass "appointment ticket": appears on the lock screen at call time
  * (relevantDate) and carries the room link as QR + back-field (Universal Link →
@@ -170,6 +170,11 @@ const LABELS: Record<string, { date: string; time: string; link: string; open: s
   fr: { date: 'Date', time: 'Heure', link: 'Lien d’appel', open: 'Ouvrir l’appel', note: 'Ce pass est un rappel de rendez-vous. Le lien ouvre l’appel vérifié — la vérification d’identité a lieu dans l’appel.' },
 };
 
+/** The host of the room link, shown under the QR code; the product name if the URL is unusable. */
+function passHost(roomUrl: string): string {
+  try { return new URL(roomUrl).host || 'EUDI Verified Call'; } catch { return 'EUDI Verified Call'; }
+}
+
 export function buildTerminPass(opts: TerminPassOptions): Buffer {
   const L = LABELS[opts.locale || 'de'] || LABELS.de;
   const fmtDate = new Intl.DateTimeFormat(opts.locale || 'de', { dateStyle: 'full', timeZone: 'Europe/Berlin' }).format(opts.start);
@@ -189,7 +194,7 @@ export function buildTerminPass(opts: TerminPassOptions): Buffer {
     labelColor: 'rgb(3, 105, 161)',
     relevantDate: opts.start.toISOString(),
     expirationDate: new Date(opts.end.getTime() + 24 * 3600 * 1000).toISOString(),
-    barcodes: [{ format: 'PKBarcodeFormatQR', message: opts.roomUrl, messageEncoding: 'iso-8859-1', altText: 'whosit.eu' }],
+    barcodes: [{ format: 'PKBarcodeFormatQR', message: opts.roomUrl, messageEncoding: 'iso-8859-1', altText: passHost(opts.roomUrl) }],
     eventTicket: {
       primaryFields: [{ key: 'title', value: opts.title }],
       secondaryFields: [

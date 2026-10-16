@@ -25,9 +25,8 @@
  *      UNSWITCHABLE below). Not a stopgap: public authorities must be able to disable
  *      functions for compliance reasons, not because they failed to pay for them.
  *
- * `clientGated` now says only WHETHER the browser reacts to a capability — it is not an
- * edition boundary. Not to be confused with the tiers of the hosted service: there we control
- * the server, and quotas apply irrespective of this file.
+ * `clientGated` says only WHETHER the browser reacts to a capability — it is not an
+ * edition boundary.
  */
 export type Edition = 'community' | 'pro';
 
@@ -41,7 +40,7 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   // Community — always enabled.
-  { id: 'calls', title: '1:1 Video/Audio/Chat', edition: 'community', clientGated: false },
+  { id: 'calls', title: 'Video/Audio/Chat calls', edition: 'community', clientGated: false },
   { id: 'eudi-verification', title: 'EUDI PID verification + privacy gate', edition: 'community', clientGated: false },
   { id: 'copy-link', title: 'Copy invite link', edition: 'community', clientGated: false },
   { id: 'self-host', title: 'Self-hosting stack', edition: 'community', clientGated: false },
@@ -51,11 +50,10 @@ export const FEATURES: Feature[] = [
   // capability stays off, and the client falls back to a plain room link.
   { id: 'planned-invites', title: 'Scheduled calls (signed invitation, role-bound)', edition: 'community', clientGated: true },
   // QES in-call document ceremony (see public/qes/). Community ships the doc
-  // sharing + mock signing path; CSC/QTSP signature providers are Pro (Phase 6) and
+  // sharing + mock signing path; CSC/QTSP signature providers are Pro and
   // hard-gated server-side via /signature-providers.
   { id: 'qes-in-call', title: 'In-call document sharing & signing ceremony (QES)', edition: 'community', clientGated: true },
-  // eIDAS 2.0 / EU 2024/1183 compliance. Community on purpose and by decision
-  // (2026-08-06): a WRP guarantee that only holds in the paid edition is not a guarantee,
+  // eIDAS 2.0 / EU 2024/1183 compliance. Community on purpose: a WRP guarantee that only holds in the paid edition is not a guarantee,
   // and a self-hoster needs `/wrp-policy` to evidence the scope of THEIR instance.
   // Not clientGated — these are unconditional properties, not toggleable UI. The browser
   // reads the attribute list from /capabilities `policy`, not from this capability set.
@@ -77,11 +75,9 @@ export const FEATURES: Feature[] = [
   // refuses an unknown transaction_data type — see ../channel-binding.
   { id: 'channel-binding', title: 'Channel binding: identity tied to the connection DTLS key (SD-JWT VC, currently disabled)', edition: 'community', clientGated: false },
 
-  // In-call comfort. All of these were Pro until 2026-08-19; their gate was purely
-  // client-side, so an open client lifts it with one line. `meeting-controls` was the
-  // clearest case: being able to mute yourself is a precondition of video calling, not an
-  // enterprise trait — nobody buys a licence for a mute button, but many dismiss an edition
-  // that lacks one.
+  // In-call comfort. Community because their gate would be purely client-side, so an open
+  // client lifts it with one line. Being able to mute yourself (`meeting-controls`) is a
+  // precondition of video calling, not an enterprise trait.
   { id: 'screen-share', title: 'Screen sharing', edition: 'community', clientGated: true },
   { id: 'calendar-invite', title: 'Calendar invite (.ics/Google)', edition: 'community', clientGated: true },
   { id: 'native-share', title: 'Native share (Web Share)', edition: 'community', clientGated: true },
@@ -97,19 +93,16 @@ export const FEATURES: Feature[] = [
 
   // Server-enforced via frame headers (frame-ancestors); the client reads it for embed UX.
   // Community, because embedding needs the OPERATOR's configuration — their portals, their
-  // origins. We cannot charge for their own arrangements.
+  // origins.
   { id: 'embed', title: 'Embeddable iframe widget', edition: 'community', clientGated: false },
-  // Community since 2026-09-25 (was 'pro'). Room size limit: EUDI_MAX_PARTICIPANTS with it,
-  // 2 without (operators switch it off via EUDI_FEATURES_OFF=multi-party). The mesh logic is
-  // spread through the signalling in ../server.ts and the client in public/app.js — all of it
-  // AGPL. As 'pro' it was a one-line switch in open code: it protected no revenue, and the
-  // label claimed a protection that did not exist. What we DO charge for is operating group
-  // calls at scale (relay capacity, support) on the hosted service — not the code.
+  // Room size limit: EUDI_MAX_PARTICIPANTS with it, 2 without (operators switch it off via
+  // EUDI_FEATURES_OFF=multi-party). The mesh logic is spread through the signalling in
+  // ../server.ts and the client in public/app.js — all of it AGPL, so as 'pro' it would be a
+  // one-line switch in open code, claiming a protection that does not exist.
   { id: 'multi-party', title: 'Multi-party calls (full mesh)', edition: 'community', clientGated: false },
-  // PID in BOTH ARF formats — Community since 2026-08-09 (was 'pro').
-  // The trigger was not generosity: channel binding (DTLS fingerprint → transaction_data →
-  // KB-JWT) only works with SD-JWT VC in the EUDIPLO verifier. Pro-exclusive SD-JWT would
-  // have put the strongest security property behind the paywall — see the detailed reasoning
+  // PID in BOTH ARF formats. Community because channel binding (DTLS fingerprint →
+  // transaction_data → KB-JWT) only works with SD-JWT VC in the EUDIPLO verifier. Pro-exclusive
+  // SD-JWT would put the strongest security property behind the paywall — see the detailed reasoning
   // at the `pidSdJwt` profile in ../credential-profiles.ts.
   // WHICH of the permitted profiles are actually offered stays the opt-in
   // `EUDI_CREDENTIAL_PROFILES` (still defaulting to `pid_mdoc` only) — the edition permits,

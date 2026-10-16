@@ -4,9 +4,8 @@
  * Who is asking — the one thing a white-labelled instance must not get wrong.
  *
  * On a branded instance the page carries the customer's name while the WALLET shows whoever owns
- * the access certificate behind the EUDIPLO tenant. Measured on the first tenant instance in
- * August 2026: page said "LHD Bürgerservice", wallet said "Kontrollfeld", and nothing in the
- * interface bridged the two.
+ * the access certificate behind the EUDIPLO tenant: the page can say "Musterstadt Bürgerservice"
+ * while the wallet names the certificate holder, and nothing in the interface bridges the two.
  *
  * What is tested here is not the wording but the DECISION — when disclosure happens, and that no
  * configuration can switch it off. The failure mode is silent by construction: an instance with
@@ -35,7 +34,7 @@ function rp(env, brand) {
 }
 
 const OWN = { EUDIPLO_CLIENT_ID: 'stadt-xy' };        // an instance on its own tenant
-const DEFAULT_TENANT = { EUDIPLO_CLIENT_ID: '' };      // falls back to kontrollfeld-admin
+const DEFAULT_TENANT = { EUDIPLO_CLIENT_ID: '' };      // falls back to the default tenant
 
 console.log('\nAn unbranded instance discloses nothing');
 // The no-op condition. whosit.eu itself and every self-hosted instance without EUDI_BRAND_NAME
@@ -43,33 +42,33 @@ console.log('\nAn unbranded instance discloses nothing');
 const plain = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: '' }, undefined);
 check('no disclosure without a brand', plain.disclose === false, JSON.stringify(plain));
 check('and nobody is named', plain.onBehalfOf === null, JSON.stringify(plain));
-const plainNamed = rp({ ...OWN, EUDI_RP_NAME: 'Kontrollfeld GmbH' }, undefined);
+const plainNamed = rp({ ...OWN, EUDI_RP_NAME: 'Example Verifier GmbH' }, undefined);
 check('not even with EUDI_RP_NAME set', plainNamed.disclose === false, JSON.stringify(plainNamed));
 
 console.log('\nBranded + someone else’s certificate = say so');
-const managed = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Kontrollfeld GmbH' }, 'Stadt XY');
+const managed = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Example Verifier GmbH' }, 'Example City');
 check('disclosure required', managed.disclose === true, JSON.stringify(managed));
-check('the asking party is named', managed.name === 'Kontrollfeld GmbH', JSON.stringify(managed));
-check('and on whose behalf', managed.onBehalfOf === 'Stadt XY', JSON.stringify(managed));
+check('the asking party is named', managed.name === 'Example Verifier GmbH', JSON.stringify(managed));
+check('and on whose behalf', managed.onBehalfOf === 'Example City', JSON.stringify(managed));
 
 console.log('\nBranded but nobody named — the blunt wording, not silence');
 // "Unknown" is not "identical". A missing EUDI_RP_NAME must not read as "the brand asks".
-const unnamed = rp({ ...OWN, EUDI_RP_NAME: '' }, 'Stadt XY');
+const unnamed = rp({ ...OWN, EUDI_RP_NAME: '' }, 'Example City');
 check('still discloses', unnamed.disclose === true, JSON.stringify(unnamed));
 check('with no name to offer', unnamed.name === null, JSON.stringify(unnamed));
 check('but the brand is still named, so the client can say who it is NOT',
-  unnamed.onBehalfOf === 'Stadt XY', JSON.stringify(unnamed));
+  unnamed.onBehalfOf === 'Example City', JSON.stringify(unnamed));
 
 console.log('\nThe description cannot talk the disclosure away');
 // The attack this closes: an operator on someone else's certificate sets EUDI_RP_NAME to the
 // CUSTOMER's name, the two match, and the sentence disappears — while the wallet keeps showing
 // the certificate holder. The tenant decides, not the description.
-const lying = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Stadt XY' }, 'Stadt XY');
+const lying = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Example City' }, 'Example City');
 check('default tenant forces disclosure even when the names match',
   lying.disclose === true, JSON.stringify(lying));
 
 console.log('\nIt disappears the honest way: own tenant, own name');
-const stufe2 = rp({ ...OWN, EUDI_RP_NAME: 'Stadt XY' }, 'Stadt XY');
+const stufe2 = rp({ ...OWN, EUDI_RP_NAME: 'Example City' }, 'Example City');
 check('no disclosure when brand and certificate holder are the same party',
   stufe2.disclose === false, JSON.stringify(stufe2));
 check('and nothing is left dangling in the payload', stufe2.onBehalfOf === null, JSON.stringify(stufe2));
@@ -78,7 +77,7 @@ console.log('\nThere is no switch to turn it off');
 // Every plausible name an operator might reach for. If one of these ever silences the sentence,
 // this test is the thing that notices.
 for (const v of ['EUDI_RP_DISCLOSE', 'EUDI_RP_HIDE', 'EUDI_FEATURES_OFF']) {
-  const off = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Kontrollfeld GmbH', [v]: v === 'EUDI_FEATURES_OFF' ? 'relying-party' : 'off' }, 'Stadt XY');
+  const off = rp({ ...DEFAULT_TENANT, EUDI_RP_NAME: 'Example Verifier GmbH', [v]: v === 'EUDI_FEATURES_OFF' ? 'relying-party' : 'off' }, 'Example City');
   check(`${v} does not suppress it`, off.disclose === true, `${v}: ${JSON.stringify(off)}`);
 }
 

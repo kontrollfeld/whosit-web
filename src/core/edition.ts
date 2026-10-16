@@ -9,10 +9,8 @@
  *   - EUDI_EDITION=pro|community
  *       The edition this instance is configured/licensed as. Default: community.
  *   - EUDI_PROMO_ALL_PRO=true
- *       LAUNCH PROMO: unlock the FULL Pro feature set for EVERYONE, with no account or
- *       subscription gate. Meant for the public launch period so people can try the app
- *       (and its Pro features) freely. Flip it off (unset / =false) to fall back to the
- *       configured edition's gating — that's the "switch back to Pro/Community" knob.
+ *       Unlock the FULL Pro feature set for EVERYONE, with no account or subscription
+ *       gate. Unset it (or set =false) to fall back to the configured edition's gating.
  *
  * The EFFECTIVE edition (what the gates use) is `pro` when EITHER input asks for pro.
  * The CONFIGURED edition and the promo flag are reported separately by /capabilities so
@@ -22,7 +20,7 @@ import type { Edition } from './features';
 
 const truthy = (v: string | undefined): boolean => /^(1|true|yes|on)$/i.test((v || '').trim());
 
-/** Launch promo active: give everyone the Pro feature set for free (no gate). */
+/** Promo active: give everyone the Pro feature set for free (no gate). */
 export function promoAllPro(): boolean {
   return truthy(process.env.EUDI_PROMO_ALL_PRO);
 }

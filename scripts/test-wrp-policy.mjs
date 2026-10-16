@@ -15,7 +15,7 @@
  *      attribute whitelist would no longer live in reviewed source but in a deployment's
  *      environment, and the promise at the top of src/wrp-policy.ts would be void.
  *
- * Plus normalisation: mdoc and SD-JWT name the same claims differently. On 2026-08-12 that made
+ * Plus normalisation: mdoc and SD-JWT name the same claims differently. That once made
  * `birth_date` fall through from mdoc only and `address` from SD-JWT only — requested, presented,
  * discarded. Point 4 pins that down.
  *
@@ -63,10 +63,9 @@ check('permitted and waived never overlap',
 check('its own purpose is published',
   kommune.purposeId !== std.purposeId && !!kommune.purposeId, kommune.purposeId);
 
-// Until 2026-08-19 the template was named after its first prospective user. The old name stays
-// valid — otherwise an already-configured EUDI_WRP_POLICY would trigger a startup abort
-// (assertPolicyOrExit lets no unknown name through, which is right, but here it would be a
-// self-inflicted outage).
+// The template's earlier name stays valid as an alias — otherwise an already-configured
+// EUDI_WRP_POLICY would trigger a startup abort (assertPolicyOrExit lets no unknown name
+// through, which is right, but here it would be a self-inflicted outage).
 console.log('\nThe old policy name stays valid as an alias');
 const alias = describe({ EUDI_WRP_POLICY: 'lhd-buergerservice' });
 check('the alias is accepted, with no fallback to the default policy',

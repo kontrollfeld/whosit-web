@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* Identity binding for the in-call signing ceremony (public/qes/ §6) —
+/* Identity binding for the in-call signing ceremony —
  * the product's core claim: "the signer IS the verified call partner".
  *
  * After every signing step the RECEIVING side re-derives the signer's identity from

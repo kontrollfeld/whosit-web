@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* PAdES handling for the in-call signing ceremony (public/qes/ §3/§4).
+/* PAdES handling for the in-call signing ceremony.
  *
  * Adds one signature to a PDF as an INCREMENTAL UPDATE: a signature placeholder
  * (/Type /Sig, SubFilter ETSI.CAdES.detached, /ByteRange + /Contents gap) is appended,
@@ -33,11 +33,10 @@ async function loadBundle() {
  * Node reads a string second argument as the ENCODING and searches from the end. The shim takes
  * it as the start offset 0 and searches backwards from there — so it never finds anything that
  * is not at position 0. @signpdf's findObject uses exactly that call to strip the closing `>>`
- * of the catalog and page dictionaries it rewrites; with the shim it stripped one character
- * instead, and every signed PDF carried a catalog that closes BEFORE `/AcroForm` and a page that
- * closes before `/Annots`. Lenient readers did not mind. PDFBox (Stirling PDF), Acrobat's
- * signature panel and EU DSS look up signatures through the AcroForm, and found none.
- * Until 2026-10-01, every PDF signed here had this defect.
+ * of the catalog and page dictionaries it rewrites; with the shim it strips one character
+ * instead, so the catalog closes BEFORE `/AcroForm` and the page closes before `/Annots`.
+ * Lenient readers do not mind. PDFBox (Stirling PDF), Acrobat's signature panel and EU DSS look
+ * up signatures through the AcroForm, and find none.
  *
  * Patched on the bundle's own Buffer rather than rebuilt, because the bundle is vendored as a
  * whole; scripts/test-qes.mjs parses the result with pdf-lib to keep it fixed.
@@ -67,7 +66,7 @@ export async function addSignature(bytes, { provider, signerName, reason, firstS
     pdfBuffer,
     reason: reason || 'whosit',
     name: signerName || '',
-    // Written whatever we pass: left out, every signature carried the literal "(undefined)".
+    // Always written: if left out, the signature carries the literal "(undefined)".
     contactInfo: '',
     location: '',
     signatureLength: PLACEHOLDER_BYTES,
@@ -85,12 +84,9 @@ export async function addSignature(bytes, { provider, signerName, reason, firstS
     // First signature on a PDF the plain parser cannot read — typically an xref STREAM with
     // object streams, which is what Word and LibreOffice write. Rewrite it once with pdf-lib as
     // a classic xref table (allowed only while no signature exists), then add the placeholder
-    // the same way as for every later signature.
-    //
-    // Until 2026-10-01 pdf-lib added this first placeholder itself. That crashed on our
-    // arguments (no such PDF could be signed at all), and once fixed, its AcroForm was not one
-    // the plain path recognises: the second signer's field replaced the first, and validators
-    // saw only one signature. One path for every signature removes that seam.
+    // the same way as for every later signature. A placeholder added by pdf-lib itself would
+    // carry an AcroForm the plain path does not recognise: the second signer's field would
+    // replace the first. One path for every signature removes that seam.
     const doc = await PDFDocument.load(bytes, { updateMetadata: false });
     withPlaceholder = placeholder(Buffer.from(await doc.save({ useObjectStreams: false })));
   }

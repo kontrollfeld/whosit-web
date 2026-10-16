@@ -15,7 +15,7 @@
 
 // ---- native app shell (Capacitor) ----
 // The bundled app serves these files from a local origin and talks to a remote
-// server: window.EUDI_APP_CONFIG.apiBase (injected by app/scripts/sync-web.mjs)
+// server: window.EUDI_APP_CONFIG.apiBase (injected by the native app's build)
 // overrides the base for API calls, the WebSocket, and invite links. In the
 // browser it is undefined and everything stays relative (same-origin).
 const APP_CONFIG = window.EUDI_APP_CONFIG || null;
@@ -110,7 +110,7 @@ async function refreshCaps() {
   applyVerifierMode();
   applyPolicyTexts();
   applyRelyingPartyDisclosure();
-  refreshCredCatalog(); // Nachweis-Katalog — no-op, wenn kein Katalog konfiguriert ist
+  refreshCredCatalog(); // credential catalog — no-op when none is configured
 }
 /**
  * State who is actually asking, before the wallet opens.
@@ -271,7 +271,6 @@ function setLocalLabel(name) { localNameTag.textContent = name ? name + ' · ' +
 // MIRROR for labels/icons, not the authority: the server narrows or refuses anything
 // outside its own whitelist, and /capabilities publishes the authoritative set, which
 // allowedAttrKeys() below reconciles against this list.
-// Geburtsdatum, Ausstellungsland and Adresse were removed with the WRP scoping.
 const ATTRIBUTES = [
   { key: 'family_name', label: 'Nachname' },
   { key: 'given_name', label: 'Vorname' },
@@ -394,8 +393,8 @@ function buildSetup() {
   // Re-apply the embed mode: renderStatus() sets `mode` from the server's room default
   // (video) before we get here, which would otherwise discard the embedder's mode.
   if (embedCfg && (embedCfg.mode === 'video' || embedCfg.mode === 'audio' || embedCfg.mode === 'chat')) mode = embedCfg.mode;
-  // Embed config seeds the initial requested/disclosed attributes (Pro).
-  // Scheduled call: the agreed scope comes from the invitation. Without this, setup showed the
+  // Embed config seeds the initial requested/disclosed attributes.
+  // Scheduled call: the agreed scope comes from the invitation. Without this, setup would show the
   // local defaults, i.e. something other than what the server actually holds.
   const reqDefault = inviteCfg ? sanitizeKeys(inviteCfg.request, [])
     : embedCfg ? sanitizeKeys(embedCfg.request, requestMode === 'anon' ? [] : ['family_name']) : ['family_name'];
@@ -551,7 +550,7 @@ function onConfigChange() {
   updatePreview(requestedAttrs, disclosedAttrs);
   syncPresetChips();
   wsSend({ type: 'set-config', mode, requestedAttrs, disclosedAttrs, openRoom: openroomToggle.checked });
-  refreshPlannedInvite(); // geplanter Anruf: Einladung traegt die Abrede → neu ausstellen
+  refreshPlannedInvite(); // scheduled call: the invitation carries the agreement → reissue it
 }
 let setupLocked = false;
 function lockSetup() {
@@ -565,7 +564,7 @@ function lockSetup() {
  * Who counts as the SAME person in a room. The identifier is tied to the room and lives in
  * localStorage — not per tab.
  *
- * Why no longer per tab: a tab is not a person. Someone who opens the appointment link in the
+ * Why not per tab: a tab is not a person. Someone who opens the appointment link in the
  * morning out of curiosity, forgets the tab and clicks again at the appointment time would
  * otherwise get a second identifier, occupy both seats themselves and lock their counterpart out
  * ("the room is full"). Tied to the room, the new tab takes over the existing seat instead — and
@@ -579,7 +578,7 @@ function stableClientId(room) {
   const key = 'eudi_clientId_' + (room || 'adhoc');
   let store;
   try { store = localStorage; localStorage.getItem(key); }
-  catch { store = sessionStorage; } // Safari im privaten Modus o. Ä.
+  catch { store = sessionStorage; } // e.g. Safari in private mode
   if (new URLSearchParams(location.search).get('fresh') === '1') {
     return (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
   }
@@ -626,7 +625,7 @@ if (!roomId && !inviteToken && !pairToken) {
   params.delete('new'); // entry flag from a start page's CTA — not part of the room URL
   params.set('room', roomId);
   // Keep the hash: in embed mode it carries the #cfg config (parsed further below) —
-  // dropping it here silently discarded the embedder's configuration.
+  // dropping it here would silently discard the embedder's configuration.
   history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash || ''}`);
 }
 /**
@@ -639,7 +638,7 @@ if (!roomId && !inviteToken && !pairToken) {
 const staffToken = (function () {
   const key = 'eudi_staff_token';
   let store = null;
-  try { store = localStorage; localStorage.getItem(key); } catch { /* privater Modus */ }
+  try { store = localStorage; localStorage.getItem(key); } catch { /* private mode */ }
   const ausUrl = params.get('staff');
   if (ausUrl) {
     try { if (store) store.setItem(key, ausUrl); } catch {}
@@ -685,7 +684,7 @@ if (isEmbedded) document.documentElement.classList.add('embedded');
 if (embedCfg) {
   if (embedCfg.mode === 'video' || embedCfg.mode === 'audio' || embedCfg.mode === 'chat') mode = embedCfg.mode;
   if (Array.isArray(embedCfg.request)) requestMode = embedCfg.request.length ? 'data' : 'anon';
-  // Embeds keep their previous semantics: no explicit disclose config → anonymous host
+  // In embeds, no explicit disclose config → anonymous host
   // (the operator decides; the app-default 'data' applies only outside embeds).
   discloseMode = Array.isArray(embedCfg.disclose) && embedCfg.disclose.length ? 'data' : 'anon';
 }
@@ -757,8 +756,8 @@ if (inviteWhenSeg) {
 //   host link   -> your own access; belongs in the calendar and in the wallet card,
 //                  but NOT in the sharing field: whoever opens it joins as the host
 //
-// Without the capability (no EUDI_INVITE_SECRET on the server) everything stays as before: a bare
-// room link that only carries as long as this tab is open.
+// Without the capability (no EUDI_INVITE_SECRET on the server) the invitation is a bare room link
+// that only carries as long as this tab is open.
 let plannedInvite = null;   // { key, room, hostToken, guestToken }
 let plannedGuestUrl = null;
 let plannedHostUrl = null;
@@ -953,8 +952,8 @@ icsBtn.addEventListener('click', async () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
-// Apple Wallet Termin-Pass (`wallet-pass`, server-side signed .pkpass). A plain
-// navigation download: Safari/iOS offer "Zur Wallet hinzufügen" natively.
+// Apple Wallet appointment pass (`wallet-pass`, server-side signed .pkpass). A plain
+// navigation download: Safari/iOS offer "Add to Wallet" natively.
 if (walletPassBtn) walletPassBtn.addEventListener('click', async () => {
   const range = scheduledRange();
   if (!range) { flashInvalid(); return; }
@@ -991,7 +990,7 @@ gcalBtn.addEventListener('click', async () => {
 // Visibility is controlled by applyCapabilities(); here we only wire the handler.
 if (navigator.share) {
   shareBtn.addEventListener('click', async () => {
-    await ensurePlannedInvite(); // geteilt wird der GAST-Link (steht dann in shareInput)
+    await ensurePlannedInvite(); // the GUEST link is shared (it is then in shareInput)
     const range = scheduledRange();
     let text = t('Verifizierter Anruf per EUDI-Wallet — hier beitreten:');
     if (range) {
@@ -1034,8 +1033,8 @@ function onServer(type, fn) {
 // along with it. Normally it only comes into being with the SDP offer — so we bring the
 // certificate forward: created once, held here, handed to the real connection later. See
 // src/channel-binding.ts.
-let localCert = null;          // RTCCertificate, wiederverwendet über Reconnects hinweg
-let localFingerprint = null;   // 'AB:CD:…' (SHA-256, Großschreibung)
+let localCert = null;          // RTCCertificate, reused across reconnects
+let localFingerprint = null;   // 'AB:CD:…' (SHA-256, uppercase)
 
 async function ensureLocalCertificate() {
   if (localFingerprint !== null || localCert) return;
@@ -1079,7 +1078,7 @@ function sdpFingerprint256(desc) {
 function verifyPeerBinding(peerId) {
   const p = peers.get(peerId);
   const info = lastStatusMsg && (lastStatusMsg.peers || []).find((x) => x.peerId === peerId);
-  if (!p || !info || !info.channelBound || !info.dtlsFingerprint) return true; // nichts zugesichert
+  if (!p || !info || !info.channelBound || !info.dtlsFingerprint) return true; // nothing asserted
   const actual = sdpFingerprint256(p.pc.remoteDescription);
   if (actual && actual !== String(info.dtlsFingerprint).toUpperCase()) {
     console.error('[channel-binding] Fingerprint der Gegenstelle weicht von der geprüften Identität ab');
@@ -1094,12 +1093,11 @@ function verifyPeerBinding(peerId) {
 /**
  * Reconnecting — with a growing interval and WITHOUT giving up.
  *
- * Before: 60 attempts at a fixed 1.5 s interval, 90 seconds in total, then the end. But for a
- * scheduled call, waiting is the normal case: someone who enters the room at 14:00 and waits until
- * 14:15 has a device that goes to sleep in between. On waking, the budget had long been spent, the
- * window showed a frozen picture from earlier — and because the preview never arrived, the host
- * could not consent. The call did not happen even though everything was ready server-side. As long
- * as the page is open we therefore no longer give up.
+ * For a scheduled call, waiting is the normal case: someone who enters the room at 14:00 and waits
+ * until 14:15 has a device that goes to sleep in between. With a fixed attempt budget, on waking the
+ * budget would long be spent, the window would show a frozen picture from earlier — and because the
+ * preview never arrives, the host could not consent, even though everything is ready server-side.
+ * As long as the page is open we therefore never give up.
  */
 const RECONNECT_MAX_MS = 20_000;
 let reconnectTimer = null;
@@ -1130,14 +1128,13 @@ function reconnectNow() {
 }
 
 // Exactly the moments when a waiting device comes back. Without them the rebuild would only start
-// after the next interval — and before that it did not happen at all.
+// after the next interval.
 window.addEventListener('online', reconnectNow);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) reconnectNow(); });
 
 /**
  * The display is the more important part: a frozen window that does not say it is frozen looks
- * like a working one. A call failed on precisely that — both waited for the other, and one was
- * only looking at an old picture.
+ * like a working one — both sides wait for the other while one is only looking at an old picture.
  */
 function setLinkDown(down) {
   if (down === linkDown) return;
@@ -1246,7 +1243,7 @@ function handle(msg) {
       ended = true;
       teardownCall();
       showEnded('Diese Kennung ist hier nicht freigeschaltet. Nur berechtigte Personen können auf dieser Seite einen Anruf führen — wende dich an die zuständige Stelle, wenn das ein Irrtum ist.');
-      restartBtn.hidden = true; // ein neuer Raum hülfe nicht, die Sperre gilt für die Instanz
+      restartBtn.hidden = true; // a new room would not help — the block applies to the whole instance
       break;
     case 'invite-invalid': showInviteProblem(msg.reason, msg.opensAt, msg.startsAt); break;
     case 'auth': showAuth(msg); break;
@@ -1259,7 +1256,7 @@ function handle(msg) {
     case 'ice': onRemoteIce(msg.from, msg.data); break;
     case 'peer-left': onPeerGone(msg.from); break;
     case 'hangup': onPeerGone(msg.from); break;
-    // in-call credential requests (Pro) — see the section further below
+    // in-call credential requests — see the section further below
     case 'credential-pending':
       pendingCredRequests.set(msg.requestId, { to: msg.to, credentialId: msg.credentialId, label: msg.label });
       addChat('System', '🪪 ' + t('Nachweis angefordert:') + ' ' + msg.label + ' …');
@@ -1368,13 +1365,12 @@ function updateStepper(active) {
 /**
  * Readiness per participant: identified → confirmed → connected.
  *
- * A chip used to be binary — „bestätigt ✓" and then silence. The steps show where a call is
- * stuck, without adding another line of prose.
+ * The steps show where a call is stuck, without adding another line of prose.
  *
- * THREE steps, always. There used to be a fourth for media readiness, which chat calls did not
- * have — so the row silently lost a dot when you picked Chat, and the count no longer matched
- * the three-step stepper at the top of the page either. Media state is carried by the standing
- * notice instead (see ensureMedia), which is the part that actually tells you what to do.
+ * THREE steps, always. No fourth step for media readiness: chat calls do not have it, so the row
+ * would lose a dot when you pick Chat and no longer match the three-step stepper at the top of
+ * the page. Media state is carried by the standing notice instead (see ensureMedia), which is the
+ * part that actually tells you what to do.
  */
 function stepFlags(verified, confirmed, connected) {
   return [['ausgewiesen', verified], ['bestätigt', confirmed], ['verbunden', connected]];
@@ -1400,13 +1396,11 @@ function renderSteps(chip, flags) {
 }
 
 /**
- * What a chip says — and the difference the old wording lost.
+ * What a chip says.
  *
  * `verified` means "identified with the wallet", `confirmed` means "consented to the
- * disclosure". The peer chip used to label `verified` as „bestätigt ✓" and never rendered
- * `confirmed` at all: someone who had only just identified looked exactly like someone who had
- * already agreed, while someone who had merely joined read „Bestätigung ausstehend" — although
- * nothing was pending from them yet.
+ * disclosure". The two must read differently: otherwise someone who has only just identified
+ * looks exactly like someone who has already agreed.
  *
  * Both words stay. Identifying is what this product is for, but consent is the step the whole
  * review screen exists for; collapsing the two into „ausgewiesen" would erase it.
@@ -1425,9 +1419,7 @@ function chipState(name, verified, confirmed) {
 }
 
 /** Colour follows the ROLE, not the point of view: host blue, guest green — the same on both
- *  devices. It used to be "self blue, everyone else green", except that a peer with
- *  `role === 'caller'` also got blue, so a guest saw two blue chips and the rule silently did
- *  not hold. Who "I" am is in the text („Du: …"), which does not need a colour of its own. */
+ *  devices. Who "I" am is in the text („Du: …"), which does not need a colour of its own. */
 function roleClass(role) { return role === 'caller' ? 'role-host' : 'role-guest'; }
 
 function updateChips(msg) {
@@ -1529,10 +1521,9 @@ function renderResult(msg) {
 // For >1 peer: a labelled sub-block per peer inside the given column.
 //
 // `withNames` is a safety catch, not a style option: the PRE-CONNECT review must never put a
-// name in the heading, whatever the server happens to send. It once did — in an open room the
-// server disclosed names and claims to someone who had not yet confirmed, and the heading was
-// where that became visible. The server gate is fixed (see showValues in src/server.ts); this
-// makes the review screen incapable of showing a value even if a future gate leaks again.
+// name in the heading, whatever the server happens to send. The server gate (see showValues in
+// src/server.ts) is the primary control; this makes the review screen incapable of showing a
+// value even if that gate ever leaks.
 function renderPeerBlocks(container, peers, renderInto, withNames) {
   container.innerHTML = '';
   for (const peer of peers) {
@@ -1620,15 +1611,15 @@ function renderStatus(msg) {
   if (wantReview) {
     setupBox.hidden = true; authBox.hidden = true; startBar.hidden = true;
     // In an OPEN room the host keeps the invitation link — that is the whole point of the room:
-    // people join over time. Hiding it here left the host with no way to invite anyone else the
-    // moment they had verified themselves, and the link is not recoverable from the review
+    // people join over time. Hiding it here would leave the host with no way to invite anyone else
+    // the moment they had verified themselves, and the link is not recoverable from the review
     // screen. Same rule as the waiting branch a few lines below.
     shareBox.hidden = !(isOpenRoom && isHost());
     renderReview(msg);
     reviewBox.hidden = false;
     reviewWait.hidden = true; setConfirmWaiting(false);
-    // Directive instead of descriptive, and it separates the two cases that both used to read
-    // as „warten": the others are still busy — or they are done and only you are missing.
+    // Directive instead of descriptive, and it separates the two cases that would otherwise both
+    // read as „warten": the others are still busy — or they are done and only you are missing.
     const others = msg.peers || [];
     const othersReady = others.length > 0 && others.every((x) => x.confirmed);
     setReviewUrgency(othersReady);
@@ -1731,14 +1722,14 @@ function renderStatus(msg) {
  * Desktop: exactly ONE card is the one you are on right now.
  *
  * The stepper at the top promises an order ("set up & invite -> identify & confirm -> connected"),
- * but on desktop the body showed all three cards as equals — setting up, inviting and identifying
- * at once. As a result the eye falls on the largest box (setup) instead of on the open task
+ * but on desktop the body shows all three cards as equals — setting up, inviting and identifying
+ * at once. Without guidance the eye falls on the largest box (setup) instead of on the open task
  * (scan the QR code).
  *
  * This is the DEFAULT on desktop, not the only option: the space is there, and the invitation
  * link is not a station but a reference the host wants to keep in view — so leave everything
- * visible and only steer attention. Since the guided mode became a choice rather than a screen
- * width (see initSetupWizard), a desktop host can switch to the step wizard instead; the CSS
+ * visible and only steer attention. The guided mode is a choice rather than a screen width (see
+ * initSetupWizard), so a desktop host can switch to the step wizard instead; the CSS
  * rules here hang off `body:not(.wizard)`, so the two exclude each other by construction.
  */
 function setActiveCard(el) {
@@ -1784,8 +1775,8 @@ const peers = new Map();
 // ICE candidates that arrive BEFORE their peer's RTCPeerConnection exists (peerId → []).
 // This happens when the offerer gathers+sends candidates while the answerer is still in
 // its getUserMedia permission prompt (peer not yet created). Without buffering, those
-// candidates are lost and ICE fails until a later iceRestart re-sends them — the exact
-// "video/chat only connects once a 3rd person joins" bug in open rooms. Drained in getPeer.
+// candidates are lost and ICE fails until a later iceRestart re-sends them — in open rooms,
+// video/chat would only connect once a 3rd person joins. Drained in getPeer.
 const earlyIce = new Map();
 let localStream = null;
 let callConnectedOnce = false; // set once ≥1 peer is connected → later peers are late-joiners
@@ -1798,17 +1789,17 @@ let cameraTrack = null;
 /**
  * Media permission as a STATE, not as silence.
  *
- * This used to be a bare try/catch that set `localStream = false` and carried on. A refused
- * permission therefore ended in „Verbunden ✓ – sichere P2P-Verbindung steht." — connected,
- * but without picture or sound, without a reason, and with no way back except reloading.
+ * A bare try/catch that set `localStream = false` and carried on would end a refused
+ * permission in „Verbunden ✓ – sichere P2P-Verbindung steht." — connected, but without
+ * picture or sound, without a reason, and with no way back except reloading.
  *
  * The browser does say WHY it failed, and the cases need different sentences because the
  * remedy differs: a blocked permission is undone in the address bar, a missing microphone is
  * not. `err.name` is the diagnosis; `err.message` is browser-specific prose and never shown.
  *
- * The hint lives IN here rather than at the call sites. `startCall()` had one and
- * `onRemoteOffer()` did not, so whoever answered the offer got the browser prompt with nothing
- * beside it explaining why. Inside the function both paths are covered by construction.
+ * The hint lives IN here rather than at the call sites: both `startCall()` and
+ * `onRemoteOffer()` trigger the browser prompt, and inside the function both paths are covered
+ * by construction.
  */
 let mediaState = 'idle'; // idle | pending | ok | denied | nodevice | busy | error | skipped
 
@@ -1937,11 +1928,10 @@ function getPeer(peerId, meta) {
 /**
  * Enforce muting at the SENDERS, not only on `localStream`.
  *
- * The button used to switch off `localStream.getAudioTracks()` and nothing else. That only works
- * as long as every connection sends exactly that track object — if a sender holds a different one
- * for any reason (replacement, clone, a connection built later), the audio stays on while the
- * button reads "muted". Exactly that happened on 2026-08-11: still audible as host despite being
- * muted.
+ * Switching off `localStream.getAudioTracks()` alone only works as long as every connection
+ * sends exactly that track object — if a sender holds a different one for any reason
+ * (replacement, clone, a connection built later), the audio stays on while the button reads
+ * "muted".
  *
  * Hence the opposite direction here: walk ALL senders and force the state. This is the point at
  * which audio leaves the machine — what is off here is really off.
@@ -1993,8 +1983,8 @@ async function startCall(msg) {
     document.body.classList.add('in-call');
     reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; startBar.hidden = true;
     setLocalLabel(titleCase(myName) || '');
-    // No permission hint here any more: it comes from ensureMedia() as a standing notice, and
-    // therefore on the answering path too — which this line never covered.
+    // No permission hint here: it comes from ensureMedia() as a standing notice, and therefore
+    // on the answering path too.
     setStatus('Verbindung wird aufgebaut …', 'wait');
     await ensureMedia();
     await refreshIce();
@@ -2141,7 +2131,7 @@ function applyStage() {
   const on = spotlightOn();
   videosEl.classList.toggle('spotlightable', on);
   // Break the video section out of the narrow reading column so the stage grows with
-  // the viewport (fluid). Only during a video call with the Pro spotlight capability.
+  // the viewport (fluid). Only during a video call with the spotlight capability.
   peersBox.classList.toggle('fluid', on);
   // A manually staged peer that has since left → fall back to the grid.
   if (stagePeer && stagePeer !== 'self' && !tileFor(stagePeer) && !stageAuto) { stagePeer = null; }
@@ -2215,7 +2205,7 @@ videosEl.addEventListener('click', (e) => {
 // Clicking a NAME BADGE unfolds a banderole over the tile listing that person's verified
 // claims — the same data as the verified-claims card, anchored at the person. Uses the
 // last status (values only exist after the mutual reveal). Registered in the CAPTURE
-// phase so the click doesn't also toggle the Pro spotlight.
+// phase so the click doesn't also toggle the spotlight.
 function banderoleDataFor(key) {
   const msg = lastStatusMsg;
   if (!msg || !msg.revealed) return null;
@@ -2231,10 +2221,10 @@ function toggleBanderole(tile) {
   const band = document.createElement('div');
   band.className = 'banderole';
   renderResultInto(band, data.claims, data.attrs, data.empty);
-  // In-call catalog credentials (Pro): what the peer presented to me / what I shared.
+  // In-call catalog credentials: what the peer presented to me / what I shared.
   appendCredentialRows(band, data.creds);
   appendSharedCredentialRows(band, data.shared);
-  // QES identity binding (public/qes/ §6): signature ↔ PID result at the person.
+  // QES identity binding: signature ↔ PID result at the person.
   const peerEntry = peers.get(tile.dataset.peer);
   if (peerEntry && peerEntry.qesBinding) {
     const b = peerEntry.qesBinding;
@@ -2256,8 +2246,8 @@ videosEl.addEventListener('click', (e) => {
   toggleBanderole(nameEl.closest('.tile'));
 }, true);
 
-// ---- in-call credential requests (Pro, server-enforced `in-call-credentials`) ----
-// The HOST asks a participant for a further catalog credential (e.g. Wohnraum-ID) DURING
+// ---- in-call credential requests (server-enforced `in-call-credentials`) ----
+// The HOST asks a participant for a further catalog credential DURING
 // the call. The target consents (sees the exact field list first), presents via wallet;
 // the values appear ONLY for the host — as a badge on the person's tile (banderole) and
 // in the "Geprüfte Angaben" card. See src/credential-requests.ts.
@@ -2274,7 +2264,7 @@ const credActions = $('cred-actions');
 const credAccept = $('cred-accept');
 const credDecline = $('cred-decline');
 
-let credCatalog = [];                    // /credential-catalog (empty in Community)
+let credCatalog = [];                    // /credential-catalog (empty when none is configured)
 let activeCredRequest = null;            // target side: the request the modal shows
 const pendingCredRequests = new Map();   // host side: requestId -> { to, credentialId, label }
 
@@ -2415,8 +2405,8 @@ function appendSharedCredentialRows(container, shared) {
 // MITM detection for the DTLS key exchange: both sides derive the same short code from
 // BOTH DTLS certificate fingerprints (order-independent) and compare it verbally. A
 // signaling-server MITM terminates two different DTLS sessions → the codes differ.
-// v1: shown only for EXACTLY ONE peer (a group SAS is a separate design — see MESH.md).
-// 36 bits (6 symbols × 64) — see SECURITY_CHECKLIST for the residual-risk discussion.
+// v1: shown only for EXACTLY ONE peer (a group SAS is a separate design).
+// 36 bits (6 symbols × 64).
 const SAS_EMOJI = ['🦊','🐼','🐧','🦁','🐸','🐙','🦋','🐢','🦉','🐝','🐬','🦄','🌊','🌵','🌙','⭐','🌈','🍀','🌻','🍄','🍎','🍋','🍇','🍓','🥕','🍞','🧀','🍩','☕','🍯','🥨','🔑','🔔','🎈','🎁','🎲','🎯','🎸','🎨','📌','✂️','🧭','⏰','🔒','📎','🪁','🚗','🚲','✈️','🚀','⛵','🚦','⚓','🗼','🏠','⛺','🌋','🏔️','☂️','❄️','🔥','💧','⚡','🧊'];
 const sasCard = $('sas-card');
 const sasCode = $('sas-code');
@@ -2465,8 +2455,8 @@ function sasOverlaySupported() {
 }
 // Keeping the picture alive while the tab is in the background.
 // The composited canvas is the OUTGOING track, so whatever stops drawing it freezes the
-// picture for the other side — that was the bug: switch to another tab and your
-// counterpart (and your own tile, which shows the same stream) saw a still image.
+// picture for the other side: switch to another tab and your counterpart (and your own
+// tile, which shows the same stream) would see a still image.
 // requestAnimationFrame does not run at all in a hidden tab, and a main-thread setTimeout
 // is throttled there to 1 Hz unless the page happens to be audible — which it is not when
 // the other side has their microphone muted. A dedicated worker's timer is exempt from
@@ -2689,10 +2679,9 @@ function showEnded(message) {
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
   peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; sasCard.hidden = true; startBar.hidden = true;
-  // The PREPARATORY surfaces too. Overlooking them only became apparent with a refused sign-in:
-  // there the message "not authorised" sat above a still-visible QR code — an invitation to a
-  // second attempt with a dead offer. The same applies to a taken-over session, where the old
-  // setup stayed on screen.
+  // The PREPARATORY surfaces too. Otherwise a refused sign-in shows "not authorised" above a
+  // still-visible QR code — an invitation to a second attempt with a dead offer — and a
+  // taken-over session leaves the old setup on screen.
   authBox.hidden = true; setupBox.hidden = true; shareBox.hidden = true;
   restartLabel.textContent = t('Neuen Anruf starten');
   restartBtn.hidden = false;
@@ -2710,10 +2699,8 @@ function hangUp() { if (ended) return; ended = true; wsSend({ type: 'hangup' });
 /**
  * The appointment is not open yet: wait instead of refusing.
  *
- * Previously the client ended here for good and asked the person to open the invitation again
- * later — at opening time nothing happened by itself. Anyone who opens the window early and waits
- * (the normal case for a scheduled call) sat in front of a dead screen. Now it counts down and
- * joins by itself at opening time.
+ * Anyone who opens the window early and waits (the normal case for a scheduled call) must not
+ * sit in front of a dead screen, so the client counts down and joins by itself at opening time.
  */
 let inviteWaitTimer = null;
 let inviteTickTimer = null;
@@ -2729,11 +2716,11 @@ function clearInviteWait() {
 function enterWhenOpen() {
   if (inviteOpensAt === null) return;
   clearInviteWait();
-  ended = false;       // die Ablehnung war der Grund für den Stopp — er ist weg
+  ended = false;       // the refusal was the reason for stopping — it no longer applies
   // The server did NOT close the connection after `invite-invalid`, so it is still up.
   // `reconnectNow()` would therefore do nothing (it considers an open socket healthy) — the
-  // countdown ran out and nothing happened until you reloaded. On an open socket a fresh `join`
-  // is enough.
+  // countdown would run out and nothing would happen until a reload. On an open socket a fresh
+  // `join` is enough.
   if (ws && ws.readyState === WebSocket.OPEN) sendJoin();
   else reconnectNow();
 }
@@ -2780,7 +2767,7 @@ if (authRenewBtn) authRenewBtn.addEventListener('click', () => {
 });
 
 function showInviteProblem(reason, opensAt, startsAt) {
-  ended = true; // keine Reconnect-Schleife auf eine Ablehnung
+  ended = true; // no reconnect loop on a refusal
   clearInviteWait();
   setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true;
   reviewBox.hidden = true; resultBox.hidden = true; startBar.hidden = true;
@@ -2814,20 +2801,19 @@ function showInviteProblem(reason, opensAt, startsAt) {
 /**
  * "Start a new call" — a NEW room, not a rejoin.
  *
- * Previously this path reloaded the page with location.reload(), i.e. the same URL with
- * ?room=<old>. The server does NOT remove a participant on `hangup` (it only relays, so that a
- * reconnect after switching wallets can still resume), so the old room still has both sides at
- * verified+confirmed. The reload therefore resumed into exactly that room, received `ready` again
- * and built a connection to a far end whose PeerConnection had long been torn down -> "connecting
- * …" forever, with the names of the old call on screen.
+ * Not location.reload(), i.e. the same URL with ?room=<old>: the server does NOT remove a
+ * participant on `hangup` (it only relays, so that a reconnect after switching wallets can still
+ * resume), so the old room still has both sides at verified+confirmed. A reload would resume into
+ * exactly that room, receive `ready` again and build a connection to a far end whose
+ * PeerConnection had long been torn down -> "connecting …" forever, with the names of the old
+ * call on screen.
  *
  * Drop `room`, add `new=1`, then reload: the roomId derivation above creates a fresh room (and
  * removes `new` again via replaceState), and the full reload clears every remnant of call state.
  *
  * Why `new=1` rather than simply emptying the query: at `/` the server serves the LANDING PAGE,
  * and the app only when `room`, `new`, `solo` or `embed` is set (see src/server.ts,
- * `app.get('/')`). Without the flag you end up on the start page instead of in a new call —
- * exactly what the previous `location.pathname` did on the web.
+ * `app.get('/')`). Without the flag you end up on the start page instead of in a new call.
  *
  * Everything else has to survive — `embed`/`tok` (otherwise an embedded widget suddenly renders
  * the standalone app), `solo`, `lang` and especially the hash, which carries the configuration in
@@ -2936,7 +2922,7 @@ function toggleAudio() {
   const on = !tr[0].enabled; tr.forEach((t) => (t.enabled = on));
   setToggle(micBtn, micLabel, on, t('Mikrofon'), t('Stumm'));
   micMuted = !on;
-  enforceLocalMuteState(); // maßgeblich ist der Sender, nicht die Quelle
+  enforceLocalMuteState(); // the sender is authoritative, not the source
   broadcast({ k: 'mic', on });
   refreshAllBadges();
 }
@@ -3097,8 +3083,8 @@ function onFileEnd(peerId) {
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => { const f = fileInput.files && fileInput.files[0]; if (f) sendFile(f); fileInput.value = ''; });
 
-// ---- QES im Call: Dokument teilen & gemeinsam durchgehen (Community, `qes-in-call`) ----
-// Phase 1 of public/qes/: P2P document transfer over a dedicated 'qes'
+// ---- QES in the call: share a document & go through it together (Community, `qes-in-call`) ----
+// P2P document transfer over a dedicated 'qes'
 // DataChannel with hash verification + resume, rendered with self-hosted pdf.js.
 // Everything lives in the lazy-loaded module public/qes/doc-share.js — app.js only
 // routes the channel (getPeer) and provides this thin glue. v1 is 1:1.
@@ -3138,19 +3124,19 @@ function qesCtx() {
     // For the phone-signature provider: pair over this connection, then WebRTC with the phone.
     server: { send: wsSend, on: onServer },
     getIceServers: async () => { await refreshIce(); return iceServers; },
-    // v1: exactly one peer (the button is hidden otherwise); mesh order comes later.
+    // v1: exactly one peer (the button is hidden otherwise).
     getPeer: () => {
       const [entry] = [...peers.entries()];
       return entry ? { peerId: entry[0], pc: entry[1].pc, name: entry[1].name ? titleCase(entry[1].name) : '' } : null;
     },
     // Own verified PID names (post-reveal) — subject of the DEMO signing certificate,
-    // so the identity-binding demo (Phase 4) can match cert ↔ PID end-to-end.
+    // so the identity-binding demo can match cert ↔ PID end-to-end.
     getSelfIdentity: () => {
       const c = (lastStatusMsg && lastStatusMsg.revealed && lastStatusMsg.self.claims) || {};
       return { givenName: c.given_name ? titleCase(c.given_name) : '', familyName: c.family_name ? titleCase(c.family_name) : '' };
     },
     // The PEER's verified PID names — the reference the signer's certificate is
-    // matched against ("Unterzeichner = verifizierter Gesprächspartner").
+    // matched against ("signer = verified call partner").
     getPeerIdentity: (peerId) => {
       const peer = ((lastStatusMsg && lastStatusMsg.revealed && lastStatusMsg.peers) || []).find((p) => p.peerId === peerId);
       const c = (peer && peer.claims) || {};
@@ -3226,7 +3212,7 @@ else connect();
 // The check gets exactly these iceServers — if it kept its own, it would be testing something
 // other than the later call.
 refreshIce().then(runNetworkCheck); // refreshed again before each peer connection
-refreshCaps(); // UI an /capabilities ausrichten
+refreshCaps(); // align the UI with /capabilities
 postToParent('ready', { room: roomId }); // tell the embedding page the widget loaded
 
 // ---- version badge (footer) ----
@@ -3273,7 +3259,7 @@ function startPairedSigner(token) {
     });
 }
 
-// ---- native app shell: bottom tab bar (Anruf / Einstellungen) --------------
+// ---- native app shell: bottom tab bar (call / settings) --------------
 // Only in the Capacitor app (isNativeApp()); the website keeps its footer pills.
 (function initAppShell() {
   if (!isNativeApp()) return;
@@ -3304,7 +3290,7 @@ function startPairedSigner(token) {
   if (newCallBtn) newCallBtn.addEventListener('click', startFreshCall);
 
   // ---- universal links: a tapped https://…/?room=… opens the APP (associated
-  // domains, see App.entitlements + server EUDI_IOS_APP_ID). Route the room into
+  // domains, see the native app's entitlements + server EUDI_IOS_APP_ID). Route the room into
   // the local bundle — cold start (launch url) and while running (appUrlOpen).
   const CapApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
   if (CapApp) {
@@ -3359,7 +3345,7 @@ function startPairedSigner(token) {
 })();
 
 // ---- setup wizard (mobile/app): 4 steps ------------------------------------
-// 1 Verbindungsart · 2 Ich teile · 3 Gast teilt · 4 Einladen. Presentation only:
+// 1 connection type · 2 I share · 3 guest shares · 4 invite. Presentation only:
 // body.wizard + data-wkind drive CSS visibility; app logic's [hidden] flags keep
 // authority (a hidden #auth stays hidden on step 4). The mode deactivates itself
 // whenever #setup is hidden (guest view, call started) — those flows are linear
@@ -3370,13 +3356,12 @@ function startPairedSigner(token) {
   if (isEmbedded) return;
 
   /**
-   * Who gets the guided mode — a preference, no longer a screen width.
+   * Who gets the guided mode — a preference, not a screen width.
    *
-   * This used to be `if (!isNativeApp() && !small()) return;`, evaluated once when the module
-   * ran. Three things followed: a desktop host never got any guidance through ~20 controls,
-   * the „invite last" ordering was a suggestion there instead of a sequence (and `lockSetup()`
-   * makes it a one-way door), and the decision never changed again — narrowing a window or
-   * rotating a phone that started in landscape did nothing.
+   * A viewport check evaluated once when the module runs would leave a desktop host without any
+   * guidance through ~20 controls, make the „invite last" ordering a suggestion instead of a
+   * sequence (and `lockSetup()` makes it a one-way door), and never change again — narrowing a
+   * window or rotating a phone that started in landscape would do nothing.
    *
    * The CSS never needed a viewport: every rule hangs off `body.wizard[data-wkind]`, and the
    * desktop card highlighting is gated on `body:not(.wizard)`, so the two exclude each other
@@ -3387,13 +3372,13 @@ function startPairedSigner(token) {
    * opposite things — being led through that costs a practised host three clicks and saves an
    * unpractised one a wrong disclosure. Whoever knows their way around switches it off once.
    *
-   * The screen no longer takes part in the decision at all: with guided as the default there is
+   * The screen does not take part in the decision at all: with guided as the default there is
    * nothing left for a breakpoint to decide, and a stored choice must not be overridden by a
    * rotation anyway.
    *
    * `localStorage`, not a cookie, and no consent dialogue: what is stored here is the execution
    * of a choice the visitor just made themselves — the same category as `eudi_theme` and
-   * `eudi_lang`, which have been there all along. Nothing is read that was not written by this
+   * `eudi_lang`. Nothing is read that was not written by this
    * switch, and nothing leaves the device.
    */
   const WIZ_KEY = 'eudi_setup_wizard';

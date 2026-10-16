@@ -11,9 +11,9 @@
  *   - NO PROTECTION: a call that only knows the sessionId would get through.
  *   - EMPTY TOKEN: `?t=` against an empty stored value would be valid in a naive implementation,
  *     because two empty buffers are equal in length and content.
- *   - REPLAY: until 2026-08-19 both sessionId AND token stayed valid indefinitely after a
- *     successful check. An intercepted callback could be replayed any number of times — each
- *     time adding a fresh entry to the verification record. A record showing more events than
+ *   - REPLAY: if sessionId AND token stayed valid after a successful check, an intercepted
+ *     callback could be replayed any number of times — each time adding a fresh entry to the
+ *     verification record. A record showing more events than
  *     actually happened is worthless as evidence.
  *   - MIX-UP: one participant's token must not work for another.
  *
@@ -133,7 +133,9 @@ async function waitForApp(timeoutMs = 25000) {
 }
 
 /** A guest joins, asks to be verified, and we capture their webhook URL. */
+const usedRoomIds = [];
 async function newGuestWithWebhookUrl(roomId) {
+  usedRoomIds.push(roomId);
   const before = new Set(offers.keys());
   const guest = participant(APP_PORT, { roomId, clientId: randomUUID(), wantAuth: true });
   const auth = await guest.wait('auth');
@@ -221,6 +223,8 @@ try {
     // The token is a credential; it must not be logged even when the call is rejected.
     check('no webhook token in the server log', !/[?&]t=[A-Za-z0-9-]{8,}/.test(joined), 'a token in the log');
     check('sessionId not in clear text', !/session=[0-9a-f]{8}-[0-9a-f]{4}/.test(joined), 'a sessionId in the log');
+    // Room ids are secrets (see src/channel-binding.ts): only their audit hash may be logged.
+    check('room ids not in clear text', usedRoomIds.length > 0 && usedRoomIds.every((id) => !joined.includes(id)), 'a room id in the log');
   }
 
   // ---------------------------------------------------------------------------

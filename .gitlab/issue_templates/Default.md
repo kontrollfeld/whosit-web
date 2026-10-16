@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 HOUSE RULES FOR ISSUES IN THIS PROJECT — read once, then delete this comment.
 
-LANGUAGE: English. Always, even though the internal notes next door are German. An issue can
+LANGUAGE: English. Always. An issue can
 move outward at any time — a contributor asks about it, it turns into a public discussion, it is
 quoted in a release note — and translating under time pressure is how meaning gets lost. The user
 interface stays German; issues, code and comments are English.
@@ -16,8 +16,8 @@ not ready to be written yet.
 TITLE: imperative, no ticket-speak. "Add rate limiting to the verification endpoints", not
 "Rate limiting" and not "We should maybe look into rate limiting".
 
-WHAT DOES NOT BELONG HERE: secrets, customer names, prices, contract details. Issues are private
-today, but privacy is a setting and settings change. Those things live in ~/sites/whosit-intern.
+WHAT DOES NOT BELONG HERE: secrets, customer names, prices, contract details. Visibility is a
+setting and settings change, so keep those things out of issues entirely.
 
 SECURITY VULNERABILITIES: tick "This issue is confidential", or see .gitlab/SECURITY.md.
 -->

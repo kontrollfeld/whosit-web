@@ -46,11 +46,11 @@ check('anyone may host', JSON.stringify(off.answers) === '[true,true]', JSON.str
 console.log('\nWith a list: matches and non-matches');
 const LIST = 'Mustermann,Erika; Schmidt,Hans-Peter; Yılmaz,Ayşe';
 const a = gate(LIST, [
-  ['Mustermann', 'Erika'],     // exakt
-  ['Schmidt', 'Hans-Peter'],   // mit Bindestrich
+  ['Mustermann', 'Erika'],     // exact
+  ['Schmidt', 'Hans-Peter'],   // with hyphen
   ['Yılmaz', 'Ayşe'],          // non-ASCII
   ['Müller', 'Michael'],       // not listed
-  ['Mustermann', 'Hans'],      // richtiger Nachname, falscher Vorname
+  ['Mustermann', 'Hans'],      // right family name, wrong given name
   ['Schmidt', 'Erika'],        // crossed — must NOT get through
 ]);
 check('Sperre active, 3 Einträge', a.active === true && a.count === 3, JSON.stringify(a));
@@ -70,11 +70,11 @@ check('the test input really is NFD (otherwise the following proves nothing)',
   NFD_VORNAME !== NFD_VORNAME.normalize('NFC'),
   `Länge ${NFD_VORNAME.length}, NFC-Länge ${NFD_VORNAME.normalize('NFC').length}`);
 const b = gate(LIST, [
-  ['mustermann', 'erika'],       // klein
-  ['MUSTERMANN', 'ERIKA'],       // groß, wie auf manchen Ausweisen
-  ['  Mustermann ', ' Erika  '], // Leerraum
-  ['Schmidt', 'Hans Peter'],     // Leerzeichen statt Bindestrich
-  ['Yılmaz', NFD_VORNAME], // programmatisch zerlegt, siehe oben
+  ['mustermann', 'erika'],       // lower case
+  ['MUSTERMANN', 'ERIKA'],       // upper case, as on some ID cards
+  ['  Mustermann ', ' Erika  '], // whitespace
+  ['Schmidt', 'Hans Peter'],     // space instead of hyphen
+  ['Yılmaz', NFD_VORNAME], // decomposed programmatically, see above
 ]);
 check('Kleinschreibung', b.answers[0] === true);
 check('Großschreibung', b.answers[1] === true);

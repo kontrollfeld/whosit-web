@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Live feasibility test for CHANNEL BINDING STAGE 2 §3):
+ * Live feasibility test for channel binding:
  * does the (sandbox) wallet sign OpenID4VP `transaction_data` — i.e. would it co-sign
- * our DTLS fingerprint — and how does EUDIPLO behave per credential format?
+ * the call's DTLS fingerprint — and how does EUDIPLO behave per credential format?
  *
  * Creates FOUR presentation offers against the live EUDIPLO instance and renders a QR
  * page; scan each with the wallet, the script polls the sessions and prints a verdict:
@@ -26,9 +26,8 @@
 import { writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
-// No default credentials: this script used to run against a fixed instance with no configuration
-// at all. It now requires an explicit environment — most easily `set -a; . ./.env; set +a` before
-// invoking it.
+// No default credentials: the script requires an explicit environment — most easily
+// `set -a; . ./.env; set +a` before invoking it.
 const BASE = (process.env.EUDIPLO_BASE_URL || '').replace(/\/+$/, '');
 const ROOT_ID = process.env.EUDIPLO_ROOT_ID || '';
 const ROOT_SECRET = process.env.EUDIPLO_ROOT_SECRET || '';
@@ -51,9 +50,9 @@ const FAKE_FP = 'SHA-256 ' + Array.from({ length: 32 }, () =>
 const TX_DATA = [{ type: 'urn:eudi:webrtc:dtls-binding:1', credential_ids: ['pid'], dtls_fingerprint: FAKE_FP }];
 
 const PID_DOCTYPE = 'eu.europa.ec.eudi.pid.1';
-// vct candidates for the German sandbox PID. `urn:eudi:pid:de:1` was CONFIRMED live on
-// 2026-07-10 (issuer preprod.pid-provider.bundesdruckerei.de); the others stay as
-// fallbacks for other issuers/environments.
+// vct candidates for the German sandbox PID. `urn:eudi:pid:de:1` is what the issuer
+// preprod.pid-provider.bundesdruckerei.de uses; the others stay as fallbacks for other
+// issuers/environments.
 const VCT_CANDIDATES = [
   'urn:eudi:pid:de:1',
   'urn:eudi:pid:1',

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!btn) return;
 
   const ICONS = {
-    // Lucide-style outline icons (see public/style.css §5: one icon style everywhere)
+    // Lucide-style outline icons (one icon style everywhere)
     auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>',
     dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
     light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
@@ -77,8 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 (function operatorFooterLinks() {
   // This file is loaded SYNCHRONOUSLY in <head> (see the top of the file), so the footer does not
-  // exist yet at this point. The first version looked up the nav right here, got null, and gave up
-  // silently — the link never appeared, and the silence hid it. Wait for the parsed document.
+  // exist yet at this point. Wait for the parsed document.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', operatorFooterLinks);
     return;
@@ -104,12 +103,3 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .catch(function () {});
 })();
-
-/* Der Demo-Film der App stand bis zum 13.09.2026 hier: ~60 Zeilen, die `[data-app-demo]` in
- * landing.html bedienten. Beides ist mit den Marketingseiten in ein eigenes Repository gezogen —
- * der Film zeigt unsere App, und der Code, der ihn einbindet, gehört zum selben Inhalt.
- *
- * Was im Server bleibt, ist die allgemeine Hälfte: `availableMedia()` meldet über /capabilities,
- * welche Medien ein Betreiber hinterlegt hat, und /operator/ liefert sie aus. Damit kann jede
- * Instanz eigene Medien einbinden, ohne dass diese Datei etwas davon wissen muss.
- */

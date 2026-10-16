@@ -5,9 +5,8 @@
  *
  * Two reasons this exists; the second matters more day to day:
  *
- * 1. SECURITY: `eudiplo.ts` used to fall back to an instance we operate, root secret included.
- *    An incompletely configured deployment would then quietly authenticate against someone
- *    else's verifier instead of surfacing the mistake.
+ * 1. SECURITY: an incompletely configured deployment must not quietly authenticate against
+ *    someone else's verifier instead of surfacing the mistake.
  * 2. SELF-HOSTING: every deployment brings its OWN verifier — its own EUDIPLO instance, its own
  *    access certificate on its own domain. Configuration is therefore the single most common
  *    source of failure, and without this check it only shows up when a citizen opens their
@@ -45,7 +44,7 @@ export interface ConfigProblem {
 /**
  * Values that unmistakably came from a template and never belong in production.
  * Deliberately specific: a pattern like `/secret/` would wrongly match genuine random values.
- * `kontrollfeld-secret` is listed because that exact string used to be a default in the source
+ * `kontrollfeld-secret` is listed because older releases shipped that exact string as a default
  * — it is therefore publicly known, and must be rejected even when set on purpose.
  */
 const PLACEHOLDERS = [
@@ -72,6 +71,16 @@ function looksLikePlaceholder(value: string): boolean {
 }
 
 const isSet = (v: string | undefined): boolean => !!(v && v.trim());
+
+/** Does the verifier address look like the EUDIPLO dummy (host `mock-eudiplo` or a `/mock` path)? */
+function pointsAtMock(value: string): boolean {
+  try {
+    const u = new URL(value.trim());
+    return u.hostname.toLowerCase() === 'mock-eudiplo' || u.pathname.replace(/\/+$/, '').toLowerCase().endsWith('/mock');
+  } catch {
+    return false;
+  }
+}
 
 export interface CheckContext {
   env?: Record<string, string | undefined>;
@@ -130,6 +139,24 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     out.push({ variable: 'EUDIPLO_BASE_URL', problem: 'still holds the example value from .env.example', fatal: true });
   }
 
+  // --- the dummy verifier -----------------------------------------------------------
+  // `mock-eudiplo` (compose service) and a `/mock` path (Traefik route) are the two shapes the
+  // repository documents for the dummy. It accepts ANY name without cryptography, so a
+  // production instance pointed at it would "verify" anyone. Fatal unless explicitly allowed
+  // for a trial; the opt-in keeps a warning so the logs still say what this instance runs on.
+  if (isSet(env.EUDIPLO_BASE_URL) && pointsAtMock(env.EUDIPLO_BASE_URL!)) {
+    const allowed = (env.EUDI_ALLOW_MOCK_VERIFIER || '').trim().toLowerCase() === 'true';
+    out.push({
+      variable: 'EUDIPLO_BASE_URL',
+      problem: 'points at the EUDIPLO dummy. The dummy accepts any name without checking anything '
+        + 'and is for trying the flow only, never for real operation. '
+        + (allowed
+          ? 'Running against it because EUDI_ALLOW_MOCK_VERIFIER=true.'
+          : 'To run against it anyway for a trial, set EUDI_ALLOW_MOCK_VERIFIER=true.'),
+      fatal: !allowed,
+    });
+  }
+
   // --- verifier tenant --------------------------------------------------------------
   // Without its own tenant the instance requests under SOMEONE ELSE'S registration: the
   // wallet shows the default tenant's certificate. In public-authority operation that is the
@@ -158,6 +185,16 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     });
   }
   out.push(...registrationCertProblems(env));
+
+  if (hasRootPath && !hasClientSecret) {
+    out.push({
+      variable: 'EUDIPLO_ROOT_ID / EUDIPLO_ROOT_SECRET',
+      problem: 'the legacy root path is deprecated: it gives this application root rights on the '
+        + 'verifier (tenants:manage) and rotates the tenant secret on every token request. Use '
+        + 'EUDIPLO_CLIENT_ID + EUDIPLO_CLIENT_SECRET (a fixed tenant client) instead.',
+      fatal: false,
+    });
+  }
 
   for (const name of ['EUDIPLO_CLIENT_SECRET', 'EUDIPLO_ROOT_SECRET'] as const) {
     const v = env[name];
@@ -240,9 +277,8 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
     }
   }
 
-  // --- a branded instance carrying the original operator's identity -----------------
-  // The failure this prevents was observed while setting up the first tenant instance: a
-  // deployment duplicated from an existing one keeps every variable, and the ones that assert
+  // --- a branded instance carrying a copied environment's identity ------------------
+  // The failure this prevents: a deployment duplicated from an existing one keeps every variable, and the ones that assert
   // WHO OWNS THIS DOMAIN keep asserting the wrong owner — quietly, because everything still
   // works.
   //
@@ -272,8 +308,7 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
   }
 
   // --- framing / clickjacking -------------------------------------------------------
-  // Only relevant when `embed` is active and the signed-token mode is not in use. A missing
-  // value used to produce `frame-ancestors *`, i.e. framing from anywhere.
+  // Only relevant when `embed` is active and the signed-token mode is not in use.
   if (ctx.embedEnabled && !isSet(env.EMBED_SIGNING_SECRET)) {
     const anc = (env.EMBED_ALLOWED_ANCESTORS || '').trim();
     if (!anc) {

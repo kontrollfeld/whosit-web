@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * In-call credential catalog (Pro) — operator-defined credentials the HOST may request
- * from a participant DURING the call ("Nachforderung"), e.g. the Wohnraum-ID. See
+ * from a participant DURING the call, e.g. a membership or housing credential. See
  * src/credential-requests.ts.
  *
  * Deliberately NOT built on the PID `SemanticAttr` vocabulary: domain credentials bring
@@ -10,17 +10,16 @@
  * source (display names) — the consent prompt, the wallet request and the result popover
  * all render from the same declaration, so they can never drift apart.
  *
- * The catalog is a JSON file (path via EUDI_CREDENTIAL_CATALOG, default
- * ./credential-catalog.json next to package.json). It is only ever read when the
- * server-enforced `in-call-credentials` feature is active (Pro).
+ * The catalog is a JSON file whose path comes from EUDI_CREDENTIAL_CATALOG (see
+ * credential-catalog.example.json). Without that variable the catalog is empty. It is
+ * only ever read when the server-enforced `in-call-credentials` feature is active (Pro).
  */
 import fs from 'fs';
-import path from 'path';
 import type { CredentialFormat, DcqlQuery } from './credential-profiles';
 import { claimQuery } from './credential-profiles';
 
 export interface CatalogClaim {
-  /** DCQL claim path in the credential's own namespace (e.g. ["objekt_id"]). */
+  /** DCQL claim path in the credential's own namespace (e.g. ["member_id"]). */
   path: (string | number)[];
   /** Display name shown in the consent prompt and the result popover. */
   name: string;
@@ -34,7 +33,7 @@ export interface CatalogCredential {
   format: CredentialFormat;
   /** Type in the format's namespace: dc+sd-jwt → vct; mso_mdoc → doctype; jwt_vc_json → VC type.
    *  May be an ARRAY of accepted alternatives (SD-JWT `vct_values`) — issuers are not always
-   *  consistent (e.g. the live Wohnraum-ID carries the literal vct "Wohnraum-ID", not its URL),
+   *  consistent (e.g. an issuer may put a literal name into vct rather than its URL),
    *  so a catalog entry can match several. mdoc uses only the FIRST (doctype_value is single). */
   credentialType: string | string[];
   claims: CatalogClaim[];
@@ -46,8 +45,7 @@ export function credentialTypes(c: CatalogCredential): string[] {
 }
 
 const FORMATS: CredentialFormat[] = ['mso_mdoc', 'dc+sd-jwt', 'jwt_vc_json'];
-const CATALOG_PATH = process.env.EUDI_CREDENTIAL_CATALOG
-  || path.join(__dirname, '..', 'credential-catalog.json');
+const CATALOG_PATH = process.env.EUDI_CREDENTIAL_CATALOG || '';
 
 function validEntry(e: any): e is CatalogCredential {
   return e && typeof e === 'object'
@@ -71,6 +69,7 @@ let cached: CatalogCredential[] | null = null;
 export function loadCatalog(): CatalogCredential[] {
   if (cached) return cached;
   cached = [];
+  if (!CATALOG_PATH) return cached; // not configured: feature off, nothing to report
   let raw: string;
   try {
     raw = fs.readFileSync(CATALOG_PATH, 'utf8');

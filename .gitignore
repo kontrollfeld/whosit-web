@@ -3,13 +3,8 @@
 node_modules/
 dist/
 
-# Das Capacitor-App-Projekt gehört zum Branch `spike/capacitor`, nicht zu `main` —
-# und seine Ignore-Regeln stehen in `app/.gitignore`, das main folglich nicht hat.
-# Ohne diese Zeile listet git auf main jede Xcode-/Gradle-Build-Datei einzeln auf
-# (~6650 Einträge), was echte Änderungen unsichtbar macht.
-# Hinweis für `spike/capacitor`: dort sind die App-Dateien GETRACKT, und getrackt
-# schlägt ignoriert — Bestehendes bleibt sichtbar. Nur NEU hinzukommende Dateien
-# unter app/ brauchen dort `git add -f`.
+# A local native app project (Capacitor) is not part of this repository. Without this line git
+# would list every Xcode/Gradle build file in it, hiding real changes.
 app/
 .env
 *.log
@@ -18,17 +13,54 @@ app/
 /*.png
 secrets/
 
-# Arbeitswerkzeuge dieser Entwicklungsumgebung (Skills/Prompts). Bleiben lokal:
-# es sind interne Arbeitsanweisungen, und ein Teil davon ist Fremdmaterial mit
-# eigener Lizenz, das wir nicht mitverteilen wollen.
+# Local development-tool configuration (skills/prompts); not part of the project.
 .claude/
-# Nicht versionierte Arbeitsunterlagen im Wurzelverzeichnis. Bewusst aufgeführt: bei einem
-# `git add -A` wären sie sonst mitgekommen — und mit dem öffentlichen Repository dann
-# veröffentlicht. Debug-Screenshots deckt bereits `/*.png` ab.
+# Untracked working documents, listed so that `git add -A` cannot pick them up. Debug
+# screenshots are already covered by `/*.png`.
 *.pdf
 
 # npm cache directory used by CI (`npm ci --cache .npm`). Never belongs in a commit, and listing it
 # here also keeps local tooling that walks the working tree from tripping over it.
 .npm/
+
+# Local environment variants. The templates are tracked.
+.env.*
+!.env.example
+!.env.selfhost.example
+
+# Keys and certificates. The only one that belongs in the repository is Apple's public
+# intermediate certificate for wallet passes.
+*.pem
+*.key
+*.p12
+*.pfx
+!assets/pass/AppleWWDRCAG4.pem
+
+# Runtime data of a local run (Pro audit trail, QES demo CA) and operator pages kept next to the
+# compose file (EUDI_OPERATOR_PAGES).
+/data/
+/pages/
+
+# Editors and IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating systems
+._*
+Thumbs.db
+desktop.ini
+
+# Build, test and tool caches
+*.tsbuildinfo
+coverage/
+.nyc_output/
+.eslintcache
+.cache/
+npm-debug.log*
+
 # Modules installed for tests (CI: the qes-device module for the QES end-to-end tests)
 .modules/

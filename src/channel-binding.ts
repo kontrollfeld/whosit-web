@@ -12,7 +12,7 @@
  * WHAT THIS PROVES: the identity belongs to this DTLS key. A presentation intercepted and
  * replayed elsewhere is detected.
  *
- * WHAT IT DOES NOT PROVE: protection against our own, fully compromised server — it sits
+ * WHAT IT DOES NOT PROVE: protection against this service's own, fully compromised server — it sits
  * between the wallet response and the display and could forge both. The defensible claim is
  * "bound to the channel", not "end-to-end secured against the operator".
  *
@@ -35,8 +35,7 @@ import type { CredentialProfile } from './credential-profiles';
  * not understand. A custom type therefore cannot simply be invented; the wallet has to
  * support it.
  *
- * Consequence: binding is OFF by default. Without this switch the service behaves exactly as
- * before. `EUDI_CHANNEL_BINDING_TYPE` allows setting a supported type later without touching
+ * Consequence: binding is OFF by default. `EUDI_CHANNEL_BINDING_TYPE` allows setting a supported type later without touching
  * the code.
  */
 export function bindingEnabled(): boolean {
@@ -58,15 +57,15 @@ const FP_RE = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/;
  * Accepts both spellings found in the wild: with a leading algorithm (`sha-256 ab:cd:…`, as
  * it appears in SDP) and without (as `RTCCertificate.getFingerprints()` returns it). Anything
  * else — in particular weaker algorithms such as sha-1 — is discarded rather than converted:
- * a fingerprint we cannot unambiguously identify as SHA-256 must not feed into a security
+ * a fingerprint that cannot be unambiguously identified as SHA-256 must not feed into a security
  * claim.
  */
 export function normalizeFingerprint(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   let s = raw.trim();
-  if (s.length > 200) return null;                 // Schranke gegen absurde Eingaben
+  if (s.length > 200) return null;                 // guard against absurd input
   const m = /^([A-Za-z0-9-]+)[\s:]+(.*)$/.exec(s);
-  if (m && m[1].includes('-')) {                   // Verfahren vorangestellt?
+  if (m && m[1].includes('-')) {                   // algorithm prefix present?
     if (m[1].toLowerCase() !== 'sha-256') return null;
     s = m[2].trim();
   }
@@ -88,7 +87,7 @@ export function fingerprintFromSdp(sdp: unknown): string | null {
  *
  * Only if EVERY offered profile supports the check. With a mix of SD-JWT and mdoc the wallet
  * decides which format to present — were mdoc to come back, the binding would go unverified
- * while we had already claimed it.
+ * while it had already been claimed.
  */
 export function bindingSupported(profiles: readonly CredentialProfile[]): boolean {
   if (!bindingEnabled()) return false;
@@ -111,7 +110,7 @@ export interface TransactionDataEntry {
  * encoding — and the request would be rejected at type validation anyway (`type` would not be
  * a string but an encoded blob without fields).
  *
- * `credential_ids` refers to the ids in the DCQL query; our ids ARE the profile ids (see
+ * `credential_ids` refers to the ids in the DCQL query; these ids ARE the profile ids (see
  * buildDcql), so the mapping is exact.
  *
  * The room enters ONLY as a hash. It is a secret — whoever knows it can join — and
@@ -125,7 +124,7 @@ export function buildTransactionData(input: {
   return {
     type: CHANNEL_BINDING_TYPE,
     credential_ids: [...input.credentialIds],
-    // Which hash algorithms we accept for the hashes inside the KB-JWT.
+    // Hash algorithms accepted for the hashes inside the KB-JWT.
     transaction_data_hashes_alg: ['sha-256'],
     dtls_fingerprint: input.fingerprint,
     channel: 'webrtc-dtls-srtp',

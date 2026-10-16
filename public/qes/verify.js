@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* Validation view for the in-call signing ceremony (public/qes/ §10 Phase 5).
+/* Validation view for the in-call signing ceremony.
  *
  * Analyzes EVERY signature embedded in the current PDF — including pre-existing ones
  * in a document that arrived already signed — and produces one verdict per signature:
@@ -15,7 +15,7 @@
  * Honest scope: this is a browser-side plausibility check for the demo ceremony —
  * chain building, revocation (OCSP/CRL) and qualified-status checks are exactly what
  * ETSI-compliant validators (EU DSS) exist for; the UI links there for anything that
- * has to be legally reliable. See §4 of the architecture doc (B-LT/LTA limits).
+ * has to be legally reliable.
  */
 
 import { extractSignatureRanges, verifyExtractedSignature, matchIdentity } from './identity.js';
