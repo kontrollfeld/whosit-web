@@ -58,9 +58,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Nothing under src/ may import from pro/ — otherwise the AGPL edition would depend on
-      # commercially licensed code and could no longer be shipped on its own.
-      - name: Licence boundary AGPL <-> pro/
+      # AGPL only: no commercially licensed file in the repository, no import of a module.
+      - name: Licence boundary
         run: npm run check:licence-boundary
 
       # The capability list in .env.selfhost.example is generated from src/core/features.ts.
@@ -75,17 +74,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      # The proof that the free part stands alone.
-      - name: Build stays complete without pro/
-        run: |
-          rm -rf pro
-          npm run build
-          test -f dist/server.js || { echo "::error::Build without pro/ is incomplete"; exit 1; }
-          git checkout -- pro
-
-      # The tests load the Pro module from source; it needs its own dependencies (pkijs).
-      - name: Pro module dependencies
-        run: npm ci --prefix pro
+      # The QES end-to-end tests need the qes-device module, which is not public; here they skip
+      # and say so. They run in full in the private GitLab pipeline.
 
       # Listed individually so the summary shows WHICH check failed.
       - name: WRP policy (attribute allowlist, purpose limitation)

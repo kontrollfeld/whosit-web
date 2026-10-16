@@ -42,8 +42,8 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 > this repository is a **read-only mirror**: maintainers port reviewed commits upstream, and they
 > arrive here on the next sync. The copy on **openCode** is a second mirror.
 >
-> **Licence:** [AGPL-3.0-or-later](LICENSE) — with one exception: [`pro/`](pro/) carries its own
-> commercial licence ([`pro/LICENSE`](pro/LICENSE)). See [Licence](#licence) below ·
+> **Licence:** [AGPL-3.0-or-later](LICENSE), all of it. The commercially licensed features are
+> modules released separately. See [Licence](#licence) below ·
 > Contributing: [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) · Reporting a
 > vulnerability: [`.github/SECURITY.md`](.github/SECURITY.md)
 
@@ -569,27 +569,31 @@ microphone and camera toggles, screen sharing, stage layout, hand raising, file 
 calendar entries, an Apple Wallet pass, document sharing and signing, iframe embedding,
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
-**Three features are commercially licensed** — where there is a real obligation behind them, and
-the code lives in the module [`pro/`](pro/) (see [Modules](#modules)):
+**Three features are commercially licensed** — where there is a real obligation behind them. They
+come as modules released separately (see [Modules](#modules)), not in this repository.
 
-| Feature | Why |
-|---|---|
-| Verification trail with retention and export | Responsibility for retained evidence: deadlines, export, liability |
-| Qualified remote signatures (CSC/QTSP) | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the Pro module no CSC provider is offered |
-| Device-bound signatures (Secure Enclave / StrongBox) | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
+| Feature | Module | Why |
+|---|---|---|
+| Verification trail with retention and export | `@whosit/audit-trail` | Responsibility for retained evidence: deadlines, export, liability |
+| Qualified remote signatures (CSC/QTSP) | `@whosit/qes-csc` | Requires a contract with a trust service provider, with a per-signature cost. Placeholder until Phase 6; without the module no CSC provider is offered |
+| Device-bound signatures (Secure Enclave / StrongBox) | `@whosit/qes-device` | The key is generated in the phone's secure element behind biometrics and never leaves it; a certificate authority certifies it once from the PID presented in the call. Today that authority is a **demo CA** — the signature is not legally binding. App only, see below |
 
 ### Modules
 
 Functions beyond the core come as **modules**: a directory or npm package with a `whosit`
-manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is one.
+manifest in its `package.json`, loaded through `EUDI_MODULES` — a path or a package name. Ours
+(`@whosit/audit-trail`, `@whosit/qes-csc` and `@whosit/qes-device`) are released on their own and installed from a package registry.
 
 ```json
 "whosit": {
-  "id": "pro",
+  "id": "audit-trail",
   "coreApi": "^1",
-  "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }],
-  "clientAliases": ["pro-client"]
+  "features": [{ "id": "audit-trail", "title": "Verification audit trail with retention and export" }]
 }
+```
+
+```bash
+EUDI_MODULES=@whosit/audit-trail,@whosit/qes-device   # or paths: ./instance/node_modules/@whosit/…
 ```
 
 - **The manifest is read first, without running module code.** A module built for another core
@@ -605,7 +609,7 @@ manifest in its `package.json`, loaded through `EUDI_MODULES`. [`pro/`](pro/) is
 - **Several modules side by side** are fine; their verification sinks all receive every record.
 - **Failure:** in production a listed module that does not load stops the start. In development
   it is skipped with a warning.
-- **Check without starting:** `EUDI_MODULES=./pro npm run modules -- check` lists the modules,
+- **Check without starting:** `EUDI_MODULES=… npm run modules -- check` lists the modules,
   their features and whether they fit, and exits non-zero if one would not load.
 
 The module API is versioned (`MODULE_API_VERSION` in [`src/core/modules.ts`](src/core/modules.ts))
@@ -621,23 +625,23 @@ the key custody can be proven out before one does:
    in the **Secure Enclave** (iOS) or **StrongBox** (Android), usable only after biometric
    authentication, and exports nothing but the public key. Without StrongBox the Android app
    offers no device signature at all — it does not fall back to the weaker TEE.
-2. The browser module `pro/client/device-local.js` (served under `/modules/pro/` and `/pro-client/`, never part of
-   the AGPL client) builds a CSR and has the device sign it — the first biometric prompt.
-3. The server hands it to the demo CA (`pro/qes-device.ts`) — only for a participant verified in
+2. The browser module `client/device-local.js` of `@whosit/qes-device` (served under
+   `/modules/qes-device/` and `/pro-client/`, never part of the AGPL client) builds a CSR and has the device sign it — the first biometric prompt.
+3. The server hands it to the module's demo CA — only for a participant verified in
    this call, over their own signalling connection. The CA checks the proof of possession and
    certifies the key with the **names from the PID**, not from the CSR.
 4. Every document signature is made on the device, one biometric prompt each, and embedded as
    PAdES baseline B-B (signingCertificateV2, no signing-time attribute).
 
 **In a browser, the phone signs.** WebCrypto cannot reach the secure element, so a browser is
-offered "Mit dem Smartphone signieren" instead (`pro/client/paired-phone.js`):
+offered "Mit dem Smartphone signieren" instead (the module's `client/paired-phone.js`):
 
 1. The browser asks for a one-time pairing token — only a participant verified in this call gets
    one — and shows it as a QR code (`https://<host>/?pair=<token>`).
 2. The phone's camera opens it in the app (universal link). The two ends open a WebRTC
    DataChannel of their own; the server relays only SDP and ICE (`src/device-pairing.ts`). The
    document goes peer to peer — the server never sees it, the same promise as in the call.
-3. The phone shows **every page** of the document (`pro/client/paired-signer.js`), the person
+3. The phone shows **every page** of the document (the module's `client/paired-signer.js`), the person
    confirms with Face ID, and the phone adds the signature to exactly those bytes and returns the
    grown PDF. Deliberately not "send the hash": a phone signing a hash handed to it signs whatever
    the browser claims.
@@ -674,9 +678,9 @@ What operators need to know:
   plugin's contract; `npm run test:qes-pairing` the pairing (token, relay, the owner's
   certificate, the DataChannel framing).
 
-The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative — it is the
-single source of truth for the split and gives a reason for every entry. `GET /capabilities`
-shows what a running instance actually offers.
+The registry in [`src/core/features.ts`](src/core/features.ts) is authoritative for the core — it
+gives a reason for every entry; each module declares its own features in its manifest.
+`GET /capabilities` shows what a running instance actually offers, modules included.
 
 **Every feature can be switched off:** `EUDI_FEATURES_OFF=file-transfer,screen-share` — intended
 for operators who must disable functionality for compliance reasons. Excluded are the call itself
@@ -684,23 +688,20 @@ and the privacy guarantees: a guarantee the operator can switch off would not be
 
 ## Licence
 
-**AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) for everything **except** [`pro/`](pro/).
+**AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) — the whole repository. Strong copyleft with a network
+clause: anyone operating a *modified* version as a service must offer its source code to their
+users. Running it unmodified, self-hosting it and using it commercially are all free.
 
-Strong copyleft with a network clause: anyone operating a *modified* version as a service must
-offer its source code to their users. Running it unmodified, self-hosting it and using it
-commercially are all free.
+**The commercially licensed features are modules, released separately** (`@whosit/audit-trail`, `@whosit/qes-csc` and `@whosit/qes-device`). They are not
+in this repository, and nothing here imports from them: the core builds and runs completely
+without any module (verified by `npm run check:licence-boundary`, which also fails if a
+commercially licensed file ever lands here). The core's feature registry does not name their
+features either — each module declares its own. `docker build .` produces the core image, freely
+redistributable; an instance that runs modules builds FROM it.
 
-**`pro/` carries its own commercial licence** ([`pro/LICENSE`](pro/LICENSE)): readable and
-auditable, but production use requires a licence. The code is in the open because a verification
-trail whose code nobody may inspect is a weaker verification trail — whoever buys evidence should
-be able to see the code it rests on. The protection is legal, not technical: there is no licence
-key to circumvent.
-
-Nothing under `src/` imports from `pro/` or any other module; the AGPL edition builds and runs
-completely without them (verified by `npm run check:licence-boundary`). The core's feature
-registry does not name module features either — each module declares its own. `docker build .` therefore produces an
-image **without** `pro/` that may be redistributed freely;
-`docker build --build-arg WITH_PRO=1 .` produces the Pro image.
+**The module code can be inspected** by licensees and, on request, by anyone evaluating it: an
+audit trail or a signature whose code nobody may inspect is a weaker one. The protection is legal,
+not technical — there is no licence key to circumvent.
 
 Commercial licence, hosted operation or an SLA:
 [`LICENSE-COMMERCIAL.md`](LICENSE-COMMERCIAL.md) · **administration@kontrollfeld.de**

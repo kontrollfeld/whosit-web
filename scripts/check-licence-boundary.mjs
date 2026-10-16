@@ -3,26 +3,21 @@
 /**
  * Making the licence boundary checkable — otherwise it is decoration.
  *
- * The repository carries two licences: everything under the AGPL (../LICENSE) except `pro/`
- * (commercial, pro/LICENSE). More modules follow in repositories of their own, loaded through
- * EUDI_MODULES (src/module-loader.ts). The split holds under one condition only:
+ * This repository is AGPL-3.0-or-later, all of it. The commercially licensed features are
+ * modules in repositories of their own (@whosit/audit-trail, @whosit/qes-csc, @whosit/qes-device),
+ * loaded through EUDI_MODULES (src/module-loader.ts). Until 2026-10 a pro/ directory lived here
+ * under a second licence; it is gone, and these checks keep it that way:
  *
- *   **The AGPL core must build and run completely without any module.**
- *
- * If anything under `src/` imported from a module, the free part would depend on code under
- * another licence — it could then no longer be shipped on its own, and the separation would be
- * worthless. This script checks exactly that, in both directions:
- *
- *   1. No import from `pro/` or from a module package (`@whosit/…`) in `src/`, `public/` or
- *      `scripts/`.
- *   2. No module is a prerequisite: `tsc` over `src/` must succeed without `pro/`, and the
- *      loader catches a failing module at runtime — verified here too.
- *   3. The core does not name module capabilities: they are declared in the module's manifest,
- *      not in src/core/features.ts.
+ *   1. No file in the repository carries the commercial licence identifier.
+ *   2. Nothing under src/, scripts/ or public/ imports from a module package (`@whosit/…`) or a
+ *      pro/ directory — the core builds and runs without any module.
+ *   3. The loader does not require a module, and the core's registry names no module capability:
+ *      modules declare their own.
  *
  * Runs in CI and locally via `npm run check:licence-boundary`.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 
 let failures = 0;
@@ -32,7 +27,7 @@ function check(name, ok, detail) {
 }
 
 /** Collect every source file below a directory. */
-function walk(dir, exts = ['.ts', '.js', '.mjs']) {
+function walk(dir, exts = ['.ts', '.js', '.mjs', '.mts']) {
   const out = [];
   let entries;
   try { entries = readdirSync(dir); } catch { return out; }
@@ -45,7 +40,20 @@ function walk(dir, exts = ['.ts', '.js', '.mjs']) {
   return out;
 }
 
-console.log('\nThe AGPL part must not depend on a module');
+console.log('\nThis repository is AGPL only');
+// Tracked files only: an installed module under .modules/ (CI) is not part of the repository.
+const tracked = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+// The SPDX licence line itself that names the commercial licence (also in the `key = "…"` form
+// of REUSE.toml) — not a mere mention, which documentation and this very check need.
+const COMMERCIAL = /SPDX-License-Identifier\s*[:=]\s*"?LicenseRef-Commercial/;
+const commercial = tracked.filter((f) => {
+  try { return COMMERCIAL.test(readFileSync(f, 'utf8')); } catch { return false; }
+});
+check(`${tracked.length} tracked files, none commercially licensed`, commercial.length === 0,
+  `marked commercially licensed: ${commercial.join(', ')} — commercially licensed code belongs in a module repository`);
+check('no pro/ directory', !existsSync('pro'), 'pro/ is back — the commercially licensed features are modules now');
+
+console.log('\nThe core does not depend on a module');
 // Catches `from './pro/x'`, `require('../pro/x')`, `import('@whosit/x')` and dynamic imports alike.
 const OFFENDING = /(?:from|import|require)\s*\(?\s*['"](?:[^'"]*(?:^|\/)pro\/|@whosit\/)/;
 const scanned = [...walk('src'), ...walk('scripts'), ...walk('public')];
@@ -58,24 +66,12 @@ for (const f of scanned) {
     if (OFFENDING.test(code)) offenders.push(`${relative('.', f)}:${i + 1}`);
   }
 }
-check(`${scanned.length} files checked, no import from pro/ or a module package`, offenders.length === 0,
+check(`${scanned.length} files checked, no import of a module`, offenders.length === 0,
   `forbidden imports: ${offenders.join(', ')}`);
-
-console.log('\nThe main build does not know about pro/');
-// A structural guarantee, stronger than a test: pro/ is NOT in the main tsconfig's include and
-// has one of its own. The AGPL build therefore CANNOT depend on pro/ — regardless of what anyone
-// imports.
-const rootTs = JSON.parse(readFileSync('tsconfig.json', 'utf8'));
-const includes = (rootTs.include || []).join(' ');
-check('tsconfig.json does not include pro/', !/\bpro\b/.test(includes), `include = ${includes}`);
-check('pro/ has a tsconfig of its own', (() => { try { readFileSync('pro/tsconfig.json'); return true; } catch { return false; } })(),
-  'without its own tsconfig, pro/ would drift into the main build sooner or later');
-
-console.log('\npro/ carries its own licence');
-let lic = '';
-try { lic = readFileSync('pro/LICENSE', 'utf8'); } catch {}
-check('pro/LICENSE present', !!lic, "without a licence file the repository's applies by default — i.e. the AGPL");
-check('it explicitly sets itself apart from the AGPL', /NOT COVERED BY THE AGPL/i.test(lic), lic.slice(0, 80));
+const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).filter((d) => d.startsWith('@whosit/'));
+check('no module in package.json', deps.length === 0, `dependencies on modules: ${deps.join(', ')}`);
+check('the licence is AGPL-3.0-or-later', pkg.license === 'AGPL-3.0-or-later', pkg.license);
 
 console.log('\nThe loader does not require a module');
 const loader = readFileSync('src/module-loader.ts', 'utf8');
@@ -88,12 +84,8 @@ console.log('\nThe core does not name module capabilities');
 const registry = readFileSync('src/core/features.ts', 'utf8');
 check("no `edition: 'pro'` entry in src/core/features.ts", !/edition:\s*'pro'/.test(registry),
   'a capability whose code lives in a module belongs in that module\'s manifest');
-let manifest = null;
-try { manifest = JSON.parse(readFileSync('pro/package.json', 'utf8')).whosit; } catch {}
-if (manifest) {
-  const named = (manifest.features || []).map((f) => f.id).filter((id) => new RegExp(`id:\\s*'${id}'`).test(registry));
-  check('the capabilities of pro/ are not listed in the core registry', named.length === 0,
-    `listed in the core as well: ${named.join(', ')}`);
+for (const id of ['audit-trail', 'qes-csc', 'qes-device']) {
+  check(`${id} is not in the core registry`, !new RegExp(`id:\\s*'${id}'`).test(registry), `${id} is listed in the core`);
 }
 
 console.log(failures === 0 ? '\nLicence boundary intact.' : `\n${failures} check(s) failed.`);

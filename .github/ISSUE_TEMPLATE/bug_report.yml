@@ -43,7 +43,7 @@ body:
       label: How are you running it?
       options:
         - Self-hosted (Community)
-        - Self-hosted with pro/ (commercial licence)
+        - Self-hosted with commercially licensed modules
         - whosit.eu (operated by us)
         - iOS or Android app
     validations:

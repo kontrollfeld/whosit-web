@@ -171,6 +171,22 @@ p { margin: 0 0 1em; }
   :root:not([data-theme="light"]) .mark-g1 { stop-color: #4aa3e8; }
   :root:not([data-theme="light"]) .mark-g2 { stop-color: #1565c0; }
 }
+.logo-lockup { display: block; width: 200px; height: auto; }
+@media (max-width: 640px) { .logo-lockup { width: 168px; } }
+/* The whosit logo is the file from public/logo/, never rebuilt from mark plus text. The white
+   version on dark ground, switched like the theme. On an instance with a name of its own
+   (html.branded, set by the branding snippet in <head> before first paint) the operator's mark and
+   name replace it. */
+.logo-dunkel { display: none; }
+:root[data-theme="dark"] .logo-hell { display: none; }
+:root[data-theme="dark"] .logo-dunkel { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-hell { display: none; }
+  :root:not([data-theme="light"]) .logo-dunkel { display: block; }
+}
+html:not(.branded) .brand-operator { display: none; }
+html.branded .brand-official { display: none !important; }
+.brand-operator { display: inline-flex; align-items: center; gap: 10px; }
 .logo strong { color: var(--navy); font-size: 1.05rem; letter-spacing: -0.01em; white-space: nowrap; }
 .header-cta { min-height: 40px; padding: 8px 18px; font-size: 0.9rem; }
 

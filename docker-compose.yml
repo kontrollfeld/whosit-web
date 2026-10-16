@@ -64,8 +64,9 @@ services:
       PUBLIC_URL: "https://${DOMAIN}"
       PORT: "3000"
       ALLOWED_ORIGINS: "https://${DOMAIN}"
-      # community (default) is the full product, group calls included; pro adds qes-csc and
-      # qes-device and needs a commercial licence (see src/core/features.ts, LICENSE-COMMERCIAL.md).
+      # community (default) is the full product, group calls included. The commercially licensed
+      # features come as modules (EUDI_MODULES, see LICENSE-COMMERCIAL.md); this value only labels
+      # the instance in /capabilities.
       EUDI_EDITION: "${EUDI_EDITION:-community}"
       # EUDI_VERIFIER=none: no verifier at all, anonymous calls only (see .env.selfhost.example).
       EUDI_VERIFIER: "${EUDI_VERIFIER:-}"

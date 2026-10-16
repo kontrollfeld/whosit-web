@@ -48,7 +48,6 @@
     "test:webhook": "node scripts/test-webhook.mjs",
     "test:purge": "node scripts/test-session-purge.mjs",
     "check:licence-boundary": "node scripts/check-licence-boundary.mjs",
-    "build:pro": "cd pro && npm run build",
     "env:features": "node scripts/gen-env-features.mjs",
     "check:env-features": "node scripts/gen-env-features.mjs --check",
     "test:openroom": "node scripts/test-open-room-privacy.mjs",

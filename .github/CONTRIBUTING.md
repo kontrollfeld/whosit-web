@@ -19,13 +19,9 @@ a **read-only mirror** and the public point of contact. That split has one pract
 
 ## Licence and CLA
 
-This repository carries **two licences**:
-
-- everything **except** `pro/` is **AGPL-3.0-or-later** ([`LICENSE`](../LICENSE))
-- **`pro/`** is commercially licensed ([`pro/LICENSE`](../pro/LICENSE)) — readable and auditable,
-  but not usable in production without a licence. Nothing under `src/` may import from it; the
-  AGPL part must build and run entirely without `pro/` (enforced by
-  `npm run check:licence-boundary`).
+This repository is **AGPL-3.0-or-later**, all of it ([`LICENSE`](../LICENSE)). The commercially
+licensed features are modules in repositories of their own; nothing here may import from them, and
+no commercially licensed file may land here (enforced by `npm run check:licence-boundary`).
 
 Contributions need two things:
 
@@ -46,7 +42,7 @@ Contributions need two things:
    [below](#for-maintainers-porting-a-pull-request)), so the record lives in the history and
    cannot expire or be lost with an external account.
 
-**Why this is not a formality:** the hosted service runs the AGPL core together with `pro/`. Under
+**Why this is not a formality:** the hosted service runs the AGPL core together with the commercially licensed modules. Under
 AGPL §13 that would require publishing the whole thing; it is only lawful because the rights are
 held in one place. A contribution without these grants would make it unlawful, so we could not
 merge it — and having to turn down finished work is worse for everyone than saying so in advance.
@@ -87,9 +83,9 @@ There are three outcomes, and each is fine:
 
 We are not obliged to merge a contribution ([CLA](../CLA.md) §6). We will always say why we don't.
 
-**Contributions to `pro/`** (usually fixes) are welcome under the same CLA, and ship under the
-commercial licence of that directory, not the AGPL. New Pro features are developed by the
-maintainer; please don't open PRs that add them.
+**The commercially licensed modules** are developed by the maintainer in their own repositories;
+please don't open PRs here that add Pro features. A bug you find in one of them is welcome as an
+issue.
 
 ## For maintainers: porting a pull request
 

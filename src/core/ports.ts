@@ -76,7 +76,7 @@ export interface RoomStore {
  * A verification lifecycle event. Carries only claim KEYS, never PID VALUES — the
  * privacy guarantee that holds in logs also holds here.
  *
- * The `credential-*` types cover in-call credential requests (see
+ * The `credential-*` types cover in-call credential requests (Pro, see
  * src/credential-requests.ts): `role`/`clientId` identify the TARGET (the participant
  * asked to present), `requestedBy` the requesting host, `credentialId` the catalog entry.
  */
@@ -109,7 +109,7 @@ export interface VerificationEvent {
 
 /**
  * Where verification events go. Community: no-op. Pro: an audit trail
- * (who verified what, when) with compliance export.
+ * (who verified what, when) with compliance export — the first planned Pro feature.
  */
 export interface VerificationSink {
   record(ev: VerificationEvent): void | Promise<void>;
@@ -134,7 +134,7 @@ export interface SignalingPlugin {
 /**
  * Qualified remote signing (QES) at a trust service provider via the CSC API v2 — the
  * `qes-csc` capability. **Pro only, and deliberately without a Community implementation:** the
- * signing flow lives in ./pro under the commercial licence. The core merely asks whether a signer
+ * signing flow lives in the module @whosit/qes-csc under the commercial licence. The core merely asks whether a signer
  * is present; without one it never advertises CSC/QTSP providers (enabledFeatures() in
  * ../server.ts), so the AGPL edition cannot claim a capability it does not have.
  *
@@ -143,8 +143,8 @@ export interface SignalingPlugin {
  * document. The authorisation (`sad`) comes from the QTSP's own OAuth flow, in which the signer
  * authenticates to the QTSP directly — this server never sees their credentials.
  *
- * Currently the Pro module registers a placeholder that refuses with
- * `NotYetAvailable`. Once the real flow exists, the HTTP route that calls `signHash` must be
+ * Phase 6. Until then the qes-csc module registers a placeholder that refuses with
+ * `NotYetAvailable`. When the real flow lands, the HTTP route that calls `signHash` must be
  * bound to a verified participant's session — a signing endpoint reachable without that would
  * sign for anyone.
  */
@@ -206,7 +206,7 @@ export interface IssuedCertificate {
 }
 
 /**
- * A signature provider a Pro module contributes to GET /signature-providers. `module` is the file
+ * A signature provider a module contributes to GET /signature-providers. `module` is the file
  * in `clientAssetsDir` that implements it in the browser; the client loads it from there, so the
  * code never ships with the AGPL client.
  */
@@ -228,12 +228,12 @@ export interface Extensions {
   plugins: SignalingPlugin[];
   /** Capability ids the loaded modules bring — from their manifests (see ./modules). */
   enabledFeatures: string[];
-  /** Qualified remote signing — only a Pro module provides one. Optional, so a Pro build
+  /** Qualified remote signing — only a module provides one. Optional, so a module build
    *  compiled against an earlier version of this port still satisfies the interface. */
   qualifiedSigner?: QualifiedSigner;
   /** Certificates for device-held signing keys (`qes-device`). Optional, as above. */
   certificateIssuer?: CertificateIssuer;
-  /** Signature providers the Pro module adds; offered only while their feature is enabled. */
+  /** Signature providers a module adds; offered only while their feature is enabled. */
   signatureProviders?: ContributedSignatureProvider[];
   /** Directory of browser files a module ships, served under /modules/<id>/ (and its aliases). */
   clientAssetsDir?: string;

@@ -5,7 +5,7 @@
  *
  * The real key lives in the phone's secure element, which a test cannot reach. So a WebCrypto
  * key stands in for it behind the SAME contract the app's DeviceSigner plugin fulfils (status,
- * publicKey, sign → DER). Everything else is the real thing: the server with the Pro module, a
+ * publicKey, sign → DER). Everything else is the real thing: the server with the qes-device module, a
  * guest verified through a verifier stand-in, the certificate request over the signalling
  * connection, the demo CA, the provider module the server ships under /pro-client/, and the PAdES
  * ceremony code the browser runs.
@@ -28,6 +28,9 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { requireQesDeviceModule, importClient } from './lib/qes-device-module.mjs';
+
+const QES_DEVICE = requireQesDeviceModule('test-qes-device');
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 globalThis.self = globalThis; // the browser modules address WebCrypto as self.crypto
@@ -150,8 +153,9 @@ const app = spawn('npx', ['tsx', 'src/server.ts'], {
     ...process.env,
     PORT: String(APP_PORT),
     PUBLIC_URL: `http://127.0.0.1:${APP_PORT}`,
-    EUDI_EDITION: 'pro',
-    EUDI_PRO_MODULE: './pro/index.ts',
+    EUDI_EDITION: 'community',
+    EUDI_PRO_MODULE: '',
+    EUDI_MODULES: QES_DEVICE,
     EUDI_AUDIT_FILE: join(work, 'audit.jsonl'),
     EUDI_QES_CA_FILE: CA_FILE,
     EUDIPLO_BASE_URL: `http://127.0.0.1:${VERIFIER_PORT}`,
@@ -180,7 +184,7 @@ try {
   const verify = await import(join(root, 'public', 'qes', 'verify.js'));
   const loadPki = () => import(join(root, 'public', 'vendor', 'pkijs', 'pkijs.bundle.mjs'));
 
-  console.log('\nThe server offers the provider — and ships its code from pro/, not from public/');
+  console.log('\nThe server offers the provider — and ships its code from the module, not from public/');
   const list = await (await fetch(`http://127.0.0.1:${APP_PORT}/signature-providers`)).json();
   const entry = list.providers.find((p) => p.kind === 'device-local');
   check('a device-local provider is offered', !!entry, JSON.stringify(list.providers));
@@ -190,7 +194,7 @@ try {
   check('with CORS for the app origin', mod.headers.get('access-control-allow-origin') === '*');
   check('not part of the AGPL client', (await fetch(`http://127.0.0.1:${APP_PORT}/qes/device-local.js`)).status === 404);
 
-  const { createProvider } = await import(join(root, 'pro', 'client', 'device-local.js'));
+  const { createProvider } = await importClient(QES_DEVICE, 'device-local.js');
 
   console.log('\nWithout a secure element, no provider');
   check('no native signer → not offered', (await createProvider(entry, { native: null, requestCertificate: async () => [] })) === null);

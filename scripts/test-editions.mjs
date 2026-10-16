@@ -17,7 +17,7 @@
  * Usage: npm run test:editions
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,9 +27,9 @@ const PORT_PROMO = 3773;
 const PORT_PRO_MODULE = 3775;
 const PORT_COMMUNITY_MODULE = 3776;
 
-/** The capabilities of the module in pro/ — where we genuinely provide something in return.
- *  Declared in pro/package.json, not in the core's registry. The audit trail is a module of
- *  its own since 2026-10 (@whosit/audit-trail) and is tested in its repository. */
+/** Two module capabilities, declared by the fixture module below — as the real modules
+ *  (@whosit/qes-csc, @whosit/qes-device) declare them in their manifests. Not in the core's
+ *  registry. The real modules are not part of this repository and are tested in theirs. */
 const PRO_IDS = ['qes-csc', 'qes-device'];
 
 /** Community features whose loss MUST be noticed immediately (multi-party included: its code
@@ -40,11 +40,30 @@ const MOVED_TO_COMMUNITY = [
   'embed', 'in-call-credentials', 'multi-party',
 ];
 
-// The Pro module straight from source (the server runs under tsx, which imports .ts), so the
-// test needs no `npm run build:pro` first. Its audit trail writes into a throwaway directory.
-const PRO_MODULE = './pro/index.ts';
+// A fixture module in a throwaway directory: what this test is about is how the CORE treats a
+// module's capabilities (edition, off switch, ports, served files) — not what the module does.
+// It fills the two ports the signature capabilities rest on, with stubs that refuse to sign.
 const auditDir = mkdtempSync(join(tmpdir(), 'whosit-editions-'));
-const withProModule = { EUDI_MODULES: PRO_MODULE, EUDI_AUDIT_FILE: join(auditDir, 'audit.jsonl'), EUDI_QES_CA_FILE: join(auditDir, 'ca.json') };
+const FIXTURE = join(auditDir, 'sig-fixture');
+mkdirSync(join(FIXTURE, 'client'), { recursive: true });
+writeFileSync(join(FIXTURE, 'package.json'), JSON.stringify({
+  name: 'sig-fixture', version: '1.0.0', main: 'index.js',
+  whosit: {
+    id: 'sig-fixture', coreApi: '^1',
+    features: [{ id: 'qes-csc', title: 'Qualified (fixture)' }, { id: 'qes-device', title: 'Device-bound (fixture)' }],
+    clientAliases: ['pro-client'],
+  },
+}));
+writeFileSync(join(FIXTURE, 'index.js'), `const path = require('path');
+exports.register = () => ({
+  qualifiedSigner: { kinds: ['csc'], signHash: async () => { throw new Error('fixture'); } },
+  certificateIssuer: { issue: async () => { throw new Error('fixture'); } },
+  signatureProviders: [],
+  clientAssetsDir: path.join(__dirname, 'client'),
+});
+`);
+writeFileSync(join(FIXTURE, 'client', 'device-local.js'), 'export function createProvider() { return null; }\n');
+const withProModule = { EUDI_MODULES: FIXTURE };
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -135,22 +154,22 @@ try {
       'a guarantee that only holds in the paid edition is not a guarantee');
   }
 
-  console.log('\nPro instance with the Pro module: the Pro features are added');
+  console.log('\nPro instance with the module: its features are added');
   check('the edition is reported as pro', proModule.edition === 'pro', JSON.stringify(proModule.edition));
   for (const id of PRO_IDS) {
     check(`${id} included`, proModule.enabled.includes(id), 'the Pro feature is not being unlocked');
   }
   check('the module is reported with id and version',
-    proModule.modules?.length === 1 && proModule.modules[0].id === 'pro' && /^\d+\.\d+\.\d+/.test(proModule.modules[0].version),
+    proModule.modules?.length === 1 && proModule.modules[0].id === 'sig-fixture' && /^\d+\.\d+\.\d+/.test(proModule.modules[0].version),
     JSON.stringify(proModule.modules));
   check('a Community instance reports no modules', Array.isArray(community.modules) && community.modules.length === 0,
     JSON.stringify(community.modules));
-  for (const p of ['modules/pro', 'pro-client']) {
+  for (const p of ['modules/sig-fixture', 'pro-client']) {
     check(`/${p}/device-local.js is served by the module`,
       (await fetch(`http://127.0.0.1:${PORT_PRO_MODULE}/${p}/device-local.js`)).ok);
   }
-  check('/modules/pro/ does not reach outside the module directory',
-    (await fetch(`http://127.0.0.1:${PORT_PRO_MODULE}/modules/pro/..%2F..%2Fpackage.json`)).status !== 200);
+  check('/modules/sig-fixture/ does not reach outside the module directory',
+    (await fetch(`http://127.0.0.1:${PORT_PRO_MODULE}/modules/sig-fixture/..%2F..%2Fpackage.json`)).status !== 200);
 
   console.log('\nThe module decides, not the edition');
   // A capability is on exactly when the code that implements it is loaded. EUDI_EDITION=pro
@@ -165,18 +184,18 @@ try {
     `missing in Pro: ${community.enabled.filter((id) => !proModule.enabled.includes(id)).join(',')}`);
 
   console.log('\nPro edition WITHOUT the module: nothing of the module is claimed');
-  // The code lives in pro/. EUDI_EDITION=pro alone is a switch in open code; if it were enough,
+  // The code lives in a module. EUDI_EDITION=pro alone is a switch in open code; if it were enough,
   // the module's capabilities would be Pro in name only and the AGPL core would advertise a
   // trail it does not keep and CSC providers it cannot serve.
   check('audit-trail NOT included', !pro.enabled.includes('audit-trail'),
     'advertised without the module — nothing keeps a trail');
   check('qes-csc NOT included', !pro.enabled.includes('qes-csc'),
-    'advertised without the Pro module — the AGPL core cannot sign qualified');
+    'advertised without the module — the AGPL core cannot sign qualified');
   check('qes-device NOT included', !pro.enabled.includes('qes-device'),
-    'advertised without the Pro module — the AGPL core has no certificate authority');
-  check('/modules/pro/ serves nothing without the module',
-    (await fetch(`http://127.0.0.1:${PORT_PRO}/modules/pro/device-local.js`)).status === 404);
-  check('/pro-client/ serves nothing without the Pro module',
+    'advertised without the module — the AGPL core has no certificate authority');
+  check('/modules/sig-fixture/ serves nothing without the module',
+    (await fetch(`http://127.0.0.1:${PORT_PRO}/modules/sig-fixture/device-local.js`)).status === 404);
+  check('/pro-client/ serves nothing without the module',
     (await fetch(`http://127.0.0.1:${PORT_PRO}/pro-client/device-local.js`)).status === 404);
   const providers = await (await fetch(`http://127.0.0.1:${PORT_PRO}/signature-providers`)).json();
   check('/signature-providers ships the demo provider only',

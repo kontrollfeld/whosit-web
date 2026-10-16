@@ -7,7 +7,7 @@ contact_links:
     about: Please NOT as a public issue. Private reporting route, see the security policy.
   - name: 💼 Commercial licence, Pro features or hosted operation
     url: mailto:administration@kontrollfeld.de
-    about: Enquiries about the commercial licence, pro/ components, an SLA or hosted operation.
+    about: Enquiries about the commercial licence, the commercially licensed modules, an SLA or hosted operation.
   - name: ❓ Ask a question
     url: https://github.com/kontrollfeld/whosit-web/discussions
     about: Questions about usage, self-hosting or connecting EUDIPLO.

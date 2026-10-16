@@ -89,7 +89,13 @@ const esc = (s: string) => s.replace(/[<>&"]/g, (ch) => ({ '<': '&lt;', '>': '&g
 export function snippets(b: Branding | null): { head: string; tail: string } {
   if (!b) return { head: '', tail: '' };
   const head =
-    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo })};</script>` +
+    // `branded` on <html> before first paint: the CSS then shows the operator's mark and name in
+    // place of the whosit logo, without the whosit logo flashing up first. Only with a NAME of the
+    // operator's own: a logo alone replaces the mark and the favicon, not the whosit logo. That
+    // case exists for real — www.whosit.eu sets EUDI_BRAND_LOGO to our own mark, a relic of the
+    // neutral-mark period — and it must keep showing the logo file, not mark plus text.
+    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo })};` +
+    (b.name ? `document.documentElement.classList.add('branded');` : '') + `</script>` +
     `<script src="/branding.js" defer></script>`;
   if (!b.accent) return { head, tail: '' };
   const dark = b.accentDark || toHex(mix(rgb(b.accent)!, [255, 255, 255], 0.35));

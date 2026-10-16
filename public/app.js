@@ -615,8 +615,8 @@ const inviteCfg = inviteToken ? parseInviteCfg(inviteToken) : null;
 
 // ---- phone paired to sign for a browser participant (Pro, qes-device) -------------
 // `?pair=<token>` comes from the QR code a browser shows under "Mit dem Smartphone signieren".
-// This page then is not a call at all: no room, no join — the Pro module takes over the screen
-// (see startPairedSigner below and pro/client/paired-signer.js).
+// This page then is not a call at all: no room, no join — the qes-device module takes over the screen
+// (see startPairedSigner below and the module's client/paired-signer.js).
 const pairToken = params.get('pair');
 
 let roomId = inviteCfg ? inviteCfg.room : params.get('room');
@@ -1020,7 +1020,7 @@ function isHost() { return myRole === 'caller' && !soloMode; }
 function wsSend(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 
 // Server messages a lazily loaded module listens to (e.g. the pairing of the phone signature,
-// pro/client/paired-phone.js), so this switch does not have to know every one of them.
+// the qes-device module's client/paired-phone.js), so this switch does not have to know every one of them.
 const serverListeners = new Map(); // type → Set<fn>
 function onServer(type, fn) {
   if (!serverListeners.has(type)) serverListeners.set(type, new Set());
@@ -3232,9 +3232,9 @@ postToParent('ready', { room: roomId }); // tell the embedding page the widget l
 })();
 
 // ---- phone signature: this device signs for a browser participant (Pro, qes-device) ----
-// Loaded from the server (pro/client/paired-signer.js), like every Pro client module; what it
+// Loaded from the server (the qes-device module's client/paired-signer.js), like every module's browser code; what it
 // needs from this bundle is handed over, because a relative import from there would reach the
-// server rather than this bundle. Without the Pro module (or offline) the page says so plainly.
+// server rather than this bundle. Without that module (or offline) the page says so plainly.
 function startPairedSigner(token) {
   // The token is a bearer credential for one signing step: out of the address bar, history and
   // any screenshot as soon as it has been read.

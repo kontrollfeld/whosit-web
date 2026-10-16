@@ -258,6 +258,23 @@ header { margin-bottom: 22px; }
   :root:not([data-theme="light"]) .mark-g1 { stop-color: #4aa3e8; }
   :root:not([data-theme="light"]) .mark-g2 { stop-color: #1565c0; }
 }
+/* 220 px wide; never below 160 px, the minimum for the logo with claim. */
+.logo-lockup { display: block; width: 220px; height: auto; }
+/* The whosit logo is the file from public/logo/, never rebuilt from mark plus text. The white
+   version on dark ground, switched like the theme. On an instance with a name of its own
+   (html.branded, set by the branding snippet in <head> before first paint) the operator's mark and
+   name replace it. */
+.logo-dunkel { display: none; }
+:root[data-theme="dark"] .logo-hell { display: none; }
+:root[data-theme="dark"] .logo-dunkel { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-hell { display: none; }
+  :root:not([data-theme="light"]) .logo-dunkel { display: block; }
+}
+html:not(.branded) .brand-operator { display: none; }
+html.branded .brand-official { display: none !important; }
+.logo .brand-official { margin: 0; line-height: 0; }
+.brand-operator { display: flex; align-items: center; gap: 13px; }
 .logo-mark {
   width: 46px; height: 46px; flex: none;
   filter: drop-shadow(0 8px 16px rgba(3, 105, 161, 0.28));
@@ -1232,6 +1249,8 @@ html.native-app .wallet-note { display: none; }
 html.native-app header { margin-bottom: 8px; }
 html.native-app .logo { margin-bottom: 0; gap: 10px; }
 html.native-app .logo-mark { width: 34px; height: 34px; filter: none; }
+html.native-app .logo-lockup { width: 160px; }
+html.native-app .brand-operator { gap: 10px; }
 html.native-app .logo h1 { font-size: 1.22rem; }
 html.native-app main { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
 /* footer meta pills live in the settings tab instead */

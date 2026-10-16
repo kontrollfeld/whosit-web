@@ -61,3 +61,6 @@ coverage/
 .eslintcache
 .cache/
 npm-debug.log*
+
+# Modules installed for tests (CI: the qes-device module for the QES end-to-end tests)
+.modules/

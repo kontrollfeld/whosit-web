@@ -27,12 +27,12 @@ path = "public/version.json"
 SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
-# Commercially licensed (see pro/LICENSE and
-# LICENSES/LicenseRef-Commercial-whosit.txt).
+# The whosit logo, copied unchanged from the logo kit (see public/logo/README.md). The licence
+# covers the files; it grants no right to the name or logo as a trademark.
 [[annotations]]
-path = ["pro/package.json", "pro/package-lock.json", "pro/tsconfig.json"]
+path = "public/logo/*.svg"
 SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
-SPDX-License-Identifier = "LicenseRef-Commercial-whosit"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 # Third-party components with their own licences — the texts sit next to the files themselves,
 # with an overview in NOTICE.
@@ -76,6 +76,8 @@ path = [
   "README.md",
   "NOTICE",
   "CLA.md",
+  "CLAUDE.md",
+  "public/logo/README.md",
   ".github/CODE_OF_CONDUCT.md",
   ".github/CONTRIBUTING.md",
   ".github/SECURITY.md",
