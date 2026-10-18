@@ -174,7 +174,10 @@ container:
   before_script: []
   cache: []
   script:
-    - docker build --build-arg SOURCE_COMMIT="$CI_COMMIT_SHORT_SHA" -t evc:core .
+    # The revision label is for images built FROM this one: version.json says which commit runs with
+    # seven characters, the tags carry eight, and an image that wants to mirror this tag needs the
+    # full revision to derive it. Standard OCI label, readable with `docker inspect`.
+    - docker build --build-arg SOURCE_COMMIT="$CI_COMMIT_SHORT_SHA" --label org.opencontainers.image.revision="$CI_COMMIT_SHA" -t evc:core .
     - COUNT=$(docker run --rm evc:core sh -c 'grep -rlE --exclude-dir=node_modules "SPDX-License-Identifier.{1,4}LicenseRef-Commercial" /app 2>/dev/null | wc -l')
     # Single-quoted as ONE YAML scalar: an unquoted ": " inside a plain scalar makes YAML read the
     # item as a mapping, and the whole pipeline fails as "yaml invalid" with 0 jobs.
@@ -200,6 +203,35 @@ container:
       else
         echo "Not the default branch — built and checked, not published."
       fi
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Rebuild the images built FROM this one. An operator who adds modules to the core keeps an image
+# of their own; without this it would go on carrying the previous core until someone remembers.
+#
+# Configured, not named here: DOWNSTREAM_TRIGGER_URL (a pipeline trigger endpoint,
+# https://gitlab.com/api/v4/projects/<id>/trigger/pipeline) and DOWNSTREAM_TRIGGER_TOKEN (that
+# project's trigger token, Masked + Protected). Without both the job does not run. The downstream
+# pipeline gets CORE_TAG — the tag just published — and PUBLISH_STABLE=ja, since that tag is now
+# also `stable`.
+downstream:
+  stage: betrieb
+  image: curlimages/curl:8.10.1
+  needs: [container]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DOWNSTREAM_TRIGGER_URL && $DOWNSTREAM_TRIGGER_TOKEN
+  before_script: []
+  cache: []
+  script:
+    - >-
+      curl -fsS -X POST
+      --form "token=$DOWNSTREAM_TRIGGER_TOKEN"
+      --form "ref=main"
+      --form "variables[CORE_TAG]=$CI_COMMIT_SHORT_SHA"
+      --form "variables[PUBLISH_STABLE]=ja"
+      "$DOWNSTREAM_TRIGGER_URL" > /dev/null
+    - 'echo "Triggered the downstream image build for $CI_COMMIT_SHORT_SHA"'
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
 # Do the instances we run actually run what we shipped?
