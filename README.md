@@ -510,6 +510,7 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDI_PRO_MODULE` | The earlier single-module variable — still read, as one more entry of `EUDI_MODULES` |
 | `EUDI_EDITION` | `community` (default) or `pro` — reported in `/capabilities`. It no longer unlocks anything: a module's features are on exactly when the module is loaded |
 | `EUDI_FEATURES_OFF` | Comma-separated list of features to switch off, e.g. `file-transfer,screen-share` — module features included |
+| `EUDI_USAGE_FILE` | *(optional)* Call minutes: per calendar month (German time) the number of calls and their total seconds — nobody and no single call in it. Written when a call ends, never served over HTTP; unset, counted in memory and logged only. A call runs while at least two are connected; a dropped connection that does not come back ends it when it dropped, not when the reconnect wait runs out. Put it on the persistent volume. See `src/usage.ts` |
 | `EUDI_QES_CA_FILE` | *(Pro)* Key and certificate of the demo CA for device-bound signatures; default `qes-demo-ca.json` next to `EUDI_AUDIT_FILE`. Must be on a persistent volume |
 | `EUDI_IOS_APP_URL` | *(Pro)* Where browser users get the iPhone app for "Mit dem Smartphone signieren"; default the public TestFlight link |
 

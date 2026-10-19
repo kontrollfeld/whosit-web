@@ -43,7 +43,7 @@
     "test:relyingparty": "node scripts/test-relying-party.mjs",
     "check:instances": "node scripts/check-instances.mjs",
     "test:editions": "node scripts/test-editions.mjs",
-    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run check:no-external-scripts && npm run test:wrp && npm run test:wrprc && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:modules && npm run test:webhook && npm run test:purge && npm run test:openroom && npm run test:operatorpages && npm run test:invite && npm run test:hostlogin && npm run test:relyingparty && npm run test:qes && npm run test:qes-device && npm run test:qes-pairing && npm run test:verifier-none && npm run test:ratelimit",
+    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run check:no-external-scripts && npm run test:wrp && npm run test:wrprc && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:modules && npm run test:webhook && npm run test:purge && npm run test:usage && npm run test:openroom && npm run test:operatorpages && npm run test:invite && npm run test:hostlogin && npm run test:relyingparty && npm run test:qes && npm run test:qes-device && npm run test:qes-pairing && npm run test:verifier-none && npm run test:ratelimit",
     "test:startup": "node scripts/test-startup-guard.mjs",
     "test:webhook": "node scripts/test-webhook.mjs",
     "test:purge": "node scripts/test-session-purge.mjs",
@@ -56,7 +56,8 @@
     "wrprc:credentials": "tsx scripts/wrprc-credentials.mts",
     "test:wrprc": "node scripts/test-registration-cert.mjs",
     "modules": "tsx scripts/modules.mts",
-    "test:modules": "tsx scripts/test-modules.mjs"
+    "test:modules": "tsx scripts/test-modules.mjs",
+    "test:usage": "tsx scripts/test-usage.mjs"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
