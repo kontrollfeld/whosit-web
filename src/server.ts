@@ -48,6 +48,7 @@ assertPolicyOrExit();
 // simply never be requested, and nothing would point at the variable.
 assertNarrowOrExit();
 import { recordAudit, setAuditForwarder } from './audit';
+import { initUsage, callStarted, participantLeft } from './usage';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
@@ -1008,6 +1009,7 @@ app.post('/webhook/:sessionId', (req, res) => {
       const peers = ext.roomStore.peersOf(room, participant);
       purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
+      participantLeft(room, room.participants.length);
       for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
       if (peers.length) broadcastStatus(room);
       res.status(200).send('OK');
@@ -1259,6 +1261,7 @@ function maybeConnect(room: Room): void {
     }));
     send(p.ws, { type: 'ready', mode: room.mode, peers });
   }
+  callStarted(room);
   if (!readyFired.has(room)) {
     readyFired.add(room);
     firePlugins((p) => p.onReady?.({ roomId: room.id, mode: room.mode }));
@@ -1281,6 +1284,7 @@ function maybeConnectOpen(room: Room): void {
     }));
     send(p.ws, { type: 'ready', mode: room.mode, peers });
   }
+  callStarted(room);
   if (!readyFired.has(room)) {
     readyFired.add(room);
     firePlugins((p) => p.onReady?.({ roomId: room.id, mode: room.mode }));
@@ -1665,6 +1669,7 @@ wss.on('connection', (ws, request) => {
       if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
       purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
+      participantLeft(room, room.participants.length);
     }
   });
 
@@ -1685,6 +1690,8 @@ wss.on('connection', (ws, request) => {
     // period without a reconnect do we free the slot and tell the peer.
     if (participant.graceTimer) clearTimeout(participant.graceTimer);
     const grace = isPlannedRoomId(room.id) ? PLANNED_GRACE_MS : GRACE_MS;
+    // If they do not come back, the call ended NOW, not when the grace runs out (./usage).
+    const closedAt = Date.now();
     participant.graceTimer = setTimeout(() => {
       // Open in-call credential requests involving the leaver die with them.
       for (const r of openRequestsInvolving(participant)) {
@@ -1696,6 +1703,7 @@ wss.on('connection', (ws, request) => {
       const peers = ext.roomStore.peersOf(room, participant);
       purgeVerifierSession(participant.verifierSessionId, 'left');
       ext.roomStore.remove(room, participant);
+      participantLeft(room, room.participants.length, closedAt);
       for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
       if (peers.length) broadcastStatus(room);
       firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'left' }));
@@ -1870,6 +1878,8 @@ loadExtensions().then((resolved) => {
   // Load (and log) the in-call credential catalog up front, so a broken/missing file
   // is visible at startup — not first when a host opens the request menu.
   if (enabledFeatures().has('in-call-credentials')) loadCatalog();
+  // Call minutes, from the file of earlier runs (./usage).
+  initUsage();
   // Check the configuration BEFORE the port is open. An incompletely configured instance
   // should not fail first at the initial wallet check in production — there the error is a 401
   // from EUDIPLO and nobody knows which value was missing. Names variables only, never values
