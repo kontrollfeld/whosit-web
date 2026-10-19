@@ -52,7 +52,11 @@
         findet nicht statt. Je nach Konfiguration kontaktiert der Browser zum Verbindungsaufbau
         STUN-Server (standardm&auml;&szlig;ig von Google und Cloudflare) und &mdash; sofern kein eigener
         TURN-Server eingerichtet ist &mdash; ein &ouml;ffentliches Relay (openrelay.metered.ca); dabei
-        werden IP-Adressen an diese Anbieter &uuml;bermittelt. Welche weiteren Daten anfallen, h&auml;ngt vom Betrieb ab &mdash; etwa
+        werden IP-Adressen an diese Anbieter &uuml;bermittelt. Die Software z&auml;hlt je Kalendermonat nur,
+        wie viele Gespr&auml;che stattfanden und wie lange sie insgesamt dauerten &mdash; ohne Raum- oder
+        Ger&auml;tekennungen, Namen, IP-Adressen, Uhrzeiten oder Angaben zu einzelnen Gespr&auml;chen; auf dem
+        Ger&auml;t wird daf&uuml;r nichts gespeichert oder ausgelesen. Ob diese Monatssummen dauerhaft
+        abgelegt werden, legt der Betreiber fest (<code>EUDI_USAGE_FILE</code>). Welche weiteren Daten anfallen, h&auml;ngt vom Betrieb ab &mdash; etwa
         Server-Protokolle, der eingesetzte Verifier und die Wahl des Hosting-Anbieters.
       </p>
       <p class="muted" style="margin-top:32px;font-size:.86rem;">
