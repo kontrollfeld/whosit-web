@@ -34,6 +34,7 @@
       <h1>Impressum</h1>
       <p class="muted">Angaben gem&auml;&szlig; &sect;&nbsp;5 DDG (Digitale-Dienste-Gesetz).</p>
 
+      <!-- imprint:start — replaced by the operator's impressum.json, see src/operator-pages.ts -->
       <h2>Diensteanbieter</h2>
       <p>
         <strong>Der Betreiber dieser Instanz hat keine Angaben hinterlegt.</strong>
@@ -47,10 +48,12 @@
         <strong>An den Betreiber dieser Instanz:</strong> Diese Seite ist eine Vorlage aus der
         Software. Lege deine eigene Fassung als <code>impressum.html</code> in dem Verzeichnis ab,
         auf das <code>EUDI_OPERATOR_PAGES</code> zeigt &mdash; sie wird dann anstelle dieser Seite
-        ausgeliefert. Siehe <code>.env.example</code>.
+        ausgeliefert. Oder lege dort nur deine Angaben als <code>impressum.json</code> ab, dann
+        setzt diese Seite sie ein. Siehe <code>.env.example</code>.
         <br /><em>Operators: replace this page by putting your own <code>impressum.html</code>
         into the directory <code>EUDI_OPERATOR_PAGES</code> points at.</em>
       </p>
+      <!-- imprint:end -->
     </div>
   </main>
 

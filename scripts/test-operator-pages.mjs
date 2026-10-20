@@ -27,6 +27,8 @@ import { join } from 'node:path';
 const PORT_WITH = 3991;
 const PORT_WITHOUT = 3992;
 const PORT_BRANDED = 3993;
+const PORT_IMPRINT = 3994;
+const PORT_IMPRINT_BRANDED = 3995;
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -186,6 +188,42 @@ try {
       withExt.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'), `got: ${withExt.text.slice(0, 90)}`);
     check('/impressum does too', noExt.text.includes('PROVIDED-BY-OPERATOR-IMPRINT'),
       `got: ${noExt.text.slice(0, 90)}`);
+  }
+
+  console.log('\nAn imprint given as details (impressum.json)');
+  {
+    // A fourth instance with a directory of its own: no impressum.html there, only the details.
+    const dir2 = mkdtempSync(join(tmpdir(), 'operator-imprint-'));
+    writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({
+      name: 'Müller & Söhne <GmbH>', strasse: 'Hauptstraße 1', ort: '10115 Berlin',
+      vertreten: 'Erika Mustermann', email: 'info@mueller.example', telefon: '+49 30 123456',
+      register: 'Amtsgericht Charlottenburg, HRB 123456 B', ustId: 'DE123456789',
+    }));
+    const json = start(PORT_IMPRINT, { EUDI_OPERATOR_PAGES: dir2 });
+    const jsonBranded = start(PORT_IMPRINT_BRANDED, { EUDI_OPERATOR_PAGES: dir2, EUDI_BRAND_NAME: 'Müller Service', EUDI_BRAND_ACCENT: '#c8102e' });
+    await waitFor(PORT_IMPRINT);
+    await waitFor(PORT_IMPRINT_BRANDED);
+    const page = await body(PORT_IMPRINT, '/impressum');
+    check('the details are on the page', page.status === 200 && page.text.includes('Hauptstraße 1') && page.text.includes('HRB 123456 B') && page.text.includes('§&nbsp;27a') === false && page.text.includes('DE123456789'), page.text.slice(0, 120));
+    check('escaped, so a value cannot add markup', page.text.includes('Müller &amp; Söhne &lt;GmbH&gt;') && !page.text.includes('<GmbH>'), 'raw markup on the page');
+    check('the "no details" text is gone', !page.text.includes('keine Angaben hinterlegt'), 'placeholder text still there');
+    check('a missing optional field leaves no empty heading', !page.text.includes('Aufsichtsbeh'), 'empty supervisory authority section');
+    check('with .html as well', (await body(PORT_IMPRINT, '/impressum.html')).text.includes('Hauptstraße 1'), '');
+    check('and announced as provided', (await (await fetch(`http://127.0.0.1:${PORT_IMPRINT}/capabilities`)).json()).operatorPages.includes('impressum'), '');
+    check('startup says where the imprint comes from', json.log.join('').includes('Imprint: from impressum.json'), json.log.join('').split('\n').filter((l) => /mprint|Operator/.test(l)).join(' | '));
+    const b = await body(PORT_IMPRINT_BRANDED, '/impressum.html');
+    check('a branded instance shows the details in its own look', b.text.includes('Hauptstraße 1') && b.text.includes('Müller Service'), b.text.slice(0, 120));
+
+    writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({ name: 'Ohne Adresse', email: 'a@b.example' }));
+    const kaputt = await body(PORT_IMPRINT, '/impressum.html');
+    check('an incomplete file shows the placeholder, not half a page', kaputt.text.includes('keine Angaben hinterlegt') && !kaputt.text.includes('Ohne Adresse'), kaputt.text.slice(0, 120));
+    writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({ name: 'X', strasse: 'Y 1', ort: '1 Z', email: 'a@b.example', skript: '<script>' }));
+    check('an unknown field makes it unused too', (await body(PORT_IMPRINT, '/impressum.html')).text.includes('keine Angaben hinterlegt'), '');
+    writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({ name: 'X', strasse: 'Y 1\n<b>', ort: '1 Z', email: 'a@b.example' }));
+    check('a line break in a value too', (await body(PORT_IMPRINT, '/impressum.html')).text.includes('keine Angaben hinterlegt'), '');
+    writeFileSync(join(dir2, 'impressum.html'), '<!doctype html><title>x</title>OWN-PAGE');
+    writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({ name: 'X', strasse: 'Y 1', ort: '1 Z', email: 'a@b.example' }));
+    check('an own impressum.html still wins', (await body(PORT_IMPRINT, '/impressum')).text.includes('OWN-PAGE'), '');
   }
 
   console.log('\nA page added while the service is running');
