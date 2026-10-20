@@ -21,7 +21,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
-  resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
+  readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
@@ -586,8 +586,18 @@ function sendBranded(res: express.Response, file: string): void {
 if (OPERATOR) {
   app.get(/^\/(impressum|datenschutz|presse)(\.html)?$/, (req, res, next) => {
     const file = resolveOperatorPage(OPERATOR, req.path);
-    if (!file) return next();                       // not provided → placeholder from public/
-    res.set('Cache-Control', 'no-cache').sendFile(file);
+    if (file) { res.set('Cache-Control', 'no-cache').sendFile(file); return; }
+    // No page, but the details (impressum.json): the placeholder fills itself in. Branded here,
+    // because the branding interceptor further down never sees a response sent from this route.
+    if (req.path.startsWith('/impressum')) {
+      const i = readImprint(OPERATOR);
+      if (i && 'imprint' in i) {
+        const html = renderImprint(fs.readFileSync(path.join(__dirname, '..', 'public', 'impressum.html'), 'utf8'), i.imprint);
+        res.type('html').set('Cache-Control', 'no-cache').send(BRANDING ? brandHtml(html, BRANDING) : html);
+        return;
+      }
+    }
+    next();                                         // not provided → placeholder from public/
   });
   // Redirects AWAY from /operator/… have to be answered before the static mount below, which
   // would otherwise serve the old file and the redirect could never fire. Only for /operator/
@@ -788,7 +798,8 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // self-hoster who has not written a press page must not appear to have one. Resolved live,
     // so a page dropped into the directory shows up without a restart.
     operatorPages: OPERATOR
-      ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null)
+      ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null
+        || (x === 'impressum' && (() => { const i = readImprint(OPERATOR); return !!i && 'imprint' in i; })()))
       : [],
     // Media the operator provides (see ./operator-pages). An operator's own pages can use
     // this to tell whether a file is there before pointing a <video> at it — otherwise a
@@ -1924,6 +1935,10 @@ loadExtensions().then((resolved) => {
       const missing = OPERATOR_PAGES.filter((x) => !OPERATOR.available.includes(x));
       console.log(`Operator pages: ${OPERATOR.available.join(', ') || 'NONE FOUND'} in ${OPERATOR.dir}`
         + (missing.length ? ` — not provided: ${missing.join(', ')}` : ''));
+      // A details file that does not parse would otherwise show the placeholder without a word.
+      const i = readImprint(OPERATOR);
+      if (i && 'fehler' in i) console.log(`⚠️  impressum.json is not used: ${i.fehler} — the imprint shows the placeholder`);
+      else if (i && !resolveOperatorPage(OPERATOR, '/impressum')) console.log('Imprint: from impressum.json');
     }
     console.log(staffGateActive()
       ? 'Staff token: ACTIVE — appointments only with a valid link'

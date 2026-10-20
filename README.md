@@ -187,6 +187,14 @@ instance you run should not greet visitors with marketing for a service that is 
 If you want your own front page, put a `start.html` into `EUDI_OPERATOR_PAGES`. It then owns "/",
 and anything beside it — stylesheet, images, a film — is served from `/operator/…`.
 
+**The imprint from its details.** Section 5 DDG requires every operator to name themselves. Instead
+of writing `impressum.html`, you can put the facts into `impressum.json` in the same directory —
+name, street, place, email; optionally country, representative, phone, register, VAT ID,
+supervisory authority, editorially responsible person — and the shipped imprint page fills itself
+in, in the instance's own look. Every value is escaped text; a file missing a required field is
+ignored (the placeholder shows, the startup log names the field). An `impressum.html` always wins.
+Field names and an example: `.env.example`.
+
 **Your own site beside the application.** The same directory can hold a whole website without
 any change to this code. Pages are served under short paths, `faq.html` at `/faq` and
 `artikel/eins.html` (or `artikel/eins/index.html`) at `/artikel/eins`. `robots.txt`, `sitemap.xml`,

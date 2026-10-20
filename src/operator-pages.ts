@@ -53,6 +53,11 @@ export function readOperatorPages(env: NodeJS.ProcessEnv = process.env): Operato
       const full = path.join(dir, `${p}.html`);
       try { return fs.statSync(full).isFile(); } catch { return false; }
     });
+    // An imprint given as details counts as provided — see readImprint below.
+    if (!available.includes('impressum')) {
+      const i = readImprint({ dir, available: [] });
+      if (i && 'imprint' in i) available = OPERATOR_PAGES.filter((p) => p === 'impressum' || available.includes(p));
+    }
   } catch { /* unreadable directory → empty list, reported by the caller */ }
   return { dir, available };
 }
@@ -197,4 +202,88 @@ export function resolveOperatorRedirect(cfg: OperatorPagesConfig, urlPath: strin
     redirectCache = { mtimeMs, map };
   }
   return redirectCache.map.get(urlPath) ?? null;
+}
+
+/**
+ * A structured imprint: the operator's details as `impressum.json` instead of a whole HTML page.
+ *
+ * WHY. Section 5 DDG asks for a handful of facts — who, where, how to reach them, register, VAT ID,
+ * supervisory authority — and writing a page for that is a hurdle with a cost: an instance without
+ * an imprint is one a competitor can send a warning letter about. With the facts alone, the
+ * placeholder page in public/ fills itself in, in the instance's own look. A hosting provider can
+ * write this file from an order form without ever handing HTML to the instance.
+ *
+ *   impressum.html   wins, as before — an operator's own page is never second-guessed
+ *   impressum.json   rendered into public/impressum.html between its `imprint:start/end` marks
+ *   neither          the placeholder, saying no details were provided
+ *
+ * Every value is text, escaped here; nothing in the file can add markup. A file that is not valid
+ * — missing name, address, place or email, or a field that is not a short line of text — is treated
+ * as absent and logged at startup, so a broken file shows the placeholder rather than a half page.
+ */
+export interface Imprint {
+  name: string;            // provider: person, company with legal form, authority
+  strasse: string;         // street and number
+  ort: string;             // postcode and place
+  land?: string;
+  vertreten?: string;      // who represents a legal person (managing director, head of the authority)
+  email: string;
+  telefon?: string;
+  register?: string;       // court and number, e.g. "Amtsgericht Charlottenburg, HRB 123456 B"
+  ustId?: string;          // VAT ID under section 27a UStG
+  aufsicht?: string;       // supervisory authority, where the business needs a licence
+  verantwortlich?: string; // responsible for editorial content, section 18(2) MStV
+}
+
+const PFLICHT = ['name', 'strasse', 'ort', 'email'] as const;
+const FREI = ['land', 'vertreten', 'telefon', 'register', 'ustId', 'aufsicht', 'verantwortlich'] as const;
+const ZEILE = /^[^\u0000-\u001f\u007f]{1,200}$/;
+const EMAIL = /^[^\s@<>"']{1,64}@[^\s@<>"']{1,190}\.[a-z]{2,}$/i;
+
+/** The file's content checked, or `{ fehler }` saying why it is not used. */
+export function parseImprint(raw: unknown): { imprint: Imprint } | { fehler: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { fehler: 'kein JSON-Objekt' };
+  const o = raw as Record<string, unknown>;
+  const unbekannt = Object.keys(o).filter((k) => !(PFLICHT as readonly string[]).includes(k) && !(FREI as readonly string[]).includes(k));
+  if (unbekannt.length) return { fehler: `unbekannte Felder: ${unbekannt.join(', ')}` };
+  const out: Record<string, string> = {};
+  for (const k of [...PFLICHT, ...FREI]) {
+    const v = o[k];
+    if (v === undefined || v === null || v === '') {
+      if ((PFLICHT as readonly string[]).includes(k)) return { fehler: `${k} fehlt` };
+      continue;
+    }
+    if (typeof v !== 'string' || !ZEILE.test(v.trim())) return { fehler: `${k} ist keine Textzeile (höchstens 200 Zeichen)` };
+    out[k] = v.trim();
+  }
+  if (!EMAIL.test(out.email)) return { fehler: 'email ist keine E-Mail-Adresse' };
+  return { imprint: out as unknown as Imprint };
+}
+
+/** The imprint from the operator's directory, read per request like everything here. */
+export function readImprint(cfg: OperatorPagesConfig): { imprint: Imprint } | { fehler: string } | null {
+  const full = path.join(cfg.dir, 'impressum.json');
+  let text: string;
+  try { text = fs.readFileSync(full, 'utf8'); } catch { return null; }
+  try { return parseImprint(JSON.parse(text)); } catch { return { fehler: 'kein gültiges JSON' }; }
+}
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+/** The placeholder page with the details in place of its "no details provided" block. */
+export function renderImprint(placeholder: string, i: Imprint): string {
+  const teile = [
+    '<h2>Diensteanbieter</h2>',
+    `<p><strong>${esc(i.name)}</strong><br />${esc(i.strasse)}<br />${esc(i.ort)}${i.land ? `<br />${esc(i.land)}` : ''}</p>`,
+    i.vertreten ? `<p>Vertreten durch: ${esc(i.vertreten)}</p>` : '',
+    '<h2>Kontakt</h2>',
+    `<p>E-Mail: <a href="mailto:${esc(i.email)}">${esc(i.email)}</a>${i.telefon ? `<br />Telefon: ${esc(i.telefon)}` : ''}</p>`,
+    i.register ? `<h2>Registereintrag</h2>\n<p>${esc(i.register)}</p>` : '',
+    i.ustId ? `<h2>Umsatzsteuer-Identifikationsnummer</h2>\n<p>gem&auml;&szlig; &sect;&nbsp;27a Umsatzsteuergesetz: ${esc(i.ustId)}</p>` : '',
+    i.aufsicht ? `<h2>Aufsichtsbeh&ouml;rde</h2>\n<p>${esc(i.aufsicht)}</p>` : '',
+    i.verantwortlich ? `<h2>Verantwortlich f&uuml;r den Inhalt nach &sect;&nbsp;18 Abs.&nbsp;2 MStV</h2>\n<p>${esc(i.verantwortlich)}</p>` : '',
+  ].filter(Boolean).join('\n      ');
+  return placeholder
+    .replace(/<!-- imprint:start[\s\S]*?<!-- imprint:end -->/, () => teile)
+    .replace(/(<meta name="description" content=")[^"]*(")/, (_m, a, b) => `${a}Impressum: ${esc(i.name)}${b}`);
 }
