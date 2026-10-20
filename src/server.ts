@@ -22,6 +22,7 @@ import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
+import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureCode, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
@@ -37,7 +38,7 @@ import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFinger
 import {
   resolveAttributes, partitionAttributes, PolicyViolationError, policyDescriptor,
   isDerived, requiresWalletPresentation, wrpStrict, WRP_PURPOSE_ID,
-  activePolicyName, assertPolicyOrExit, assertNarrowOrExit,
+  activePolicyName, assertPolicyOrExit, assertNarrowOrExit, ALLOWED_PID_ATTRIBUTES,
 } from './wrp-policy';
 
 // Very early, before any server is built: an unknown policy name must not end in a silent
@@ -597,6 +598,15 @@ if (OPERATOR) {
         return;
       }
     }
+    // The details (datenschutz.json): the notice is built from them and from this instance's
+    // configuration as it is NOW (./privacy-notice) — it changes when the configuration does.
+    if (req.path.startsWith('/datenschutz')) {
+      const html = generatedPrivacyNotice();
+      if (html) {
+        res.type('html').set('Cache-Control', 'no-cache').send(BRANDING ? brandHtml(html, BRANDING) : html);
+        return;
+      }
+    }
     next();                                         // not provided → placeholder from public/
   });
   // Redirects AWAY from /operator/… have to be answered before the static mount below, which
@@ -738,6 +748,41 @@ app.get('/ice', publicCors, (_req, res) => {
   res.json({ iceServers, ttl: TURN_TTL });
 });
 
+// What the generated privacy notice says about this instance (./privacy-notice). Read from the
+// same values the routes use, so the page cannot describe a configuration that is not running.
+function privacyFacts(): PrivacyFacts {
+  const features = enabledFeatures();
+  let verifier: string | null = null;
+  if (!VERIFIER_OFF) {
+    try { verifier = new URL(process.env.EUDIPLO_BASE_URL || '').hostname || null; } catch { verifier = null; }
+  }
+  return {
+    attributes: ALLOWED_PID_ATTRIBUTES,
+    stun: STUN_URLS,
+    turn: TURN_URL && TURN_SECRET
+      ? { art: 'eigen', host: TURN_URL.replace(/^turns?:/i, '').split(/[:?]/)[0] }
+      : TURN_PUBLIC_FALLBACK ? { art: 'oeffentlich' } : { art: 'keiner' },
+    verifier,
+    usage: !!(process.env.EUDI_USAGE_FILE || '').trim(),
+    invites: features.has('planned-invites'),
+    hostList: hostGateActive(),
+    inCallCredentials: features.has('in-call-credentials'),
+    modules: (ext.modules ?? []).map((m) => ({ id: m.id, titles: m.features.map((f) => f.title), privacy: m.privacy })),
+  };
+}
+
+/** The privacy notice built from datenschutz.json, or null when there is none (or it is broken). */
+function generatedPrivacyNotice(): string | null {
+  if (!OPERATOR) return null;
+  const d = readPrivacy(OPERATOR);
+  if (!d || !('details' in d)) return null;
+  const i = readImprint(OPERATOR);
+  const imprint = i && 'imprint' in i ? i.imprint : null;
+  // Without an imprint the controller has to be named in the file itself.
+  if (!imprint && !d.details.verantwortlich) return null;
+  return renderPrivacy(fs.readFileSync(path.join(__dirname, '..', 'public', 'datenschutz.html'), 'utf8'), d.details, imprint, privacyFacts());
+}
+
 // Which features this instance enables — the browser hides optional UI unless listed.
 // The core's capabilities, plus those the loaded modules declare in their manifests
 // (ext.enabledFeatures). The edition does not add anything here: a capability without the code
@@ -799,7 +844,8 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // so a page dropped into the directory shows up without a restart.
     operatorPages: OPERATOR
       ? OPERATOR_PAGES.filter((x) => resolveOperatorPage(OPERATOR, `/${x}`) !== null
-        || (x === 'impressum' && (() => { const i = readImprint(OPERATOR); return !!i && 'imprint' in i; })()))
+        || (x === 'impressum' && (() => { const i = readImprint(OPERATOR); return !!i && 'imprint' in i; })())
+        || (x === 'datenschutz' && generatedPrivacyNotice() !== null))
       : [],
     // Media the operator provides (see ./operator-pages). An operator's own pages can use
     // this to tell whether a file is there before pointing a <video> at it — otherwise a
@@ -1941,6 +1987,15 @@ loadExtensions().then((resolved) => {
       const i = readImprint(OPERATOR);
       if (i && 'fehler' in i) console.log(`⚠️  impressum.json is not used: ${i.fehler} — the imprint shows the placeholder`);
       else if (i && !resolveOperatorPage(OPERATOR, '/impressum')) console.log('Imprint: from impressum.json');
+      const d = readPrivacy(OPERATOR);
+      if (d && 'fehler' in d) console.log(`⚠️  datenschutz.json is not used: ${d.fehler} — the privacy notice shows the placeholder`);
+      else if (d && !resolveOperatorPage(OPERATOR, '/datenschutz')) {
+        if (generatedPrivacyNotice()) {
+          const stumm = (ext.modules ?? []).filter((m) => !m.privacy).map((m) => m.id);
+          console.log('Privacy notice: built from datenschutz.json and this configuration'
+            + (stumm.length ? ` — ⚠️  modules without a privacy paragraph: ${stumm.join(', ')}` : ''));
+        } else console.log('⚠️  datenschutz.json is not used: no controller — neither a valid impressum.json nor "verantwortlich"');
+      }
     }
     console.log(staffGateActive()
       ? 'Staff token: ACTIVE — appointments only with a valid link'
