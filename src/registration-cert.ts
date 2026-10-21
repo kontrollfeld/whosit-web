@@ -14,7 +14,7 @@
  * "WRPRC policy is configured but verifier_info is missing". Measured 2026-10-09.
  *
  * Who puts it on the wire: EUDIPLO, not us. We hand the JWT over in the verifier config
- * (`registration_cert: { jwt }`); EUDIPLO 8.0.2 forwards it unchanged — but ONLY when the
+ * (`registration_cert: { jwt }`); EUDIPLO (8.0.2 and 9.1) forwards it unchanged — but ONLY when the
  * tenant has a registrar configuration (`registrarService.isEnabledForTenant`), otherwise it
  * drops the certificate WITHOUT A WORD and the wallet refuses again. See
  * `eudiplo.warnIfRegistrarMissing`.
@@ -27,7 +27,9 @@
  * HERE, by name, at config time. Read off EUDIPLO 8.0.2,
  * apps/backend/src/registrar/registration-certificate.service.ts
  * (`validateRegistrationCertificate`, `dcqlCredentialFingerprint`, `canonicalJson`).
- * EUDIPLO 9 matches claims by path; this mirror stays on the stricter 8.0.2 rule we run.
+ * EUDIPLO 9 compares `{ format, claims: [{ path }], meta }` only — still exact and in order, but
+ * it ignores `intent_to_retain`. This mirror keeps the stricter 8.0.2 rule: whatever passes here
+ * passes there too, and a certificate that works today keeps working against either version.
  */
 import { readFileSync } from 'node:fs';
 import type { DcqlQuery } from './credential-profiles';

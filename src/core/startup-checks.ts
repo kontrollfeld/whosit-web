@@ -129,7 +129,7 @@ export function collectConfigProblems(ctx: CheckContext = {}): ConfigProblem[] {
     out.push({
       variable: 'EUDIPLO_BASE_URL',
       problem: 'missing — no wallet verification can happen without a verifier. This '
-        + 'application ships NO verifier: you need your own EUDIPLO instance (pin 8.0.2, its '
+        + 'application ships NO verifier: you need your own EUDIPLO instance (pin 9.1.0, its '
         + 'own subdomain with TLS, an access certificate from a registration authority). '
         + 'See the README. To try the software without one, set EUDI_VERIFIER=none '
         + '(anonymous calls only).',

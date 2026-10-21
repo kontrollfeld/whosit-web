@@ -3,7 +3,7 @@
 /**
  * What the registration certificate (WRPRC) has to authorize for THIS configuration.
  *
- * EUDIPLO 8.0.2 compares every outgoing DCQL credential EXACTLY against the certificate's
+ * EUDIPLO compares every outgoing DCQL credential EXACTLY against the certificate's
  * `credentials` claim (see src/registration-cert.ts). A room may ask for any non-empty subset
  * of the wallet-requestable attributes, and each subset is a different claims array — so the
  * registration has to list each of them. This prints that list, built by the same

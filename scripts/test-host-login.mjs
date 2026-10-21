@@ -36,7 +36,7 @@ function check(name, cond, detail) {
 /** requestId -> DCQL, so the test can check WHAT was asked for. */
 const configs = new Map();
 /** offerId → { webhook, requestId } */
-/** Verifier configs EUDIPLO 8.0.2 would refuse — must stay empty. */
+/** Verifier configs EUDIPLO 9.1 would refuse — must stay empty. */
 const configRejections = [];
 const offers = new Map();
 
@@ -44,7 +44,7 @@ const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) =>
 const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
 
 /**
- * The DCQL rules EUDIPLO 8.0.2 enforces on POST /verifier/config (read off its OpenAPI schema,
+ * The DCQL rules EUDIPLO 8.0.2 and 9.1 enforce on POST /verifier/config (read off its OpenAPI schema,
  * every level `additionalProperties: false`). Returns the first violation, or null.
  */
 function dcqlViolation(dcql) {

@@ -241,7 +241,7 @@ function assertPidQueryWithinPolicy(dcql: DcqlQuery): void {
   if (rejected.length) throw new PolicyViolationError([...new Set(rejected)]);
 }
 
-/** What goes into `registration_cert` of a verifier config (EUDIPLO 8.0.2 schema). */
+/** What goes into `registration_cert` of a verifier config (EUDIPLO 9.1 schema, unchanged since 8.0.2). */
 type RegistrationCertSpec =
   | { jwt: string }
   | { body: { purpose: { lang: string; content: string }[]; privacy_policy?: string; support_uri?: string } };
@@ -289,7 +289,7 @@ function registrationCertFor(id: string, dcql: DcqlQuery, kind: VerifierConfigKi
 
 /**
  * EUDIPLO forwards the certificate only when the tenant has a registrar configuration
- * (8.0.2, oid4vp.service.ts: `isEnabledForTenant`). Without one it drops it silently and
+ * (8.0.2 and 9.1, oid4vp.service.ts: `isEnabledForTenant`). Without one it drops it silently and
  * every wallet that enforces WRPRC refuses the request. Checked once per process, after
  * the first config that carried a certificate; never throws.
  */
@@ -482,11 +482,25 @@ export function extractNames(payload: any): { givenName?: string; familyName?: s
  * credentials) supply their own "claims actually presented" signal instead of the
  * PID normalizer; the explicit-error/ok status logic stays shared.
  */
+/**
+ * The machine-readable reason of a failed presentation (EUDIPLO 9: `outcome.error`, e.g.
+ * `access_denied` when the user declines). Restricted to a code-shaped string, so nothing
+ * from the payload beyond that reaches the log.
+ */
+export function failureCode(payload: any): string | undefined {
+  const code = payload?.outcome?.error ?? payload?.error ?? (payload?.status === 'cancelled' ? 'cancelled' : undefined);
+  return typeof code === 'string' && /^[a-z0-9_]{1,64}$/.test(code) ? code : undefined;
+}
+
 export function isVerificationSuccess(payload: any, presentedClaimCount?: number): boolean {
   const p = payload || {};
+  // EUDIPLO 9 also calls the webhook for failed, declined and cancelled presentations
+  // (`status` + `outcome.result`, no `credentials`).
   const explicitError =
     p.error != null || p.errorDescription != null ||
-    p.status === 'failed' || p.status === 'error' || p.verified === false;
+    p.status === 'failed' || p.status === 'error' || p.status === 'cancelled' ||
+    p.verified === false ||
+    (p.outcome?.result != null && p.outcome.result !== 'success');
   if (explicitError) return false;
   const explicitOk =
     p.status === 'completed' || p.status === 'valid' ||

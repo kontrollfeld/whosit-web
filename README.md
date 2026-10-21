@@ -100,10 +100,14 @@ Roles: the first person in the room is the `caller` (host, WebRTC initiator), th
   (TURN). For guests on corporate networks, also set up TURN over **443** — see "TURN over 443"
   below.
 - **Your own EUDIPLO instance.** This is the biggest hurdle, and it is not a technical one:
-  - EUDIPLO 8.0.2 as a container (`ghcr.io/openwallet-foundation/eudiplo`), **pin the
-    version** — 6→7 and 7→8 were both breaking changes. Upgrading from 6.x: go straight to
-    8.0.2 (7.0–7.2 break `/verifier/offer` after the database migration), back up the data
-    volume first, and replace `EUDI_TRUST_LIST_URLS` with `EUDI_TRUST_LIST_IDS`.
+  - EUDIPLO 9.1.0 as a container (`ghcr.io/eudiplo/eudiplo`; the old
+    `ghcr.io/openwallet-foundation/…` path gets no releases after 8.x), **pin the version**,
+    one major at a time. The admin UI (`ghcr.io/eudiplo/eudiplo-client`) must run the same
+    version. Database migrations are not reverted by starting an older image: **back up the
+    data volume before every upgrade**, a rollback is restoring that backup.
+    Upgrading from 8.x: change image name and tag, nothing else in this app. Upgrading from
+    6.x: first to 8.0.2 (7.0–7.2 break `/verifier/offer` after the database migration) and
+    replace `EUDI_TRUST_LIST_URLS` with `EUDI_TRUST_LIST_IDS`.
   - Its **own subdomain with TLS**: the wallet contacts the verifier directly, so it cannot stay
     on an internal network.
   - An **access certificate from a registration authority**, issued for exactly that hostname
@@ -268,7 +272,8 @@ config until the query changes or the certificate expires. You need:
 `EUDI_REGISTRATION_CERT_FILE` (path) or `EUDI_REGISTRATION_CERT` (the JWT itself). This route
 still needs the registrar configuration from point 1, and the certificate must list **every**
 query exactly. EUDIPLO 8.0.2 compares the canonical JSON of `{ format, claims, meta }`, claims in
-order, including `intent_to_retain: false` on mdoc. `npm run wrprc:credentials` prints the list to
+order, including `intent_to_retain: false` on mdoc; 9.x compares only the claim paths, still in
+order. The app checks the stricter rule, so a certificate it accepts works with both. `npm run wrprc:credentials` prints the list to
 apply for (run it on the server, because profiles and policy change it), and
 `npm run wrprc:credentials -- --check` names what is missing. The app refuses an uncovered PID
 query with a clear message instead of letting EUDIPLO answer the wallet with a bare 400. At
