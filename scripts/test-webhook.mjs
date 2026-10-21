@@ -40,7 +40,7 @@ function check(name, ok, detail) {
 // ---------------------------------------------------------------- Verifier ----
 /** offerId -> the full webhook URL (including ?t=…) exactly as the server handed it out. */
 const offers = new Map();
-/** Offer bodies EUDIPLO 8.0.2 would refuse — must stay empty. */
+/** Offer bodies EUDIPLO 9.1 would refuse — must stay empty. */
 const offerRejections = [];
 const OFFER_FIELDS = ['response_type', 'requestId', 'webhook', 'redirectUri', 'expected_origin', 'transaction_data', 'skewSeconds'];
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b)); });
@@ -71,6 +71,12 @@ async function callback(url, values = { family_name: 'Mustermann', given_name: '
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
   });
+  return r.status;
+}
+
+/** Send a raw callback body (EUDIPLO 9 also calls for failed, declined and cancelled presentations). */
+async function rawCallback(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   return r.status;
 }
 
@@ -213,6 +219,28 @@ try {
     const crossed = new URL(u1); crossed.searchParams.set('t', t2);
     check("the other participant's token -> 401", (await callback(crossed.toString())) === 401);
   }
+
+  // ---------------------------------------------------------------------------
+  console.log('\nEUDIPLO 9 failure callbacks (declined, failed, cancelled)');
+  for (const [name, body] of [
+    ['declined (status failed, outcome.error access_denied)',
+      { status: 'failed', session: randomUUID(), outcome: { result: 'failed', error: 'access_denied', message: 'declined' } }],
+    ['failed with credential details, no credentials key',
+      { status: 'failed', session: randomUUID(), outcome: { result: 'failed', error: 'trust_chain_not_trusted', credentials: [{ id: 'pid', format: 'dc+sd-jwt', verified: false, error: 'trust_chain_not_trusted' }] } }],
+    ['cancelled by an operator', { status: 'cancelled', session: randomUUID(), reason: 'operator' }],
+    ['outcome not success, even with a completed status', { status: 'completed', outcome: { result: 'failed', error: 'claim_value_mismatch' }, credentials: [{ values: [{ family_name: 'Mustermann', given_name: 'Erika' }] }] }],
+  ]) {
+    const { guest, url } = await newGuestWithWebhookUrl(randomUUID());
+    clients.push(guest);
+    const firstOffer = guest.find('auth')?.uri;
+    check(`${name} -> 200`, (await rawCallback(url, body)) === 200);
+    await guest.wait('auth-failed').then(() => check(`${name}: guest told auth-failed`, true), (e) => check(`${name}: guest told auth-failed`, false, e.message));
+    await guest.wait('auth', (m) => m.uri !== firstOffer).then(
+      () => check(`${name}: a fresh offer replaces the used one`, true),
+      (e) => check(`${name}: a fresh offer replaces the used one`, false, e.message));
+    check(`${name}: guest stays unverified`, !guest.find('status', (m) => m.self?.verified === true), 'a failure callback verified the guest');
+  }
+  check('the failure code reaches the log', /verification failed \(access_denied\)/.test(appLog.join('')), 'no "(access_denied)" in the log');
 
   // ---------------------------------------------------------------------------
   console.log('\nThe log reveals no identity data');

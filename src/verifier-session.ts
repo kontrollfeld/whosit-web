@@ -11,7 +11,7 @@
  * this service's side lives in process memory (see ./rooms) and the audit trail is PII-free by
  * construction (see ./audit).
  *
- * As of EUDIPLO 8.0.2 (apps/backend/src/session/):
+ * As of EUDIPLO 8.0.2, unchanged in 9.1 (apps/backend/src/session/):
  *   - the claims sit in `Session.credentials`, encrypted at rest with AES-256-GCM
  *     (`EncryptedJsonTransformer`, key derived from MASTER_SECRET unless a KMS is
  *     configured). That makes a stolen database dump unreadable — and does nothing against

@@ -3,7 +3,7 @@
 /**
  * Registration certificate (WRPRC) — the properties that fail on the phone, not here.
  *
- *   1. The coverage check mirrors EUDIPLO 8.0.2: key order is irrelevant, claim order and
+ *   1. The coverage check mirrors EUDIPLO 8.0.2 (9.1 is looser, see src/registration-cert.ts): key order is irrelevant, claim order and
  *      `intent_to_retain` are not, DCQL-only fields (`id`, `trusted_authorities`) are ignored.
  *   2. `buildDcql` emits the same claims array for the same attribute set in any order —
  *      otherwise a certificate covers a room on Monday and not on Tuesday.

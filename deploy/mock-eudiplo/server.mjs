@@ -100,7 +100,7 @@ function html(res, code, body) {
 }
 
 /**
- * The DCQL rules EUDIPLO 8.0.2 enforces on POST /verifier/config (read off its OpenAPI schema,
+ * The DCQL rules EUDIPLO 8.0.2 and 9.1 enforce on POST /verifier/config (read off its OpenAPI schema,
  * every level `additionalProperties: false`). Returns the first violation, or null.
  */
 function dcqlViolation(dcql) {
@@ -219,6 +219,7 @@ small{color:#5d6b85}</style>
     <option value="sdjwt">PID · SD-JWT VC</option>
   </select></label>
   <button>Verifizieren ✓</button>
+  <button name=decline value=1 style="background:#fff;color:#1b2433;border:1px solid #cfd8e6">Ablehnen</button>
 </form>`);
   }
   if (sim && req.method === 'POST') {
@@ -228,6 +229,22 @@ small{color:#5d6b85}</style>
     const webhook = offer.webhook;
     if (!webhookAllowed(webhook)) return html(res, 400, '<p>Webhook not allowed.</p>');
     const form = new URLSearchParams(await readBody(req));
+
+    // EUDIPLO 9 calls the webhook for a declined presentation too: `status` + `outcome`,
+    // never `credentials`.
+    if (form.get('decline')) {
+      const payload = { status: 'failed', session: id, outcome: { result: 'failed', error: 'access_denied', message: 'The user declined the presentation' } };
+      try {
+        const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        console.log(`[mock] posted declined presentation for ${id} → ${r.status}`);
+      } catch (e) {
+        console.error('[mock] webhook POST failed:', e?.message);
+        return html(res, 502, '<p>Webhook unreachable. Is the app running, and is PUBLIC_URL correct?</p>');
+      }
+      offers.delete(id); // one-shot
+      return html(res, 200, `<!doctype html><meta charset=utf-8><style>body{font:16px/1.5 system-ui;max-width:22rem;margin:12vh auto;text-align:center;color:#1b2433}</style>
+<h2>Declined</h2><p>Nothing was shared. The call page shows a new code.</p>`);
+    }
 
     // Generic path for in-call catalog credentials: every form field becomes a flat claim.
     if (String(offer.requestId || '').startsWith('cred_')) {
@@ -266,7 +283,7 @@ small{color:#5d6b85}</style>
           age_over_18: true, birth_date: '1984-01-26', issuing_country: 'DE',
           resident_street: 'Musterstr. 1', resident_postal_code: '10115', resident_city: 'Berlin', resident_country: 'DE',
         };
-    const payload = { status: 'completed', session: id, credentials: [{ values: [values] }] };
+    const payload = { status: 'completed', outcome: { result: 'success' }, session: id, credentials: [{ values: [values] }] };
     sessions.set(id, payload);
     try {
       const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
