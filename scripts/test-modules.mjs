@@ -63,6 +63,22 @@ try {
   check('alternatives with || are read', coreApiSatisfied(`^${MODULE_API_VERSION + 1} || ^${MODULE_API_VERSION}`));
   check('an unreadable range is refused, not guessed', throws(() => coreApiSatisfied('>=1 <3'), /not a supported range/));
 
+  console.log('\nModules in the generated privacy notice');
+  {
+    const { renderPrivacy } = await import('../src/privacy-notice.ts');
+    const seite = '<meta name="description" content="x"><!-- privacy:start --><p>leer</p><!-- privacy:end -->';
+    const d = { zweck: 'Beratung', rechtsgrundlage: 'vertrag', hosting: 'H', protokolle: 'P' };
+    const imp = { name: 'N GmbH', strasse: 'S 1', ort: '1 O', email: 'n@n.example' };
+    const basis = { attributes: ['given_name'], stun: [], turn: { art: 'keiner' }, verifier: 'v.example', usage: false, invites: false, hostList: false, inCallCredentials: false };
+    const html = renderPrivacy(seite, d, imp, { ...basis, modules: [
+      { id: 'audit-trail', titles: ['Prüfprotokoll'], privacy: { title: 'Aufbewahrtes <Prüfprotokoll>', text: 'Erster Absatz.\n\nZweiter & letzter.' } },
+      { id: 'stumm', titles: ['Etwas'] },
+    ] });
+    check('a declared paragraph is shown under its title, escaped', html.includes('<h2>Aufbewahrtes &lt;Prüfprotokoll&gt;</h2>') && html.includes('<p>Zweiter &amp; letzter.</p>'));
+    check('paragraphs split at blank lines', html.includes('<p>Erster Absatz.</p>'));
+    check('a module that declared nothing is named as such', html.includes('Zusatzmodul stumm') && html.includes('keine Angaben zur Datenverarbeitung'));
+  }
+
   console.log('\nA manifest is checked before any module code runs');
   check('a valid manifest is accepted', parseManifest(manifest({ features: [{ id: 'sample-x', title: 'X' }] }), 'm', ALL_FEATURE_IDS).features[0].id === 'sample-x');
   check('no manifest → refused', throws(() => parseManifest({ name: 'x' }, 'm', ALL_FEATURE_IDS), /no "whosit" manifest/));
@@ -77,6 +93,13 @@ try {
     throws(() => parseManifest(manifest({ features: [{ id: 'a-b', title: 'A' }, { id: 'a-b', title: 'B' }] }), 'm', ALL_FEATURE_IDS), /twice/));
   check('an alias over a core path → refused',
     throws(() => parseManifest(manifest({ clientAliases: ['qes'] }), 'm', ALL_FEATURE_IDS), /shadow a route/));
+  {
+    const mitText = parseManifest(manifest({ privacy: { title: ' Prüfprotokoll ', text: 'Absatz eins.\n\nAbsatz zwei.' } }), 'm', ALL_FEATURE_IDS);
+    check('a privacy paragraph is read, trimmed', mitText.privacy?.title === 'Prüfprotokoll' && mitText.privacy.text.includes('Absatz zwei'));
+    check('without one, the field is absent', !('privacy' in parseManifest(manifest({}), 'm', ALL_FEATURE_IDS)));
+    check('a privacy block without text → refused', throws(() => parseManifest(manifest({ privacy: { title: 'X' } }), 'm', ALL_FEATURE_IDS), /privacy\.text/));
+    check('an over-long title → refused', throws(() => parseManifest(manifest({ privacy: { title: 'x'.repeat(121), text: 'y' } }), 'm', ALL_FEATURE_IDS), /privacy\.title/));
+  }
 
   console.log('\nModules are checked against each other');
   const a = parseManifest(manifest({ id: 'mod-a', features: [{ id: 'shared-x', title: 'X' }] }), 'a', ALL_FEATURE_IDS);

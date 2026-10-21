@@ -33,6 +33,7 @@
     <div class="wrap prose">
       <h1>Datenschutzerkl&auml;rung</h1>
 
+      <!-- privacy:start — replaced by the notice built from the operator's datenschutz.json, see src/privacy-notice.ts -->
       <p><strong>Der Betreiber dieser Instanz hat keine Datenschutzerkl&auml;rung hinterlegt.</strong></p>
       <p>
         Verantwortlich im Sinne der DSGVO ist, wer diesen Dienst betreibt &mdash; nicht, wer die
@@ -65,8 +66,13 @@
         auf das <code>EUDI_OPERATOR_PAGES</code> zeigt &mdash; sie wird dann anstelle dieser Seite
         ausgeliefert. Siehe <code>.env.example</code>.
         <br /><em>Operators: replace this page by putting your own <code>datenschutz.html</code>
-        into the directory <code>EUDI_OPERATOR_PAGES</code> points at.</em>
+        Oder lege nur deine Angaben als <code>datenschutz.json</code> dort ab: dann erzeugt die
+        Software die Erkl&auml;rung aus der tats&auml;chlichen Konfiguration dieser Instanz.
+        <br /><em>Operators: replace this page by putting your own <code>datenschutz.html</code>
+        into the directory <code>EUDI_OPERATOR_PAGES</code> points at — or just your details as
+        <code>datenschutz.json</code>, and the notice is built from this instance's configuration.</em>
       </p>
+      <!-- privacy:end -->
     </div>
   </main>
 

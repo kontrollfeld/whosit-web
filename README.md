@@ -199,6 +199,18 @@ in, in the instance's own look. Every value is escaped text; a file missing a re
 ignored (the placeholder shows, the startup log names the field). An `impressum.html` always wins.
 Field names and an example: `.env.example`.
 
+**The privacy notice, built from the configuration.** Most of what Art. 13 GDPR asks for is a fact
+about the software and its settings — which attributes the wallet may be asked for, whose STUN
+server sees a visitor's IP address, whether the relay is your own, what a module keeps — and a
+handwritten notice goes stale the day one of them changes. Put `datenschutz.json` into the same
+directory with what only you can say (purpose, legal basis, hosting, server logs; optionally data
+protection officer, supervisory authority, date) and the page at `/datenschutz` is built on every
+request from those details and the running configuration (`src/privacy-notice.ts`). The controller
+comes from `impressum.json`. Modules describe themselves through a `privacy` paragraph in their
+manifest; a loaded module without one is named on the page as having declared nothing, and the
+startup log warns. A `datenschutz.html` always wins. Fields and an example: `.env.example`. This is
+a well-informed starting point, not legal advice — the operator remains responsible for the text.
+
 **Your own site beside the application.** The same directory can hold a whole website without
 any change to this code. Pages are served under short paths, `faq.html` at `/faq` and
 `artikel/eins.html` (or `artikel/eins/index.html`) at `/artikel/eins`. `robots.txt`, `sitemap.xml`,

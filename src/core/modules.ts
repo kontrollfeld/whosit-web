@@ -12,7 +12,8 @@
  *     "features": [
  *       { "id": "audit-trail", "title": "Verification audit trail with retention and export" }
  *     ],
- *     "clientAliases": ["pro-client"]
+ *     "clientAliases": ["pro-client"],
+ *     "privacy": { "title": "Prüfprotokoll", "text": "Was das Modul speichert, wie lange …" }
  *   }
  *
  * Why a static manifest and not just `register()`: the questions "which modules are installed,
@@ -56,6 +57,11 @@ export interface ModuleManifest {
   /** Extra URL prefixes for the module's browser files, besides `/modules/<id>/`. Exists for
    *  paths that clients already have baked in (`/pro-client/` in shipped app builds). */
   clientAliases: string[];
+  /** What the module does with personal data, in its own words (German, plain text, paragraphs
+   *  separated by a blank line). Rendered into the instance's generated privacy notice
+   *  (../privacy-notice). Optional — a module that leaves it out is named there as one that
+   *  declared nothing. An optional field: no change of MODULE_API_VERSION. */
+  privacy?: { title: string; text: string };
 }
 
 /** Ids of modules, features and aliases: lowercase, digits and hyphens, starting with a letter. */
@@ -122,12 +128,21 @@ export function parseManifest(pkg: any, where: string, coreIds: readonly string[
     clientAliases.push(a);
   }
 
+  let privacy: ModuleManifest['privacy'];
+  if (m.privacy !== undefined) {
+    const t = m.privacy?.title, x = m.privacy?.text;
+    if (typeof t !== 'string' || !t.trim() || t.length > 120) fail('"whosit.privacy.title" must be a text of at most 120 characters');
+    if (typeof x !== 'string' || !x.trim() || x.length > 4000) fail('"whosit.privacy.text" must be a text of at most 4000 characters');
+    privacy = { title: t.trim(), text: x.trim() };
+  }
+
   return {
     id: m.id,
     version: typeof pkg.version === 'string' ? pkg.version : '0.0.0',
     coreApi: m.coreApi,
     features,
     clientAliases,
+    ...(privacy ? { privacy } : {}),
   };
 }
 

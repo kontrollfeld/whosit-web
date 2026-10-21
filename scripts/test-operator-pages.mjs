@@ -20,7 +20,7 @@
  * Usage: npm run test:operatorpages
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -29,6 +29,8 @@ const PORT_WITHOUT = 3992;
 const PORT_BRANDED = 3993;
 const PORT_IMPRINT = 3994;
 const PORT_IMPRINT_BRANDED = 3995;
+const PORT_PRIVACY = 3996;
+const PORT_PRIVACY_OWN = 3997;
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -224,6 +226,64 @@ try {
     writeFileSync(join(dir2, 'impressum.html'), '<!doctype html><title>x</title>OWN-PAGE');
     writeFileSync(join(dir2, 'impressum.json'), JSON.stringify({ name: 'X', strasse: 'Y 1', ort: '1 Z', email: 'a@b.example' }));
     check('an own impressum.html still wins', (await body(PORT_IMPRINT, '/impressum')).text.includes('OWN-PAGE'), '');
+  }
+
+  console.log('\nA privacy notice built from datenschutz.json and the configuration');
+  {
+    const dir3 = mkdtempSync(join(tmpdir(), 'operator-privacy-'));
+    writeFileSync(join(dir3, 'impressum.json'), JSON.stringify({ name: 'Beispiel <Beratung> GmbH', strasse: 'Hauptstraße 1', ort: '10115 Berlin', email: 'info@beispiel.example' }));
+    const details = {
+      zweck: 'Videoberatung mit geprüfter Identität für Kundinnen und Kunden.',
+      rechtsgrundlage: 'vertrag',
+      hosting: 'Beispiel Hosting GmbH als Auftragsverarbeiter, Rechenzentrum in Deutschland.',
+      protokolle: 'Der Server protokolliert keine IP-Adressen.',
+      dsb: 'Max Datenschutz, dsb@beispiel.example',
+      stand: '2026-10-20',
+    };
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify(details));
+    // Defaults: Google/Cloudflare STUN, public relay. The second: own STUN and TURN, call minutes kept.
+    const std = start(PORT_PRIVACY, { EUDI_OPERATOR_PAGES: dir3 });
+    const dir4 = mkdtempSync(join(tmpdir(), 'operator-privacy-own-'));
+    writeFileSync(join(dir4, 'impressum.json'), readFileSync(join(dir3, 'impressum.json')));
+    writeFileSync(join(dir4, 'datenschutz.json'), JSON.stringify({ ...details, rechtsgrundlage: 'einwilligung', aufsicht: 'Berliner Beauftragte für Datenschutz und Informationsfreiheit' }));
+    start(PORT_PRIVACY_OWN, { EUDI_OPERATOR_PAGES: dir4, STUN_URLS: 'stun:turn.beispiel.example:3478', TURN_URL: 'turn:turn.beispiel.example:3478', TURN_SECRET: 's', EUDI_USAGE_FILE: join(dir4, 'nutzung.json') });
+    await waitFor(PORT_PRIVACY);
+    await waitFor(PORT_PRIVACY_OWN);
+
+    const a = await body(PORT_PRIVACY, '/datenschutz');
+    check('served, without the "no notice" text', a.status === 200 && !a.text.includes('keine Datenschutzerkl&auml;rung hinterlegt') && a.text.includes('Wofür wir Ihre Daten verarbeiten'), a.text.slice(0, 120));
+    check('the controller comes from the imprint, escaped', a.text.includes('Beispiel &lt;Beratung&gt; GmbH') && a.text.includes('Hauptstraße 1'), '');
+    check('purpose, legal basis, hosting, logs, DPO', a.text.includes('Videoberatung mit geprüfter') && a.text.includes('Art. 6 Abs. 1 lit. b DSGVO') && a.text.includes('Beispiel Hosting GmbH') && a.text.includes('keine IP-Adressen') && a.text.includes('Max Datenschutz'), '');
+    check('default STUN named, with the third-country note', a.text.includes('stun.l.google.com') && a.text.includes('stun.cloudflare.com') && a.text.includes('Drittland'), '');
+    check('the public relay is named', a.text.includes('openrelay.metered.ca'), '');
+    check('the attributes the policy allows', a.text.includes('Vorname') && a.text.includes('Familienname'), '');
+    check('the verifier by host', a.text.includes('verifier.test.invalid'), '');
+    check('no module section without modules', !a.text.includes('Zusatzmodul'), '');
+    check('no withdrawal sentence without consent', !a.text.includes('widerrufen'), '');
+    check('the date', a.text.includes('Stand: 20.10.2026'), '');
+    check('with .html as well', (await body(PORT_PRIVACY, '/datenschutz.html')).text.includes('Wofür wir Ihre Daten'), '');
+    check('announced as provided', (await (await fetch(`http://127.0.0.1:${PORT_PRIVACY}/capabilities`)).json()).operatorPages.includes('datenschutz'), '');
+    check('startup says where it comes from', std.log.join('').includes('Privacy notice: built from datenschutz.json'), std.log.join('').split('\n').filter((l) => /rivacy|datenschutz/.test(l)).join(' | '));
+
+    const b = await body(PORT_PRIVACY_OWN, '/datenschutz');
+    check('own STUN: named, no third country', b.text.includes('turn.beispiel.example') && !b.text.includes('google') && !b.text.includes('Drittland'), '');
+    check('own relay: the operator\'s, not the public one', b.text.includes('Relay-Server des Betreibers (turn.beispiel.example)') && !b.text.includes('openrelay'), '');
+    check('call minutes mentioned when kept', b.text.includes('Gesprächsminuten') && !a.text.includes('Gesprächsminuten'), '');
+    check('consent: withdrawal, and the authority', b.text.includes('widerrufen') && b.text.includes('Berliner Beauftragte'), '');
+
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify({ ...details, rechtsgrundlage: 'weil-wir-es-koennen' }));
+    check('an unknown legal basis: placeholder', (await body(PORT_PRIVACY, '/datenschutz.html')).text.includes('keine Datenschutzerkl&auml;rung hinterlegt'), '');
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify({ ...details, protokolle: undefined }));
+    check('a missing required field: placeholder', (await body(PORT_PRIVACY, '/datenschutz.html')).text.includes('keine Datenschutzerkl&auml;rung hinterlegt'), '');
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify({ ...details, zweck: 'a\n<script>' }));
+    check('a line break in a value: placeholder', (await body(PORT_PRIVACY, '/datenschutz.html')).text.includes('keine Datenschutzerkl&auml;rung hinterlegt'), '');
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify(details));
+    rmSync(join(dir3, 'impressum.json'));
+    check('no imprint and no "verantwortlich": placeholder', (await body(PORT_PRIVACY, '/datenschutz.html')).text.includes('keine Datenschutzerkl&auml;rung hinterlegt'), '');
+    writeFileSync(join(dir3, 'datenschutz.json'), JSON.stringify({ ...details, verantwortlich: 'Stadt Beispiel, Rathausplatz 1, 12345 Beispiel, datenschutz@stadt.example' }));
+    check('"verantwortlich" instead of an imprint', (await body(PORT_PRIVACY, '/datenschutz')).text.includes('Stadt Beispiel, Rathausplatz 1'), '');
+    writeFileSync(join(dir3, 'datenschutz.html'), '<!doctype html><title>x</title>OWN-PRIVACY');
+    check('an own datenschutz.html still wins', (await body(PORT_PRIVACY, '/datenschutz')).text.includes('OWN-PRIVACY'), '');
   }
 
   console.log('\nA page added while the service is running');
