@@ -228,6 +228,7 @@ try {
     ['failed with credential details, no credentials key',
       { status: 'failed', session: randomUUID(), outcome: { result: 'failed', error: 'trust_chain_not_trusted', credentials: [{ id: 'pid', format: 'dc+sd-jwt', verified: false, error: 'trust_chain_not_trusted' }] } }],
     ['cancelled by an operator', { status: 'cancelled', session: randomUUID(), reason: 'operator' }],
+    ['failed without any recognisable code', { status: 'failed', session: randomUUID(), detail: { family_name: 'Mustermann' } }],
     ['outcome not success, even with a completed status', { status: 'completed', outcome: { result: 'failed', error: 'claim_value_mismatch' }, credentials: [{ values: [{ family_name: 'Mustermann', given_name: 'Erika' }] }] }],
   ]) {
     const { guest, url } = await newGuestWithWebhookUrl(randomUUID());
@@ -241,6 +242,7 @@ try {
     check(`${name}: guest stays unverified`, !guest.find('status', (m) => m.self?.verified === true), 'a failure callback verified the guest');
   }
   check('the failure code reaches the log', /verification failed \(access_denied\)/.test(appLog.join('')), 'no "(access_denied)" in the log');
+  check('an unknown failure shape is logged by field names', /verification failed \(code unknown: status=failed keys=\[status,session,detail\]\)/.test(appLog.join('')), 'no "code unknown" line with the field names');
 
   // ---------------------------------------------------------------------------
   console.log('\nThe log reveals no identity data');
