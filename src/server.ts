@@ -23,7 +23,8 @@ import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
-import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
+import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
+import { refreshVerifierStatus, type StatusSources } from './verifier-status';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
 
@@ -131,6 +132,48 @@ function configId(profileIds: string[], attrs: string[]): string {
   const key = [...profileIds].sort().join('|') + '::' + [...attrs].sort().join(',');
   return 'pid_req_' + createHash('sha1').update(key).digest('hex').slice(0, 12);
 }
+/**
+ * The widest PID config this instance may ask for: every attribute its policy allows.
+ *
+ * Registered once at startup, not first at the first call — so that EUDIPLO has issued (or
+ * refused) the registration certificate before anyone scans a QR code, and the status report
+ * (./verifier-status) can say what that certificate covers. A config that cannot be registered
+ * is then a line in the startup log instead of a sign-in failing on someone's phone.
+ */
+let scopeConfigId: string | null = null;
+async function registerScopeConfig(): Promise<void> {
+  const attrs = [...policyDescriptor().allowedAttributes] as SemanticAttr[];
+  if (!requiresWalletPresentation(attrs)) return;
+  const profiles = selectedProfiles();
+  const id = configId(profiles.map((p) => p.id), attrs);
+  await ensureVerifierConfig(id, buildDcql(profiles, attrs), 'pid');
+  scopeConfigId = id;
+}
+
+function verifierStatusSources(): StatusSources {
+  const p = policyDescriptor();
+  return {
+    verifierOff: VERIFIER_OFF,
+    host: verifierHost(),
+    tenant: verifierTenantId(),
+    defaultTenant: isDefaultVerifierTenant(),
+    relyingParty: RELYING_PARTY,
+    attributes: { policy: p.policyId, requested: [...p.allowedAttributes], permitted: [...p.registrationPermits], narrowed: p.narrowed },
+    scopeConfigId: () => scopeConfigId ?? registeredPidConfigIds()[0] ?? null,
+    get: verifierGet,
+  };
+}
+
+/** Register the scope config (until it worked once), then report. Never throws. */
+async function verifierStatusRound(): Promise<void> {
+  if (!VERIFIER_OFF && verifierHost() && !scopeConfigId) {
+    try { await registerScopeConfig(); }
+    catch (e: any) { console.warn(`[verifier-status] could not register the PID config: ${e?.message || e}`); }
+  }
+  try { await refreshVerifierStatus(verifierStatusSources()); }
+  catch (e: any) { console.warn(`[verifier-status] ${e?.message || e}`); }
+}
+
 /**
  * Issue and send a fresh wallet offer.
  *
@@ -2025,6 +2068,10 @@ loadExtensions().then((resolved) => {
     if (!(TURN_URL && TURN_SECRET) && TURN_PUBLIC_FALLBACK) {
       console.log('⚠️  No own TURN server configured (TURN_URL/TURN_SECRET): /ice hands out the public relay openrelay.metered.ca with shared credentials, so callers\' IP addresses reach that third party. Configure TURN_URL and TURN_SECRET, or set TURN_PUBLIC_FALLBACK=off.');
     }
+    // What the wallet will be shown, read back from the verifier — then every six hours, so a
+    // certificate running out is noticed while there is time (./verifier-status).
+    setTimeout(() => { void verifierStatusRound(); }, 2000).unref();
+    setInterval(() => { void verifierStatusRound(); }, 6 * 60 * 60_000).unref();
     console.log(`PUBLIC_URL (env) = ${PUBLIC_URL}`);
     if (!process.env.PUBLIC_URL || PUBLIC_URL.includes('CHANGE-ME') || PUBLIC_URL.startsWith('http://localhost')) {
       console.log('ℹ️  No explicit PUBLIC_URL set — webhook origin is derived per-request from x-forwarded-host/proto (works behind a reverse proxy).');
