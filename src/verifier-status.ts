@@ -210,7 +210,9 @@ export async function collectVerifierStatus(s: StatusSources): Promise<VerifierS
           info.expiresAt = info.expiresAt ?? isoOf(cache.expiresAt);
           status.registrationCertificate = info;
         } else {
-          status.problems.push('registration certificate: EUDIPLO holds none for this instance (no registrar configuration, or an EUDIPLO before 9)');
+          // EUDIPLO 9 fills the cache after the config save, asynchronously — so right after a
+          // startup "none" can simply mean "not yet"; the second round 90 s later settles it.
+          status.problems.push('registration certificate: EUDIPLO holds none for this instance (not issued yet, no registrar configuration, or an EUDIPLO before 9)');
         }
       } catch (e) { status.problems.push(why('registration certificate', e)); }
     }

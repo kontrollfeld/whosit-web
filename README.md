@@ -295,7 +295,7 @@ The certificate expires. Put its `exp` in the same calendar as the trust list.
 
 ### Verifier status: what the wallet will be shown
 
-Two seconds after startup, and every six hours after that, the instance reads back from EUDIPLO
+Two seconds and 90 seconds after startup, and every six hours after that, the instance reads back from EUDIPLO
 what a wallet will see, using its own tenant token and read-only calls:
 
 - the EUDIPLO **version** (`GET /api/version`)
@@ -307,7 +307,8 @@ what a wallet will see, using its own tenant token and read-only calls:
 
 It also adds the attributes the instance requests. To have a registration certificate to report
 before the first call, the instance registers its widest PID config (every attribute its policy
-allows) at startup. A config that cannot be registered then shows up in the startup log, not as a
+allows) at startup. EUDIPLO 9 issues the certificate after it has answered that save, not before,
+so the first round usually reports none yet. The round at 90 seconds finds it. A config that cannot be registered then shows up in the startup log, not as a
 sign-in failing on someone's phone.
 
 The summary goes to the log (`Verifier status: EUDIPLO 9.1.0 at …`), with warnings when the access
