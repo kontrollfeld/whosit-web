@@ -293,6 +293,31 @@ startup, an unreadable or expired certificate is fatal, and less than 30 days le
 
 The certificate expires. Put its `exp` in the same calendar as the trust list.
 
+### Verifier status: what the wallet will be shown
+
+Two seconds after startup, and every six hours after that, the instance reads back from EUDIPLO
+what a wallet will see, using its own tenant token and read-only calls:
+
+- the EUDIPLO **version** (`GET /api/version`)
+- the **access certificate**: who it names, until when, and the first 16 hex characters of its
+  SHA-256, which is the `x509_hash` client_id (`GET /api/key-chain?usageType=access`)
+- the **registration certificate**: imported or issued by EUDIPLO, the registered party, the
+  intermediary if one is named, the purpose, the expiry and the claims it covers
+  (`registrationCertCache` of the verifier config, EUDIPLO 9)
+
+It also adds the attributes the instance requests. To have a registration certificate to report
+before the first call, the instance registers its widest PID config (every attribute its policy
+allows) at startup. A config that cannot be registered then shows up in the startup log, not as a
+sign-in failing on someone's phone.
+
+The summary goes to the log (`Verifier status: EUDIPLO 9.1.0 at …`), with warnings when the access
+certificate has less than 30 days left. With `EUDI_VERIFIER_STATUS_FILE` it is also written as one
+line of JSON, for the operator's own tooling; whosit-control's overview reads it. It holds no
+secret and no personal data. It is still not served over HTTP: the tenant and the verifier version
+are between the operator and whoever runs the instance. A lookup the tenant may not make (for
+example `key-chain` without `presentation:manage`) is named under `problems`, and the other lookups
+still run.
+
 ## Running without a verifier
 
 Wallet verification needs a verifier of your own and a relying-party registration — weeks of

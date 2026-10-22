@@ -84,6 +84,10 @@ export function verifierTenantId(): string {
 export function isDefaultVerifierTenant(): boolean {
   return TENANT_ID === DEFAULT_TENANT_ID;
 }
+/** The verifier's host name (no scheme, no path) — for the status report; null when unset. */
+export function verifierHost(): string | null {
+  try { return BASE ? new URL(BASE).host : null; } catch { return null; }
+}
 /**
  * Fixed credentials of the tenant client. When set, the app authenticates EXCLUSIVELY with
  * them — no root login, no secret rotation. This is the normal case on your own EUDIPLO
@@ -208,6 +212,11 @@ function extractOffer(data: any): Offer {
 }
 
 const registeredConfigs = new Set<string>();
+/** The PID configs this process registered, in order — what ./verifier-status reads back. */
+const registeredPidConfigs: string[] = [];
+export function registeredPidConfigIds(): readonly string[] {
+  return registeredPidConfigs;
+}
 
 /**
  * What a verifier config is for. `pid` = the pre-connect identity gate, subject to the
@@ -337,6 +346,7 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
     try {
       await postJson('/api/verifier/config', body, token);
       registeredConfigs.add(id);
+      if (kind === 'pid') registeredPidConfigs.push(id);
       if (regCert) void warnIfRegistrarMissing(token);
       return;
     } catch (e: any) {
@@ -350,6 +360,26 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
       throw e;
     }
   }
+}
+
+/**
+ * Authenticated GET — read-only, for the status report (./verifier-status). Throws an error
+ * carrying `status` on anything but 2xx, so the caller can say WHICH lookup failed and why.
+ */
+export async function verifierGet(path: string): Promise<any> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getToken(attempt === 1);
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 401 && attempt === 0) { cachedToken = null; continue; }
+    const text = await res.text();
+    if (!res.ok) {
+      const err: any = new Error(`EUDIPLO GET ${path} -> ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    try { return JSON.parse(text); } catch { return text; }
+  }
+  throw new Error('verifierGet: unreachable');
 }
 
 /**
