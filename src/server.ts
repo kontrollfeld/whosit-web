@@ -2071,6 +2071,9 @@ loadExtensions().then((resolved) => {
     // What the wallet will be shown, read back from the verifier — then every six hours, so a
     // certificate running out is noticed while there is time (./verifier-status).
     setTimeout(() => { void verifierStatusRound(); }, 2000).unref();
+    // EUDIPLO 9 issues the registration certificate AFTER answering the config save
+    // (storePresentationConfig → scheduleRefresh), so the first round usually finds none yet.
+    setTimeout(() => { void verifierStatusRound(); }, 90_000).unref();
     setInterval(() => { void verifierStatusRound(); }, 6 * 60 * 60_000).unref();
     console.log(`PUBLIC_URL (env) = ${PUBLIC_URL}`);
     if (!process.env.PUBLIC_URL || PUBLIC_URL.includes('CHANGE-ME') || PUBLIC_URL.startsWith('http://localhost')) {
