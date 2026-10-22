@@ -23,7 +23,7 @@ import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
-import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureCode, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
+import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant } from './eudiplo';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
 
@@ -953,8 +953,7 @@ function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res
       console.warn(`[webhook] in-call credential ${r.credential.id}: ok-status but mandatory claims missing — payload shape unknown?`);
     }
     finishRequest(r, 'failed');
-    const code = failureCode(payload);
-    console.log(`[webhook] in-call credential ${r.credential.id} presentation failed${code ? ` (${code})` : ''}`);
+    console.log(`[webhook] in-call credential ${r.credential.id} presentation failed${failureLogSuffix(payload)}`);
     credentialAudit(r, 'credential-failed', []);
     send(r.requester.ws, { type: 'credential-failed', requestId: r.requestId, from: r.target.peerId, label: r.credential.label });
     send(r.target.ws, { type: 'credential-failed', requestId: r.requestId, label: r.credential.label });
@@ -1088,8 +1087,7 @@ app.post('/webhook/:sessionId', (req, res) => {
     broadcastStatus(room);
     maybeConnect(room);
   } else {
-    const code = failureCode(payload);
-    console.log(`[webhook] ${participant.role} verification failed${code ? ` (${code})` : ''}`);
+    console.log(`[webhook] ${participant.role} verification failed${failureLogSuffix(payload)}`);
     recordVerification({
       type: 'verification-failed', at: new Date().toISOString(),
       roomId: room.id, role: participant.role, clientId: participant.clientId,

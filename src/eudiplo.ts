@@ -482,14 +482,39 @@ export function extractNames(payload: any): { givenName?: string; familyName?: s
  * credentials) supply their own "claims actually presented" signal instead of the
  * PID normalizer; the explicit-error/ok status logic stays shared.
  */
+/** A code-shaped string: the only kind of payload value that may reach the log. */
+const CODE_SHAPE = /^[A-Za-z0-9_.:-]{1,64}$/;
+const codeOf = (v: unknown): string | undefined =>
+  typeof v === 'string' && CODE_SHAPE.test(v) ? v : undefined;
+
 /**
- * The machine-readable reason of a failed presentation (EUDIPLO 9: `outcome.error`, e.g.
- * `access_denied` when the user declines). Restricted to a code-shaped string, so nothing
- * from the payload beyond that reaches the log.
+ * The machine-readable reason of a failed presentation. EUDIPLO 9 documents `outcome.error`
+ * (e.g. `access_denied` when the user declines); the other places are checked because the
+ * shape was only read off the source, never observed for every failure path. Only
+ * code-shaped strings count, so nothing else from the payload reaches the log.
  */
 export function failureCode(payload: any): string | undefined {
-  const code = payload?.outcome?.error ?? payload?.error ?? (payload?.status === 'cancelled' ? 'cancelled' : undefined);
-  return typeof code === 'string' && /^[a-z0-9_]{1,64}$/.test(code) ? code : undefined;
+  const p = payload || {};
+  const perCredential = Array.isArray(p.outcome?.credentials)
+    ? p.outcome.credentials.map((c: any) => codeOf(c?.error)).find(Boolean)
+    : undefined;
+  return codeOf(p.outcome?.error) ?? codeOf(p.outcome?.failureCode) ?? codeOf(p.failureCode)
+    ?? codeOf(p.error) ?? perCredential ?? (p.status === 'cancelled' ? 'cancelled' : undefined);
+}
+
+/**
+ * Log suffix for a failed presentation: ` (code)`, or — when no code is recognised — the
+ * payload's SHAPE (status and field names, never values), so the next failure shows where
+ * the code actually sits.
+ */
+export function failureLogSuffix(payload: any): string {
+  const code = failureCode(payload);
+  if (code) return ` (${code})`;
+  const keysOf = (o: any) => (o && typeof o === 'object' && !Array.isArray(o)
+    ? Object.keys(o).filter((k) => CODE_SHAPE.test(k)).slice(0, 20) : []);
+  const outcome = keysOf(payload?.outcome);
+  return ` (code unknown: status=${codeOf(payload?.status) ?? '-'} keys=[${keysOf(payload).join(',')}]`
+    + (outcome.length ? ` outcome=[${outcome.join(',')}]` : '') + ')';
 }
 
 export function isVerificationSuccess(payload: any, presentedClaimCount?: number): boolean {
