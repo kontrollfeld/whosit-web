@@ -556,6 +556,7 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `EUDI_PRIVACY_POLICY_URL` / `EUDI_SUPPORT_URI` | *(optional)* Privacy policy and support contact for the registration certificate; otherwise the tenant's registrar defaults apply. See [Registration certificate](#registration-certificate-wrprc) |
 | `EUDI_REGISTRATION_CERT_FILE` / `EUDI_REGISTRATION_CERT` | *(optional)* Import a registration certificate (JWT) instead of having EUDIPLO issue one |
 | `EUDI_TRUST_LIST_IDS` | Id(s) of the trust list(s) on your EUDIPLO instance that decide which PID issuers are accepted — the last path segment of `…/issuers/<tenant>/trust-list/<id>` |
+| `EUDI_STATUS_CHECK_MODE` | *(optional, EUDIPLO 9.1)* `strict` (default), `best_effort` or `disabled`: what happens when the issuer's status list cannot be fetched. Under `strict`, a status list that returns 404 rejects every PID, reported by EUDIPLO as `trust_list_unavailable`. Sent with every verifier config; relax it only against a sandbox, and a start warns while it is relaxed |
 | `ALLOWED_ORIGINS` | *(optional)* permitted WebSocket origins (CSWSH protection); default: same host |
 | `EUDI_MODULES` | Modules to load, comma-separated: directories or installed packages, e.g. `./pro`. See [Modules](#modules). A listed module that does not load, does not fit or conflicts → startup aborts in production, instead of silently running without it |
 | `EUDI_PRO_MODULE` | The earlier single-module variable — still read, as one more entry of `EUDI_MODULES` |

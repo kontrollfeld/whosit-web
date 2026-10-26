@@ -112,6 +112,14 @@ console.log('3. helper output covers what is sent');
   const zp = z.bodies?.find((b) => b.id === 'pid1');
   check('without a JWT the PID config asks EUDIPLO to issue one (purpose only)', z.pid === 'ok' && !zp?.cert && zp?.body?.purpose?.[0]?.content?.length > 0 && !('credentials' in (zp?.body ?? {})), none.out || none.err);
   check('…and a catalog config carries no spec', !z.bodies?.find((b) => b.id === 'cat1')?.body, none.out);
+
+  // statusCheckMode: omitted by default, sent on every config when set, dropped when invalid.
+  const modeCode = code.replace("res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body }));",
+    "res.modes = bodies.map((b) => b.statusCheckMode ?? null);");
+  const modes = (env) => { const r = tsx(modeCode, { ...egressEnv, ...env }); try { return JSON.parse(r.out.split('\n').pop()).modes; } catch { return r.out || r.err; } };
+  check('statusCheckMode is omitted by default', JSON.stringify(modes({})) === '[null,null]', JSON.stringify(modes({})));
+  check('EUDI_STATUS_CHECK_MODE goes out on every config', JSON.stringify(modes({ EUDI_STATUS_CHECK_MODE: 'best_effort' })) === '["best_effort","best_effort"]', JSON.stringify(modes({ EUDI_STATUS_CHECK_MODE: 'best_effort' })));
+  check('an invalid value is not sent', JSON.stringify(modes({ EUDI_STATUS_CHECK_MODE: 'lenient' })) === '[null,null]', JSON.stringify(modes({ EUDI_STATUS_CHECK_MODE: 'lenient' })));
 }
 
 console.log('5. startup');
@@ -128,6 +136,12 @@ console.log('5. startup');
   check('expired → fatal', JSON.stringify(run({ EUDI_REGISTRATION_CERT: jwtFor({ exp: now - 10 }) })) === '[true]', '');
   check('expiring soon → warning', JSON.stringify(run({ EUDI_REGISTRATION_CERT: jwtFor({ exp: now + 86400 * 5 }) })) === '[false]', '');
   check('valid → silent', JSON.stringify(run({ EUDI_REGISTRATION_CERT: jwtFor({ exp: now + 86400 * 365 }) })) === '[]', '');
+
+  const modeStartup = code.replace("x.variable.startsWith('EUDI_REGISTRATION_CERT')", "x.variable === 'EUDI_STATUS_CHECK_MODE'");
+  const runMode = (c) => { const r = tsx(modeStartup, { CASE: JSON.stringify(c) }); try { return JSON.stringify(JSON.parse(r.out.split('\n').pop())); } catch { return r.out || r.err; } };
+  check('status mode unset or strict → silent', runMode({}) === '[]' && runMode({ EUDI_STATUS_CHECK_MODE: 'strict' }) === '[]', runMode({}));
+  check('status mode relaxed → warning', runMode({ EUDI_STATUS_CHECK_MODE: 'best_effort' }) === '[false]' && runMode({ EUDI_STATUS_CHECK_MODE: 'disabled' }) === '[false]', runMode({ EUDI_STATUS_CHECK_MODE: 'best_effort' }));
+  check('status mode invalid → fatal', runMode({ EUDI_STATUS_CHECK_MODE: 'lenient' }) === '[true]', runMode({ EUDI_STATUS_CHECK_MODE: 'lenient' }));
 }
 
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

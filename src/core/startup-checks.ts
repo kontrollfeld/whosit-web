@@ -260,6 +260,27 @@ function collectRemaining(env: Record<string, string | undefined>, ctx: CheckCon
     });
   }
 
+  // --- revocation check mode (EUDIPLO statusCheckMode, see ../eudiplo) --------------
+  // A typo would otherwise fall back to `strict` without a word. A relaxed mode is allowed
+  // (a sandbox issuer whose status list returns 404 blocks every sign-in under `strict`), but
+  // it accepts credentials whose revocation could not be checked, so it is said at every start.
+  const statusMode = (env.EUDI_STATUS_CHECK_MODE || '').trim();
+  if (statusMode && !['strict', 'best_effort', 'disabled'].includes(statusMode)) {
+    out.push({
+      variable: 'EUDI_STATUS_CHECK_MODE',
+      problem: 'must be strict, best_effort or disabled.',
+      fatal: true,
+    });
+  } else if (statusMode === 'best_effort' || statusMode === 'disabled') {
+    out.push({
+      variable: 'EUDI_STATUS_CHECK_MODE',
+      problem: `is "${statusMode}": credentials are accepted when the issuer's status list cannot be `
+        + (statusMode === 'disabled' ? 'checked — revocation is not checked at all. ' : 'fetched. ')
+        + 'Fine against a sandbox with broken status lists, not for real operation.',
+      fatal: false,
+    });
+  }
+
   // --- secrets copied verbatim from the template ------------------------------------
   // These are config-gated: unset simply means the feature is off, which is safe (see the
   // header). Set to the template's stand-in is the opposite of safe — the value is in a public
