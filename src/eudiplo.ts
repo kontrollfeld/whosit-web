@@ -209,6 +209,22 @@ function extractOffer(data: any): Offer {
 
 const registeredConfigs = new Set<string>();
 
+/** EUDIPLO 9.1 `statusCheckMode` of a verifier config: what to do when the issuer's status list
+ *  cannot be fetched. EUDIPLO defaults to `strict` (reject). */
+export const STATUS_CHECK_MODES = ['strict', 'best_effort', 'disabled'] as const;
+export type StatusCheckMode = typeof STATUS_CHECK_MODES[number];
+
+/**
+ * `EUDI_STATUS_CHECK_MODE`, or `undefined` when unset or invalid (startup-checks refuses an
+ * invalid value). Sent with every config, because the app writes each config itself: a mode
+ * set by hand in the EUDIPLO UI would be lost on the next registration, and a config for a new
+ * attribute set would start out `strict` again.
+ */
+export function statusCheckMode(env: NodeJS.ProcessEnv = process.env): StatusCheckMode | undefined {
+  const v = (env.EUDI_STATUS_CHECK_MODE || '').trim();
+  return (STATUS_CHECK_MODES as readonly string[]).includes(v) ? (v as StatusCheckMode) : undefined;
+}
+
 /**
  * What a verifier config is for. `pid` = the pre-connect identity gate, subject to the
  * WRP attribute whitelist. `catalog` = an in-call credential request (see
@@ -324,10 +340,13 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
   const formats = [...new Set(dcql.credentials.map((c) => c.format))].join('+');
   const purpose = kind === 'pid' ? ` purpose=${WRP_PURPOSE_ID}` : '';
   const regCert = registrationCertFor(id, dcql, kind);
+  const statusMode = statusCheckMode();
   const body = {
     id,
     description: `OpenID4VP verifier (${formats})${purpose}`,
     lifeTime: 3600,
+    // Unset → field omitted → EUDIPLO's default (`strict`); older EUDIPLO versions never see it.
+    ...(statusMode ? { statusCheckMode: statusMode } : {}),
     dcql_query: dcql,
     // EUDIPLO puts it into the request object as `verifier_info` — see ./registration-cert.
     ...(regCert ? { registration_cert: regCert } : {}),
