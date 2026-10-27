@@ -1081,10 +1081,18 @@ body.wm-open { overflow: hidden; }
 @keyframes wm-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .wm-icon.wait { animation: none; border-top-color: #c4c4c4; } }
 #wm-retry { margin-top: 6px; }
-/* On a phone the modal fills the screen, with the same elements and texts (guide). */
+/* On a phone the modal fills the screen, with the same elements and texts (guide). It then
+   reaches under the status bar and the notch (viewport-fit=cover, and always in the app): keep
+   the close button and the content inside the safe area, or the button sits where iOS takes the
+   touches and the modal cannot be closed. */
 @media (max-width: 640px) {
   .wallet-modal { padding: 0; }
-  .wm-dialog { max-width: none; max-height: none; height: 100%; border-radius: 0; padding-top: 56px; }
+  .wm-dialog {
+    max-width: none; max-height: none; height: 100%; border-radius: 0;
+    padding-top: calc(56px + env(safe-area-inset-top));
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  }
+  .wm-close { top: calc(10px + env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
 }
 
 /* ==== in-call identity banderole · raise hand · retractable files · collapsible result ==== */
