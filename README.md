@@ -345,8 +345,11 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
   sits in the room (same device), it goes back into it; otherwise it only says "done, continue on the
   other device or in the app" and joins nothing. Until 2026-10-27 the wallet opened `/?room=…`: with
   the whosit app installed that is a universal link, and the app joined the caller's own room as the
-  guest. `/zurueck` is no app link path on iOS, and `r` (not `room`) is ignored by app bundles on
-  Android, which opens the app for every path on the domain.
+  guest. `r` (not `room`) is never read as a room link, so no app build joins on it. `/zurueck?r=`
+  IS an iOS app link (apple-app-site-association; Android opens the app for every path anyway): with
+  the call in the app and the wallet on the same phone, the app comes back to the front and stays in
+  its call. An app that is in another room or none shows the same "done" message
+  (`index.html?zurueck=1&r=…`, see `openRoomUrl`).
 - The same modal serves the in-call credential request (Pro), without the loading state.
 - **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
 

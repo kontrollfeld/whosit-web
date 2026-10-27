@@ -464,6 +464,12 @@ app.get('/.well-known/apple-app-site-association', (_req, res) => {
           // could not do anything with the link either (the key has to be in the app).
           { '/': '/', '?': { pair: '?*' } },
           { '/': '/index.html', '?': { pair: '?*' } },
+          // The wallet's way back (walletReturnUrl). With the call in the app and the wallet on
+          // the same phone, this brings the app back to the front instead of leaving the person
+          // on a browser page. The app never joins on it: it carries `r`, not `room` — a build
+          // that predates it just comes to the front, a newer one stays in its call or says
+          // "done, continue on the other device" (public/app.js, openRoomUrl).
+          { '/': '/zurueck', '?': { r: '?*' } },
           // DELIBERATELY NOT YET: `?inv=` (scheduled call). The shipped app only understands
           // the parameter from the next build onwards — an older app would capture the
           // appointment link, ignore the parameter and open a FRESH ad-hoc room. Without this
