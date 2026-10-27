@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>whosit — EUDI Verified Call</title>
-  <meta name="description" content="Video-, Audio- oder Chat-Anruf mit gegenseitiger Identitätsprüfung per EUDI-Wallet (digitaler Personalausweis) — beide sehen vor dem Verbinden, was geteilt wird." />
+  <meta name="description" content="Video-, Audio- oder Chat-Anruf mit gegenseitiger Identitätsprüfung per EUDI-Wallet — beide sehen vor dem Verbinden, was geteilt wird." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0.12' y1='0' x2='0.85' y2='1'%3E%3Cstop stop-color='%231e7fd4'/%3E%3Cstop offset='1' stop-color='%23003b8e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M19.99 2.37 A22 22 0 0 1 28.01 2.37 M31.34 3.26 A22 22 0 0 1 38.29 7.27 M40.73 9.71 A22 22 0 0 1 44.74 16.66 M45.63 19.99 A22 22 0 0 1 45.63 28.01 M44.74 31.34 A22 22 0 0 1 40.73 38.29 M38.29 40.73 A22 22 0 0 1 31.34 44.74 M28.01 45.63 A22 22 0 0 1 19.99 45.63 M7.27 38.29 A22 22 0 0 1 3.26 31.34 M2.37 28.01 A22 22 0 0 1 2.37 19.99 M3.26 16.66 A22 22 0 0 1 7.27 9.71 M9.71 7.27 A22 22 0 0 1 16.66 3.26' fill='none' stroke='%231e7fd4' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M10.86 32.21 A15.5 15.5 0 1 1 23.46 39.49 C18.96 39.33 14.65 41.09 12.45 42.49 C13.05 40.09 12.45 34.76 10.86 32.21 Z' fill='url%28%23g%29'/%3E%3Cg transform='translate%2824 24%29 scale%280.95%29 translate%28-12 -12%29'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='%23fff' stroke-width='2.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E" />
   <link rel="stylesheet" href="style.css" />
   <script src="theme.js"></script>
@@ -46,7 +46,7 @@
           </div>
         </div>
       </div>
-      <p class="sub" data-i18n-html>Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> (digitaler Personalausweis) ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.</p>
+      <p class="sub" data-i18n-html>Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.</p>
     </header>
     </div><!-- /setup-columns-left -->
 
@@ -201,19 +201,17 @@
       <div class="auth-cta">
         <!-- Who actually makes the request. Stays empty and hidden as long as brand and
              certificate holder are the same entity — see src/relying-party.ts. Sits BEFORE the
-             wallet button because on the phone that is the first action: read afterwards the
-             sentence would be worthless. The `order` rules in style.css keep this on desktop too. -->
+             wallet button: read afterwards the sentence would be worthless. -->
         <p class="hint rp-disclosure" id="rp-disclosure" hidden></p>
-        <a id="auth-link" class="same-device" href="#">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
-          <span data-i18n>Wallet auf diesem Gerät öffnen</span>
-        </a>
-        <p class="hint qr-hint qr-hint--desktop" data-i18n-html>Scanne dazu den Code mit deiner <strong>EUDI-Wallet</strong>:</p>
-        <p class="hint qr-hint qr-hint--mobile" data-i18n-html>Oder scanne den Code mit der <strong>EUDI-Wallet</strong> auf einem anderen Gerät:</p>
-        <div id="qrcode" class="qr"></div>
-        <!-- An offer is used up after ONE attempt; EUDIPLO then rejects the wallet without
-             the server learning of it. Without this button only a reload would remain. -->
-        <button type="button" id="auth-renew" class="ghost auth-renew" data-i18n>Code erneuern</button>
+        <!-- Touchpoint Design Guide (d-you Wallet): say before the start that the app is needed,
+             start the request only on the button, and the button is the unmodified asset from
+             public/vendor/d-you (an <img>, so no brand accent can recolour it). -->
+        <p class="hint wallet-need" data-i18n-html>Dafür brauchst du die App <strong>d-you Wallet</strong> auf deinem Smartphone.</p>
+        <button type="button" id="dyou-open" class="dyou-btn" aria-haspopup="dialog" aria-controls="wallet-modal">
+          <img class="dyou-img" src="vendor/d-you/d-you-wallet_button_verify_de.svg" alt="Verifizieren mit d-you Wallet" width="202" height="55" />
+        </button>
+        <p class="hint wallet-alt" id="wallet-alt" hidden data-i18n>Keine d-you Wallet? Sag der Person Bescheid, die dich eingeladen hat. Sie kann den Anruf auch ohne Ausweisprüfung starten.</p>
+        <a class="wallet-info-link" href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Was ist die d-you Wallet?</a>
       </div>
     </section>
     </div><!-- /setup-zone -->
@@ -580,17 +578,47 @@
         <p class="hint" id="cred-hint"></p>
         <ul class="consent" id="cred-claims"></ul>
         <div class="auth-cta" id="cred-auth-area" hidden>
-          <a id="cred-auth-link" class="same-device" href="#">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
-            <span data-i18n>Wallet auf diesem Gerät öffnen</span>
-          </a>
-          <p class="hint qr-hint qr-hint--desktop" data-i18n-html>Scanne dazu den Code mit deiner <strong>EUDI-Wallet</strong>:</p>
-          <p class="hint qr-hint qr-hint--mobile" data-i18n-html>Oder scanne den Code mit der <strong>EUDI-Wallet</strong> auf einem anderen Gerät:</p>
-          <div id="cred-qrcode" class="qr"></div>
+          <button type="button" id="cred-dyou-open" class="dyou-btn" aria-haspopup="dialog" aria-controls="wallet-modal">
+            <img class="dyou-img" src="vendor/d-you/d-you-wallet_button_verify_de.svg" alt="Verifizieren mit d-you Wallet" width="202" height="55" />
+          </button>
         </div>
         <div class="row cred-actions" id="cred-actions">
           <button id="cred-accept" data-i18n>Teilen</button>
           <button id="cred-decline" class="ghost" data-i18n>Ablehnen</button>
+        </div>
+      </div>
+    </div>
+    <!-- The wallet modal of the Touchpoint Design Guide (d-you Wallet): heading, QR code for
+         another device, "oder", the same button for this device, "Was ist die d-you Wallet?".
+         States: default → loading ("Weiter in der d-you Wallet", once the wallet fetched the
+         request) → success; plus our own error state. Texts are the guide's, word for word. -->
+    <div id="wallet-modal" class="wallet-modal" hidden>
+      <div class="wm-dialog" role="dialog" aria-modal="true" aria-labelledby="wm-title">
+        <button type="button" class="wm-close" id="wm-close" aria-label="Schließen" data-i18n-attr="aria-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <h2 id="wm-title" tabindex="-1">Jetzt verifizieren</h2>
+        <p class="wm-live" id="wm-live" aria-live="polite"></p>
+        <div id="wm-default">
+          <p class="wm-text" data-i18n>Du nutzt die d-you Wallet auf einem anderen Gerät? Dann scanne diesen QR-Code.</p>
+          <div id="qrcode" class="qr wm-qr" role="img" aria-label="QR-Code für die d-you Wallet" data-i18n-attr="aria-label"></div>
+          <!-- The accessible alternative to the QR code the guide asks for: the same request as
+               a link to copy, e.g. into a message to one's own phone. -->
+          <button type="button" class="wm-copy" id="wm-copy" data-i18n>Link zum QR-Code kopieren</button>
+          <div class="wm-divider" aria-hidden="true"><span data-i18n>oder</span></div>
+          <p class="wm-text" data-i18n>Du nutzt die d-you Wallet auf diesem Gerät?</p>
+          <a id="auth-link" class="dyou-btn" href="#">
+            <img class="dyou-img" src="vendor/d-you/d-you-wallet_button_verify_de.svg" alt="Verifizieren mit d-you Wallet" width="202" height="55" />
+          </a>
+          <a class="wallet-info-link" href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Was ist die d-you Wallet?</a>
+          <!-- An offer is used up after ONE attempt; EUDIPLO then rejects the wallet without
+               the server learning of it. Without this button only a reload would remain. -->
+          <button type="button" id="auth-renew" class="ghost auth-renew" data-i18n>Code erneuern</button>
+        </div>
+        <div id="wm-status" hidden>
+          <div class="wm-icon" id="wm-icon" aria-hidden="true"></div>
+          <p class="wm-text" id="wm-status-text"></p>
+          <button type="button" id="wm-retry" hidden data-i18n>Neuen Code anzeigen</button>
         </div>
       </div>
     </div>

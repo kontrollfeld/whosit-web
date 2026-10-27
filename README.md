@@ -319,6 +319,31 @@ are between the operator and whoever runs the instance. A lookup the tenant may 
 example `key-chain` without `presentation:manage`) is named under `problems`, and the other lookups
 still run.
 
+### The wallet touchpoint (d-you Wallet)
+
+Where a person starts a wallet request follows the
+[Touchpoint Design Guide](https://bmi.usercontent.opencode.de/eudi-wallet/developer-guide/rp/guide/touchpoint_design/)
+of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
+
+- **Nothing starts by itself.** The card says what is shared, who asks (`rp-disclosure`) and that
+  the d-you Wallet app is needed; guests also learn the way out (ask the host to start without an
+  ID check). The QR code appears only after "Verifizieren mit d-you Wallet" is pressed.
+- **The button is the unmodified asset** in `public/vendor/d-you/` (CC BY 4.0, BMDS; see its
+  README). It is an `<img>`, so an operator's accent colour cannot restyle it. Never rebuild it.
+- **The modal** has the guide's anatomy and texts: "Jetzt verifizieren", QR code for another device,
+  "oder", the same button for this device, "Was ist die d-you Wallet?". On phones it fills the
+  screen. Additions of ours: "Link zum QR-Code kopieren" (the accessible alternative to the QR code)
+  and "Code erneuern" (an offer is spent after one attempt).
+- **States:** default → "Weiter in der d-you Wallet" → "Verifizierung erfolgreich!" (closes by itself),
+  plus our error state with "Neuen Code anzeigen". The loading state needs to know that the wallet
+  fetched the request, which the webhook does not say: while the modal is open the client sends
+  `auth-watch`, and the server polls `GET /api/session/:id` at EUDIPLO every two seconds (at most ten
+  minutes) until it reads `fetched`. A failed lookup simply leaves the modal in its default state.
+- **Accessibility:** focus moves into the modal and back, Tab stays inside, Escape closes, state
+  changes are announced (`aria-live`).
+- The same modal serves the in-call credential request (Pro), without the loading state.
+- **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
+
 ## Running without a verifier
 
 Wallet verification needs a verifier of your own and a relying-party registration — weeks of
@@ -392,9 +417,11 @@ npm run dev
 # 3) Testing: open TWO tabs on http://localhost:3000 (host + guest)
 ```
 
-Click-through: the host sets up the call and shares the link (the second tab). Where the QR code
-would normally be, the link leads to the **mock wallet** → enter a name → "Verify ✓" → the mock
-fires the webhook → both confirm the review → the P2P connection is up.
+Click-through: the host sets up the call and shares the link (the second tab). "Verifizieren mit
+d-you Wallet" opens the wallet modal; its button for this device leads to the **mock wallet**
+(opening it counts as "fetched", so the modal switches to "Weiter in der d-you Wallet") → enter a
+name → "Verify ✓" → the mock fires the webhook → "Verifizierung erfolgreich!" → both confirm the
+review → the P2P connection is up.
 
 > The mock is **for development only**: no cryptography, it believes any name typed into it.
 > Never use it in production. Extending it (more attributes, error cases) makes a good

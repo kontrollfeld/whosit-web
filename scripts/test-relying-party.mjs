@@ -86,15 +86,15 @@ console.log('\nThe client renders it before the wallet is opened');
 // reaches. Checked against the markup so a later reshuffle cannot move it below the button.
 import fs from 'node:fs';
 const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-const cta = html.slice(html.indexOf('<div class="auth-cta">'), html.indexOf('id="qrcode"'));
+const cta = html.slice(html.indexOf('<div class="auth-cta">'), html.indexOf('id="wallet-modal"'));
 check('the disclosure paragraph exists', /id="rp-disclosure"/.test(cta), 'not inside the auth CTA');
-check('it stands BEFORE the same-device wallet link',
-  cta.indexOf('id="rp-disclosure"') < cta.indexOf('id="auth-link"'), 'it sits after the wallet button');
+check('it stands BEFORE the d-you wallet button',
+  cta.indexOf('id="rp-disclosure"') > -1 && cta.indexOf('id="rp-disclosure"') < cta.indexOf('id="dyou-open"'), 'it sits after the wallet button');
 const css = fs.readFileSync(new URL('../public/style.css', import.meta.url), 'utf8');
-// style.css warns in place that anything without an explicit `order` silently jumps in front of
-// the QR code. The desktop layout must therefore pin this paragraph rather than inherit 0.
-check('the desktop layout pins its position explicitly',
-  /\.auth-cta \.rp-disclosure \{ order: -1; \}/.test(css), 'no explicit order — see the warning in style.css');
+// The CTA is a flex column; anything without an explicit `order` keeps the markup order, and this
+// paragraph must not depend on that.
+check('the layout pins its position explicitly',
+  /\.auth-cta \.rp-disclosure \{ order: -1; \}/.test(css), 'no explicit order');
 const js = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 check('it is re-rendered for every offer, not once at startup',
   /applyRelyingPartyDisclosure\(\);[\s\S]{0,200}authRenewBtn/.test(js), 'not called from showAuth');

@@ -59,6 +59,14 @@ Installed via `npm ci`; licence texts land in node_modules/.
   dotenv      BSD-2-Clause  — loading .env in development
 Development only: typescript (Apache-2.0), tsx (MIT), @types/* (MIT).
 
+--- d-you Wallet button ---
+
+public/vendor/d-you/*.svg are the unmodified "Verifizieren mit / Verify with d-you Wallet"
+buttons from the Touchpoint Design Guide of the German EUDI wallet.
+© 2025 Bundesministerium für Digitales und Staatsmodernisierung, licensed under CC BY 4.0
+(LICENSES/CC-BY-4.0.txt). Not modified. The licence grants no trademark rights to "d-you".
+See public/vendor/d-you/README.md.
+
 --- Public certificate ---
 
 assets/pass/AppleWWDRCAG4.pem is the PUBLIC Apple Worldwide Developer Relations G4

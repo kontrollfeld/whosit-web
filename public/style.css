@@ -431,20 +431,6 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   box-shadow: var(--shadow-sm);
 }
 .qr img, .qr canvas { display: block; border-radius: 4px; }
-.same-device {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: center;
-  width: 100%;
-  margin-top: 8px;
-  color: var(--accent);
-  font-size: 0.86rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-.same-device:hover { text-decoration: underline; }
-.same-device svg { width: 16px; height: 16px; flex: none; }
 
 /* ---- participant chips ---- */
 .ids { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
@@ -1017,10 +1003,9 @@ body:not(.wizard) .card.is-active {
 .schedule-details > summary::after { content: "▸"; margin-left: 8px; color: var(--text-faint); }
 .schedule-details[open] > summary::after { content: "▾"; }
 
-/* identify CTA: desktop = QR first (wallet is on the phone), same-device link below;
-   mobile = "open wallet on this device" is the primary action, QR is the alternative */
-.auth-cta { display: flex; flex-direction: column; }
-.qr-hint--mobile { display: none; }
+/* identify CTA (Touchpoint Design Guide, d-you Wallet): who asks and what is shared above, then
+   the unmodified d-you button. The QR code and the same-device button live in the wallet modal. */
+.auth-cta { display: flex; flex-direction: column; align-items: flex-start; }
 /* Who is asking. No warning banner — it is not a fault but information that belongs to the
    request. But not a footnote either: left edge marked, normal text colour instead of
    --text-faint, so it does not vanish among the hints. */
@@ -1030,28 +1015,76 @@ body:not(.wizard) .card.is-active {
   padding-left: 10px;
   margin-bottom: 14px;
 }
-@media (min-width: 641px) {
-  /* Without its own `order` this paragraph would get the default 0 and be right only by
-     chance. Explicitly -1, so it stays that way if someone reorders here. */
-  .auth-cta .rp-disclosure { order: -1; }
-  .auth-cta .qr-hint--desktop { order: 1; }
-  .auth-cta .qr { order: 2; }
-  .auth-cta #auth-link { order: 3; margin-top: 12px; }
-  /* CAUTION: anything placed here without `order` gets the default 0 and thereby jumps
-     IN FRONT OF the QR code. */
-  .auth-cta #auth-renew { order: 4; }
+/* Pinned first, explicitly: it must stand before the wallet button on every screen width. */
+.auth-cta .rp-disclosure { order: -1; }
+.auth-cta .wallet-need { margin: 0 0 12px; }
+.auth-cta .wallet-alt { margin: 12px 0 0; }
+
+/* The d-you button: the asset as it is — no background, border, shadow or filter of ours, and the
+   operator's accent colour cannot reach it. Free space around it, as the guide asks. */
+.dyou-btn {
+  display: inline-block; padding: 0; margin: 4px 0; border: 0; border-radius: 28px;
+  background: none; box-shadow: none; cursor: pointer; line-height: 0;
 }
+.dyou-btn:hover, .dyou-btn:active { background: none; transform: none; filter: none; box-shadow: none; }
+.dyou-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.dyou-btn img { display: block; width: 202px; height: auto; }
+.wallet-info-link { margin-top: 10px; font-size: 0.86rem; color: var(--accent); }
+
+/* The wallet modal. Its colours are the guide's (#E8E8E8 ground, dark text) in both themes: the
+   modal is the d-you touchpoint, not part of our theme. */
+.wallet-modal {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(7, 11, 22, 0.55);
+}
+.wallet-modal[hidden] { display: none; }
+body.wm-open { overflow: hidden; }
+.wm-dialog {
+  position: relative;
+  width: 100%; max-width: 24rem; max-height: calc(100vh - 32px); overflow-y: auto;
+  padding: 28px 24px 22px;
+  background: #e8e8e8; color: #111;
+  border-radius: 20px;
+  text-align: center;
+}
+.wm-dialog h2 { margin: 0 0 14px; font-size: 1.35rem; color: #111; justify-content: center; }
+.wm-dialog h2:focus { outline: none; }
+.wm-dialog h2:focus-visible { outline: 2px solid #111; outline-offset: 4px; }
+.wm-text { margin: 0 auto 10px; max-width: 19rem; font-size: 0.95rem; line-height: 1.45; color: #111; }
+.wm-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wm-close {
+  position: absolute; top: 10px; right: 10px;
+  width: 40px; height: 40px; padding: 8px; border: 0; border-radius: 50%;
+  background: transparent; color: #111; box-shadow: none; cursor: pointer;
+}
+.wm-close:hover { background: rgba(0, 0, 0, 0.07); transform: none; filter: none; }
+.wm-close svg { width: 24px; height: 24px; display: block; }
+.wm-qr { margin: 6px auto 4px; border: 0; border-radius: 16px; box-shadow: none; padding: 12px; }
+.wm-copy {
+  margin: 2px auto 0; padding: 4px 8px; border: 0; background: none; box-shadow: none;
+  color: #111; font-size: 0.82rem; text-decoration: underline; cursor: pointer;
+}
+.wm-copy:hover { background: none; transform: none; filter: none; }
+.wm-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0 14px; color: #111; font-size: 0.9rem; }
+.wm-divider::before, .wm-divider::after { content: ""; flex: 1; height: 1px; background: #9a9a9a; }
+.wm-dialog .dyou-btn { margin: 2px auto 0; }
+.wm-dialog .dyou-btn:focus-visible { outline-color: #111; }
+.wm-dialog .wallet-info-link { display: block; margin: 14px auto 0; color: #111; text-decoration: underline; }
+.wm-dialog .auth-renew { display: block; margin: 10px auto 0; color: #444; background: none; border: 0; box-shadow: none; font-size: 0.8rem; text-decoration: underline; }
+.wm-dialog .auth-renew[hidden] { display: none; }
+.wm-icon { width: 56px; height: 56px; margin: 6px auto 14px; border-radius: 50%; }
+.wm-icon.wait { border: 4px solid #c4c4c4; border-top-color: #111; animation: wm-spin 0.9s linear infinite; }
+.wm-icon.ok { background: #1f7a3d url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.2 4.2L19 7'/%3E%3C/svg%3E") center / 30px no-repeat; }
+.wm-icon.err { background: #b42318 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 6v8M12 18v.01'/%3E%3C/svg%3E") center / 30px no-repeat; }
+@keyframes wm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .wm-icon.wait { animation: none; border-top-color: #c4c4c4; } }
+#wm-retry { margin-top: 6px; }
+/* On a phone the modal fills the screen, with the same elements and texts (guide). */
 @media (max-width: 640px) {
-  .qr-hint--desktop { display: none; }
-  .qr-hint--mobile { display: block; margin-top: 16px; }
-  .auth-cta #auth-link {
-    margin-top: 6px; padding: 13px 18px;
-    background: var(--accent); color: var(--on-accent);
-    border-radius: var(--r-sm); box-shadow: var(--shadow-btn);
-    font-size: 0.95rem;
-  }
-  .auth-cta #auth-link:hover { text-decoration: none; }
-  .auth-cta .qr img, .auth-cta .qr canvas { width: 176px !important; height: 176px !important; }
+  .wallet-modal { padding: 0; }
+  .wm-dialog { max-width: none; max-height: none; height: 100%; border-radius: 0; padding-top: 56px; }
 }
 
 /* ==== in-call identity banderole · raise hand · retractable files · collapsible result ==== */
@@ -1534,7 +1567,7 @@ body.link-down .schedule-actions { opacity: 0.55; }
 
 /* "Code erneuern" — unobtrusive but findable. It is only needed when the QR code leads
    nowhere, and should not overlay the normal case. */
-.auth-renew { margin-top: 12px; font-size: 0.85rem; }
+
 
 /* ---- media permission: a standing notice instead of a swallowed error ----
    The status line is no good for this: it is overwritten two lines later during connection

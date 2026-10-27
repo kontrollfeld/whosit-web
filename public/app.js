@@ -882,7 +882,7 @@ function calDescription(guestLink, hostLink) {
     t('Zum Beitreten diesen Link öffnen:'),
     guestLink,
     '',
-    t('Beide Seiten können sich vor dem Gespräch mit ihrer EUDI-Wallet (digitaler Personalausweis) ausweisen. Was geteilt wird, seht ihr vorher — und entscheidet selbst. Der Anruf läuft im Browser, Ende-zu-Ende verschlüsselt und direkt zwischen euren Geräten.'),
+    t('Beide Seiten können sich vor dem Gespräch mit ihrer EUDI-Wallet ausweisen. Was geteilt wird, seht ihr vorher — und entscheidet selbst. Der Anruf läuft im Browser, Ende-zu-Ende verschlüsselt und direkt zwischen euren Geräten.'),
   ];
   if (hostLink) {
     lines.push(
@@ -1247,7 +1247,11 @@ function handle(msg) {
       break;
     case 'invite-invalid': showInviteProblem(msg.reason, msg.opensAt, msg.startsAt); break;
     case 'auth': showAuth(msg); break;
-    case 'auth-failed': setStatus('Bestätigung fehlgeschlagen – bitte erneut scannen.'); break;
+    case 'auth-failed':
+      setStatus('Bestätigung fehlgeschlagen – bitte erneut scannen.');
+      if (walletModalCtx === 'auth') setWalletModalState('error');
+      break;
+    case 'auth-progress': if (walletModalCtx === 'auth' && msg.state === 'fetched') setWalletModalState('loading'); break;
     case 'status': renderStatus(msg); break;
     case 'ready': startCall(msg); break;
     case 'declined': onDeclined(); break;
@@ -1303,19 +1307,154 @@ function showAuth(msg) {
   // The server only sends 'auth' when this participant must present something, so
   // always render it (don't gate on a possibly-stale selfVerified flag).
   if (callStarted) return;
-  qrContainer.innerHTML = '';
   // Re-render rather than rely on the one call at startup: the card is shown again on renew and
   // for a second participant, and the locale may have changed in between.
   applyRelyingPartyDisclosure();
   // A freshly arrived offer makes the renew button usable again.
   if (authRenewBtn) authRenewBtn.disabled = false;
-  const qrData = msg.crossDeviceUri || msg.uri;
-  // eslint-disable-next-line no-undef
-  new QRCode(qrContainer, { text: qrData, width: 232, height: 232, correctLevel: QRCode.CorrectLevel.M });
-  authLink.href = msg.uri || qrData;
+  // Kept, not drawn: the QR code appears only in the wallet modal, after the person pressed the
+  // button (Touchpoint Design Guide: never start the wallet flow on their behalf). A new offer
+  // while the modal is open — renewed, or after a failure — replaces the old code in place.
+  authOffer = { uri: msg.uri, crossDeviceUri: msg.crossDeviceUri };
+  if (walletModalCtx === 'auth') {
+    renderWalletOffer(authOffer);
+    setWalletModalState('default');
+    wsSend({ type: 'auth-watch' });
+  }
 }
 
+// ---- wallet modal (Touchpoint Design Guide, d-you Wallet) ----
+// bmi.usercontent.opencode.de/eudi-wallet/developer-guide/rp/guide/touchpoint_design
+// One modal for both wallet requests: the identification before the call ('auth') and a
+// credential asked for during it ('cred'). Texts are the guide's; the error state is ours, because
+// the guide leaves failures to the Relying Party ("own the process").
+const walletModal = $('wallet-modal');
+const wmTitle = $('wm-title');
+const wmLive = $('wm-live');
+const wmDefault = $('wm-default');
+const wmStatus = $('wm-status');
+const wmStatusText = $('wm-status-text');
+const wmIcon = $('wm-icon');
+const wmRetry = $('wm-retry');
+const wmCopy = $('wm-copy');
+const dyouOpen = $('dyou-open');
+const walletAlt = $('wallet-alt');
+let authOffer = null;          // the latest identification offer { uri, crossDeviceUri }
+let credOffer = null;          // the latest in-call credential offer
+let walletModalCtx = null;     // null (closed) | 'auth' | 'cred'
+let walletModalOpener = null;  // focus returns here on close
+let walletModalCloseTimer = null;
+
+// The button's language follows the page; the asset exists in German and English only.
+const dyouLocale = () => (typeof i18nLocale === 'string' && i18nLocale === 'de' ? 'de' : 'en');
+function applyWalletButtons() {
+  for (const img of document.querySelectorAll('img.dyou-img')) {
+    img.src = `vendor/d-you/d-you-wallet_button_verify_${dyouLocale()}.svg`;
+    img.alt = dyouLocale() === 'de' ? 'Verifizieren mit d-you Wallet' : 'Verify with d-you Wallet';
+  }
+  for (const a of document.querySelectorAll('a[data-wallet-info]')) a.href = `https://eudi-wallet.gov.de/${dyouLocale()}`;
+}
+
+function renderWalletOffer(offer) {
+  qrContainer.innerHTML = '';
+  if (!offer) return;
+  const qrData = offer.crossDeviceUri || offer.uri;
+  // eslint-disable-next-line no-undef
+  new QRCode(qrContainer, { text: qrData, width: 232, height: 232, correctLevel: QRCode.CorrectLevel.M });
+  authLink.href = offer.uri || qrData;
+}
+
+const WALLET_STATES = {
+  default: { title: 'Jetzt verifizieren' },
+  loading: { title: 'Weiter in der d-you Wallet', text: 'Folge dort den angezeigten Schritten.', icon: 'wait' },
+  success: { title: 'Verifizierung erfolgreich!', text: 'Du wirst automatisch zurückgeleitet.', icon: 'ok' },
+  error: { title: 'Das hat nicht geklappt', text: 'Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.', icon: 'err' },
+};
+function setWalletModalState(state) {
+  const st = WALLET_STATES[state] || WALLET_STATES.default;
+  walletModal.dataset.state = state;
+  wmTitle.textContent = t(st.title);
+  wmDefault.hidden = state !== 'default';
+  wmStatus.hidden = state === 'default';
+  wmStatusText.textContent = st.text ? t(st.text) : '';
+  wmIcon.className = `wm-icon ${st.icon || ''}`;
+  wmRetry.hidden = state !== 'error' || walletModalCtx !== 'auth';
+  // Announced, not just shown: someone who scanned with a screen reader running learns here that
+  // the next step is on the phone.
+  wmLive.textContent = state === 'default' ? '' : `${t(st.title)} ${st.text ? t(st.text) : ''}`;
+}
+
+function openWalletModal(ctx, opener) {
+  const offer = ctx === 'cred' ? credOffer : authOffer;
+  if (!offer) return;
+  clearTimeout(walletModalCloseTimer);
+  walletModalCtx = ctx;
+  walletModalOpener = opener || document.activeElement;
+  applyWalletButtons();
+  renderWalletOffer(offer);
+  // Renewing exists for the identification only; a credential request is answered or declined.
+  if (authRenewBtn) authRenewBtn.hidden = ctx !== 'auth';
+  setWalletModalState('default');
+  walletModal.hidden = false;
+  document.body.classList.add('wm-open');
+  wmTitle.focus();
+  if (ctx === 'auth') wsSend({ type: 'auth-watch' });
+}
+
+function closeWalletModal() {
+  if (!walletModalCtx) return;
+  clearTimeout(walletModalCloseTimer);
+  walletModal.hidden = true;
+  document.body.classList.remove('wm-open');
+  walletModalCtx = null;
+  const back = walletModalOpener;
+  walletModalOpener = null;
+  if (back && document.contains(back) && !back.closest('[hidden]')) back.focus();
+}
+
+/** The wallet confirmed: say so, then return to the page by itself — as the guide's text promises. */
+function walletModalSucceeded(ctx) {
+  if (walletModalCtx !== ctx) return;
+  setWalletModalState('success');
+  walletModalCloseTimer = setTimeout(closeWalletModal, 1800);
+}
+
+if (dyouOpen) dyouOpen.addEventListener('click', () => openWalletModal('auth', dyouOpen));
+// Looked up here rather than through credDyouOpen, which is declared further down (in-call section).
+const credDyouBtn = $('cred-dyou-open');
+if (credDyouBtn) credDyouBtn.addEventListener('click', () => openWalletModal('cred', credDyouBtn));
+$('wm-close').addEventListener('click', closeWalletModal);
+walletModal.addEventListener('click', (e) => { if (e.target === walletModal) closeWalletModal(); });
+wmRetry.addEventListener('click', () => {
+  wmRetry.disabled = true;
+  wsSend({ type: 'renew-auth' });
+  setTimeout(() => { wmRetry.disabled = false; }, 4000);
+});
+wmCopy.addEventListener('click', async () => {
+  const offer = walletModalCtx === 'cred' ? credOffer : authOffer;
+  const link = offer && (offer.crossDeviceUri || offer.uri);
+  if (!link) return;
+  try { await navigator.clipboard.writeText(link); wmCopy.textContent = t('Link kopiert'); } catch { wmCopy.textContent = t('Kopieren nicht möglich'); }
+  setTimeout(() => { wmCopy.textContent = t('Link zum QR-Code kopieren'); }, 2500);
+});
+// Escape closes; Tab stays inside the dialog while it is open (Touchpoint Design Guide, accessibility).
+document.addEventListener('keydown', (e) => {
+  if (!walletModalCtx) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeWalletModal(); return; }
+  if (e.key !== 'Tab') return;
+  const focusable = [...walletModal.querySelectorAll('button, a[href], [tabindex]:not([tabindex="-1"])')]
+    .filter((el) => !el.closest('[hidden]') && !el.disabled);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && (document.activeElement === first || document.activeElement === wmTitle)) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+if (typeof i18nReady !== 'undefined') i18nReady.then(applyWalletButtons); else applyWalletButtons();
+
 function renderAuthCard(role, attrs, opts) {
+  // No wallet, no call — so the guest learns the way out before starting (Touchpoint Design
+  // Guide: offer another way). Only the inviting host can lift the requirement, hence guests only.
+  if (walletAlt) walletAlt.hidden = role !== 'callee' || !!(opts && opts.login);
   // Sign-in rather than disclosure: on an instance with a host gate this is the proof THAT you
   // may host — not the choice of WHAT you share. The label has to say so, otherwise people look
   // for a selection that does not exist.
@@ -1327,7 +1466,7 @@ function renderAuthCard(role, attrs, opts) {
   }
   if (role === 'caller') {
     authTitle.textContent = t('Eigene Daten freigeben');
-    authHint.innerHTML = t('Scanne mit deiner <strong>EUDI-Wallet</strong>, um diese Angaben zu teilen:');
+    authHint.innerHTML = t('Diese Angaben teilst du aus deiner <strong>Wallet</strong>:');
   } else {
     authTitle.textContent = t('Identität bestätigen');
     authHint.innerHTML = t('Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:');
@@ -1537,7 +1676,9 @@ function renderPeerBlocks(container, peers, renderInto, withNames) {
 
 function renderStatus(msg) {
   lastStatusMsg = msg;
+  const wasVerified = selfVerified;
   selfVerified = msg.self.verified;
+  if (selfVerified && !wasVerified) walletModalSucceeded('auth');
   if (msg.self.name) myName = msg.self.name;
   myRole = msg.self.role || myRole;
   mode = msg.mode || mode;
@@ -2258,8 +2399,7 @@ const credTitle = $('cred-title');
 const credHint = $('cred-hint');
 const credClaimsEl = $('cred-claims');
 const credAuthArea = $('cred-auth-area');
-const credAuthLink = $('cred-auth-link');
-const credQr = $('cred-qrcode');
+const credDyouOpen = $('cred-dyou-open');
 const credActions = $('cred-actions');
 const credAccept = $('cred-accept');
 const credDecline = $('cred-decline');
@@ -2334,13 +2474,15 @@ function showCredPrompt(msg) {
 function showCredAuth(msg) {
   if (!activeCredRequest || activeCredRequest.requestId !== msg.requestId) return;
   credActions.hidden = true;
-  credQr.innerHTML = '';
-  // eslint-disable-next-line no-undef
-  new QRCode(credQr, { text: msg.crossDeviceUri || msg.uri, width: 232, height: 232, correctLevel: QRCode.CorrectLevel.M });
-  credAuthLink.href = msg.uri || msg.crossDeviceUri;
+  credOffer = { uri: msg.uri, crossDeviceUri: msg.crossDeviceUri };
   credAuthArea.hidden = false;
+  // The person already chose "Teilen" — that was the button press, so the wallet modal follows.
+  openWalletModal('cred', credDyouOpen);
 }
-function closeCredModal() { credModal.hidden = true; activeCredRequest = null; }
+function closeCredModal() {
+  credModal.hidden = true; activeCredRequest = null; credOffer = null;
+  if (walletModalCtx === 'cred') closeWalletModal();
+}
 credAccept.addEventListener('click', () => {
   if (activeCredRequest) wsSend({ type: 'credential-accept', requestId: activeCredRequest.requestId });
   credAccept.disabled = true; credDecline.disabled = true;

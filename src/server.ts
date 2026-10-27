@@ -184,6 +184,44 @@ async function verifierStatusRound(): Promise<void> {
  *
  * The old offer is therefore discarded rather than reused.
  */
+/**
+ * "Weiter in der d-you Wallet" — the loading state of the touchpoint design guide
+ * (bmi.usercontent.opencode.de/eudi-wallet/developer-guide/rp/guide/touchpoint_design).
+ *
+ * The webhook only tells us the END of a presentation. That a wallet has scanned the code and
+ * fetched the request is visible only as the session's status at EUDIPLO (`active` → `fetched`).
+ * So while the participant has the wallet modal open — and only then — that status is polled,
+ * every two seconds, for at most ten minutes, and `auth-progress` is sent once it reads `fetched`.
+ *
+ * Read-only and best effort: a failed lookup ends the watch and the modal simply stays in its
+ * default state, which is what it showed before this existed. Ends by itself on a new offer,
+ * on success, on a closed socket and on any final status.
+ */
+const walletWatches = new WeakMap<Participant, ReturnType<typeof setInterval>>();
+function watchWalletFetch(participant: Participant): void {
+  if (VERIFIER_OFF || walletWatches.has(participant) || !participant.verifierSessionId) return;
+  const sessionId = participant.verifierSessionId;
+  const until = Date.now() + 10 * 60_000;
+  let busy = false;
+  const stop = () => { clearInterval(timer); walletWatches.delete(participant); };
+  const timer = setInterval(async () => {
+    if (busy) return;
+    if (participant.verified || participant.ws.readyState !== participant.ws.OPEN
+      || participant.verifierSessionId !== sessionId || Date.now() > until) return stop();
+    busy = true;
+    try {
+      const status = (await verifierGet(`/api/session/${encodeURIComponent(sessionId)}`))?.status;
+      if (status === 'fetched') { send(participant.ws, { type: 'auth-progress', state: 'fetched' }); stop(); }
+      else if (status && status !== 'active') stop();
+    } catch {
+      stop();
+    } finally {
+      busy = false;
+    }
+  }, 2000);
+  walletWatches.set(participant, timer);
+}
+
 async function reissueAuthOffer(participant: Participant, room: Room, origin: string): Promise<void> {
   participant.offer = undefined;
   participant.pendingBinding = undefined;
@@ -1505,6 +1543,14 @@ wss.on('connection', (ws, request) => {
     // "Renew code" — the case the server cannot detect: the wallet consumed the offer,
     // EUDIPLO rejects it, and the server is not told. Without this path the only remedy
     // would be reloading the page.
+    // The wallet modal is open: tell the participant when their wallet has fetched the request,
+    // so the modal can switch to "Weiter in der d-you Wallet" (see watchWalletFetch).
+    if (msg.type === 'auth-watch') {
+      const hit = ext.roomStore.findByWs(ws);
+      if (!hit || hit.participant.verified) return;
+      watchWalletFetch(hit.participant);
+      return;
+    }
     if (msg.type === 'renew-auth') {
       const hit = ext.roomStore.findByWs(ws);
       if (!hit || hit.participant.verified) return;
