@@ -68,6 +68,14 @@ path = "assets/pass/**"
 SPDX-FileCopyrightText = "Apple Inc."
 SPDX-License-Identifier = "LicenseRef-Apple-WWDR-Certificate"
 
+# The d-you Wallet button (German EUDI wallet), unmodified from the asset package of the EUDI
+# Wallet developer guide, which is CC BY 4.0 (gitlab.opencode.de/bmi/eudi-wallet/developer-guide,
+# LICENSE). The licence covers the files, not the "d-you" name or logo as a trademark.
+[[annotations]]
+path = "public/vendor/d-you/*.svg"
+SPDX-FileCopyrightText = "2025 Bundesministerium für Digitales und Staatsmodernisierung"
+SPDX-License-Identifier = "CC-BY-4.0"
+
 # Documentation and community files. Markdown could only carry the tags as HTML comments, which
 # would sit at the very top of the rendered README — recorded here instead so the information stays
 # in one place.

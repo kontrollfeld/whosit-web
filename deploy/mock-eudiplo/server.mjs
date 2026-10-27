@@ -157,7 +157,11 @@ const server = http.createServer(async (req, res) => {
   const sess = p.match(/^\/api\/session\/([0-9a-f-]+)$/i);
   if (sess && req.method === 'GET') {
     const row = sessions.get(sess[1]);
-    return row ? json(res, 200, row) : json(res, 404, { error: 'session not found' });
+    if (row) return json(res, 200, row);
+    // An offer nobody has presented to yet: `active`, or `fetched` once the mock wallet page
+    // was opened — the status the app watches for the modal's "Weiter in der d-you Wallet".
+    const offen = offers.get(sess[1]);
+    return offen ? json(res, 200, { id: sess[1], status: offen.fetched ? 'fetched' : 'active' }) : json(res, 404, { error: 'session not found' });
   }
   if (sess && req.method === 'DELETE') {
     // EUDIPLO answers 204 either way — it does not check existence, so a repeated purge is
@@ -175,6 +179,7 @@ const server = http.createServer(async (req, res) => {
     const id = sim[1];
     const offer = offers.get(id);
     if (!offer) return html(res, 404, '<p>Unbekanntes/abgelaufenes Angebot.</p>');
+    offer.fetched = true;
 
     // In-call catalog credential (config id "cred_…"): render a GENERIC claim form from
     // the registered DCQL, so e.g. the example catalog credential works end-to-end on localhost.
