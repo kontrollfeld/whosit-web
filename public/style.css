@@ -417,6 +417,8 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   margin: -4px 0 16px;
 }
 .restart:hover:not(:disabled) { background: var(--accent-soft); transform: none; filter: none; }
+.back-to-app { display: block; margin: -4px auto 16px; }
+.back-to-app[hidden] { display: none; }
 
 /* ---- QR / auth ---- */
 .qr {

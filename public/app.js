@@ -2868,6 +2868,19 @@ function showWalletDone() {
   // Nobody is "in" anything here — no participant chips either.
   const ids = selfChip && selfChip.closest('section, .card');
   if (ids) ids.hidden = true;
+  // The call runs in the whosit app on this phone (app=1, set by the server for app clients), but
+  // iOS handed the return link to the browser: the association file is not on the phone yet, or
+  // "open in browser" was chosen once. The app's own scheme always reaches it; the app reads
+  // whosit://open/zurueck?r= like the https link (openRoomUrl) and stays in its call.
+  const backBtn = $('back-to-app');
+  if (backBtn && params.get('app') === '1' && !isNativeApp() && roomId) {
+    const appUrl = `whosit://open/zurueck?r=${encodeURIComponent(roomId)}`;
+    backBtn.hidden = false;
+    backBtn.addEventListener('click', () => { location.href = appUrl; });
+    // Try once by itself — "Du wirst automatisch zurückgeleitet" (touchpoint guide). Browsers may
+    // ask first or refuse without a tap; the button stays for that.
+    setTimeout(() => { location.href = appUrl; }, 400);
+  }
 }
 function hangUp() { if (ended) return; ended = true; wsSend({ type: 'hangup' }); teardownCall(); showEnded('Du hast aufgelegt.'); }
 

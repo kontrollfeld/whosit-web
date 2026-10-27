@@ -252,8 +252,12 @@ async function reissueAuthOffer(participant: Participant, room: Room, origin: st
  * "done, continue on the other device". `/?room=` would open the whosit app as a universal link
  * and join it as a second participant (see public/app.js, backFromWallet).
  */
-function walletReturnUrl(origin: string, roomId: string): string {
-  return `${origin}/zurueck?r=${encodeURIComponent(roomId)}`;
+function walletReturnUrl(origin: string, roomId: string, ws?: WebSocket): string {
+  // `app=1`: the offer was made for the whosit app. When iOS opens the return link in the
+  // browser anyway (association file not yet on the phone, or "open in browser" chosen once),
+  // the page offers whosit://open/zurueck to get back into the app — see showWalletDone.
+  const app = ws && appSockets.has(ws) ? '&app=1' : '';
+  return `${origin}/zurueck?r=${encodeURIComponent(roomId)}${app}`;
 }
 
 async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<void> {
@@ -271,7 +275,7 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   await ensureVerifierConfig(requestId, dcql, 'pid');
   console.log(`[eudiplo] offer ${participant.role} attrs=[${attrs.join(',')}] profiles=[${profiles.map((p) => p.id).join(',')}]`);
   const webhookUrl = `${origin}/webhook/${participant.sessionId}?t=${participant.webhookToken}`;
-  const redirectUri = roomId ? walletReturnUrl(origin, roomId) : undefined;
+  const redirectUri = roomId ? walletReturnUrl(origin, roomId, participant.ws) : undefined;
   // Channel binding: only when the client reported a fingerprint AND the active profiles
   // support the check. Both must hold — see ./channel-binding.
   const txData = bindingFor(participant, profiles, roomId);
@@ -331,7 +335,7 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
   await ensureVerifierConfig(requestId, buildCatalogDcql(c), 'catalog');
   console.log(`[eudiplo] in-call offer ${c.id} for ${r.target.role} (${r.target.clientId.slice(0, 8)})`);
   const webhookUrl = `${origin}/webhook/${r.sessionId}?t=${r.webhookToken}`;
-  const redirectUri = roomId ? walletReturnUrl(origin, roomId) : undefined;
+  const redirectUri = roomId ? walletReturnUrl(origin, roomId, r.target.ws) : undefined;
   r.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
   r.verifierSessionId = r.offer.sessionId;
 }
@@ -1241,6 +1245,8 @@ const MAX_WS_MESSAGE = 256 * 1024; // SDP/ICE are small; bound frame size agains
 // allowed ADDITIVELY via EUDI_APP_ORIGINS (set to "" to refuse app clients).
 const APP_ORIGINS = (process.env.EUDI_APP_ORIGINS ?? 'capacitor://localhost,https://localhost,ionic://localhost')
   .split(',').map((s) => s.trim()).filter(Boolean);
+// Connections from the native app (Origin in APP_ORIGINS) — see walletReturnUrl.
+const appSockets = new WeakSet<WebSocket>();
 function wsOriginAllowed(req: http.IncomingMessage): boolean {
   const origin = req.headers.origin;
   if (!origin) return true; // non-browser client (no Origin header)
@@ -1458,6 +1464,7 @@ function maybeConnectOpen(room: Room): void {
 
 wss.on('connection', (ws, request) => {
   const origin = publicOriginFrom(request);
+  if (request.headers.origin && APP_ORIGINS.includes(request.headers.origin)) appSockets.add(ws);
 
   // Freshly connected counts as alive; every pong confirms it again (see HEARTBEAT_MS).
   wsAlive.add(ws);

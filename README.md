@@ -350,6 +350,13 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
   the call in the app and the wallet on the same phone, the app comes back to the front and stays in
   its call. An app that is in another room or none shows the same "done" message
   (`index.html?zurueck=1&r=…`, see `openRoomUrl`).
+  **When iOS opens the browser anyway** — the phone has not fetched the new association file yet
+  (it does so on app install/update, from Apple's CDN), or "open in browser" was chosen once for the
+  domain — the app link does nothing. For that, offers made for an app client (WebSocket Origin in
+  `EUDI_APP_ORIGINS`) carry `&app=1`; the "done" page then tries `whosit://open/zurueck?r=…` once by
+  itself and shows "Zurück zur whosit-App". The app parses that like the https link (same path,
+  same `r`), so every app build since 26 handles it. A link opened from the browser's address bar
+  never opens an app — test app links from Notes or Messages.
 - The same modal serves the in-call credential request (Pro), without the loading state.
 - **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
 
