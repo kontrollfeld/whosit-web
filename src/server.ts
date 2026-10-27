@@ -244,6 +244,18 @@ async function reissueAuthOffer(participant: Participant, room: Room, origin: st
 // Create the EUDIPLO presentation offer a participant needs to present `attrs`.
 // The active credential profiles decide the DCQL query (mdoc and/or SD-JWT etc.) and the
 // trust framework; multiple profiles → one offer the wallet can satisfy in any format.
+/**
+ * Where the wallet sends its browser after a presentation: `/zurueck?r=`, not the room itself.
+ * `r`, not `room`: Android opens the app for any link on the domain, and an app bundle that
+ * predates this would read `room` and join.
+ * The client goes back into the room only if that browser already sits in it; otherwise it says
+ * "done, continue on the other device". `/?room=` would open the whosit app as a universal link
+ * and join it as a second participant (see public/app.js, backFromWallet).
+ */
+function walletReturnUrl(origin: string, roomId: string): string {
+  return `${origin}/zurueck?r=${encodeURIComponent(roomId)}`;
+}
+
 async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<void> {
   // Last line of defence before a wallet request is built. `attrs` normally arrived via
   // applyPolicy() and is already in scope — but a Pro RoomStore may hand back a room
@@ -259,7 +271,7 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   await ensureVerifierConfig(requestId, dcql, 'pid');
   console.log(`[eudiplo] offer ${participant.role} attrs=[${attrs.join(',')}] profiles=[${profiles.map((p) => p.id).join(',')}]`);
   const webhookUrl = `${origin}/webhook/${participant.sessionId}?t=${participant.webhookToken}`;
-  const redirectUri = roomId ? `${origin}/?room=${encodeURIComponent(roomId)}` : undefined;
+  const redirectUri = roomId ? walletReturnUrl(origin, roomId) : undefined;
   // Channel binding: only when the client reported a fingerprint AND the active profiles
   // support the check. Both must hold — see ./channel-binding.
   const txData = bindingFor(participant, profiles, roomId);
@@ -319,7 +331,7 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
   await ensureVerifierConfig(requestId, buildCatalogDcql(c), 'catalog');
   console.log(`[eudiplo] in-call offer ${c.id} for ${r.target.role} (${r.target.clientId.slice(0, 8)})`);
   const webhookUrl = `${origin}/webhook/${r.sessionId}?t=${r.webhookToken}`;
-  const redirectUri = roomId ? `${origin}/?room=${encodeURIComponent(roomId)}` : undefined;
+  const redirectUri = roomId ? walletReturnUrl(origin, roomId) : undefined;
   r.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
   r.verifierSessionId = r.offer.sessionId;
 }
@@ -609,6 +621,13 @@ app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
     console.error('[wallet-pass] build failed:', (e as Error).message);
     res.status(500).json({ error: 'pass generation failed' });
   }
+});
+
+// The wallet's way back (walletReturnUrl): the app itself, which decides on the client whether this
+// browser rejoins the room or just says "done". Never an operator's start page.
+app.get('/zurueck', (_req, res) => {
+  if (BRANDING) return sendBranded(res, 'index.html');
+  res.set('Cache-Control', 'no-cache').sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 // Must be registered BEFORE express.static: the query fork below decides what "/" means, and

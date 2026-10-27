@@ -619,8 +619,10 @@ const inviteCfg = inviteToken ? parseInviteCfg(inviteToken) : null;
 // (see startPairedSigner below and the module's client/paired-signer.js).
 const pairToken = params.get('pair');
 
-let roomId = inviteCfg ? inviteCfg.room : params.get('room');
-if (!roomId && !inviteToken && !pairToken) {
+// Back from the wallet — see backFromWallet below. Read here so that no fresh room is made up for it.
+const backFromWallet = location.pathname === '/zurueck';
+let roomId = inviteCfg ? inviteCfg.room : (params.get('room') || (backFromWallet ? params.get('r') : null));
+if (!roomId && !inviteToken && !pairToken && !backFromWallet) {
   roomId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
   params.delete('new'); // entry flag from a start page's CTA — not part of the room URL
   params.set('room', roomId);
@@ -649,8 +651,34 @@ const staffToken = (function () {
   try { return (store && store.getItem(key)) || null; } catch { return null; }
 })();
 
-// Only NOW, because the identifier is tied to the room (see stableClientId).
-const clientId = stableClientId(roomId);
+/**
+ * Back from the wallet: the verifier sends the wallet's browser to /zurueck?r=… after a
+ * presentation (redirectUri in src/server.ts, ensureAuthOffer).
+ *
+ * WHY NOT STRAIGHT INTO THE ROOM, as it was until 2026-10-27: on a phone the wallet opened
+ * `/?room=…`, and with the whosit app installed that is a universal link — the app opened and
+ * joined the room as a NEW participant. Someone who had scanned the code on their computer found
+ * their phone sitting in their own call as the guest, asked to identify again.
+ *
+ * So: this browser already holds a seat in the room (the call runs here, same device) → back into
+ * it, exactly as before. It does not (the call runs on another device or in the app) → say that it
+ * worked and where to continue, and do not join. `/zurueck` is not one of the app's link paths
+ * (.well-known/apple-app-site-association, assetlinks.json), so the app is never opened for it.
+ */
+//
+// The parameter is `r`, not `room`, on purpose: Android opens the app for EVERY link on the
+// domain, and an app whose bundle predates this would otherwise read `room` and join as a guest.
+const hasSeatHere = backFromWallet && !!roomId && (() => {
+  const key = 'eudi_clientId_' + roomId;
+  try { if (localStorage.getItem(key)) return true; } catch {}
+  try { return !!sessionStorage.getItem(key); } catch { return false; }
+})();
+const walletDoneElsewhere = backFromWallet && !hasSeatHere;
+if (hasSeatHere) history.replaceState(null, '', `/?room=${encodeURIComponent(roomId)}`);
+
+// Only NOW, because the identifier is tied to the room (see stableClientId). Not created at all
+// on the "done, go back" page: a stored id would make a reload of it join the room after all.
+const clientId = walletDoneElsewhere ? null : stableClientId(roomId);
 
 // Invite links must always point at the server, not at the app bundle's local origin.
 function linkFor(query) {
@@ -2829,6 +2857,17 @@ function showEnded(message) {
   restartBtn.hidden = false;
   postToParent('ended', {});
 }
+/** The wallet came back to a browser that is not in the call — see backFromWallet. */
+function showWalletDone() {
+  ended = true;
+  showEnded('Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.');
+  // A new call is not what this person came for.
+  restartBtn.hidden = true;
+  if (stepperEl) stepperEl.hidden = true;
+  // Nobody is "in" anything here — no participant chips either.
+  const ids = selfChip && selfChip.closest('section, .card');
+  if (ids) ids.hidden = true;
+}
 function hangUp() { if (ended) return; ended = true; wsSend({ type: 'hangup' }); teardownCall(); showEnded('Du hast aufgelegt.'); }
 
 /**
@@ -3348,6 +3387,7 @@ restartBtn.addEventListener('click', startFreshCall);
 // roomId derivation above would silently create a FRESH ad-hoc room, and the invitee would stand
 // there as host in an empty call.
 if (pairToken) startPairedSigner(pairToken);
+else if (walletDoneElsewhere) showWalletDone();
 else if (inviteToken && !inviteCfg) showInviteProblem('malformed');
 else connect();
 // Warm up the ICE configuration and then check ONCE whether this network can carry a call at all.

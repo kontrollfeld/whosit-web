@@ -341,6 +341,12 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
   minutes) until it reads `fetched`. A failed lookup simply leaves the modal in its default state.
 - **Accessibility:** focus moves into the modal and back, Tab stays inside, Escape closes, state
   changes are announced (`aria-live`).
+- **The way back from the wallet** is `/zurueck?r=<room>`, not the room link. If that browser already
+  sits in the room (same device), it goes back into it; otherwise it only says "done, continue on the
+  other device or in the app" and joins nothing. Until 2026-10-27 the wallet opened `/?room=…`: with
+  the whosit app installed that is a universal link, and the app joined the caller's own room as the
+  guest. `/zurueck` is no app link path on iOS, and `r` (not `room`) is ignored by app bundles on
+  Android, which opens the app for every path on the domain.
 - The same modal serves the in-call credential request (Pro), without the loading state.
 - **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
 

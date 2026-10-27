@@ -519,7 +519,8 @@
     "Du wirst automatisch zurückgeleitet.": "You will be redirected automatically.",
     "Das hat nicht geklappt": "That did not work",
     "Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.": "The wallet did not complete the request. With a new code you can try again.",
-    "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "You share these details from your <strong>wallet</strong>:"
+    "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "You share these details from your <strong>wallet</strong>:",
+    "Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.": "You are identified. Continue with the call: on your other device or in the whosit app. You can close this window."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1041,6 +1042,7 @@
     "Du wirst automatisch zurückgeleitet.": "Tu seras redirigé·e automatiquement.",
     "Das hat nicht geklappt": "Cela n’a pas fonctionné",
     "Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.": "Le portefeuille n’a pas terminé la demande. Avec un nouveau code, tu peux réessayer.",
-    "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "Tu partages ces informations depuis ton <strong>portefeuille</strong> :"
+    "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "Tu partages ces informations depuis ton <strong>portefeuille</strong> :",
+    "Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.": "Ton identité est vérifiée. Poursuis l’appel : sur ton autre appareil ou dans l’application whosit. Tu peux fermer cette fenêtre."
   }
 }

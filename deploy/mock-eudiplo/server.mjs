@@ -144,7 +144,7 @@ const server = http.createServer(async (req, res) => {
     if (!webhook) return json(res, 400, { error: 'missing webhook.url' });
     if (!webhookAllowed(webhook)) return json(res, 400, { error: 'webhook.url not allowed: must be /webhook/… on an allowed origin (see WEBHOOK_ORIGINS)' });
     const id = randomUUID();
-    offers.set(id, { webhook, requestId: body?.requestId });
+    offers.set(id, { webhook, requestId: body?.requestId, redirectUri: body?.redirectUri });
     const uri = `${SELF_URL}/simulate/${id}`;
     console.log(`[mock] offer ${id} (config ${body?.requestId}) → webhook ${webhook}`);
     // `session` is what EUDIPLO 8 returns (OfferResponse) and what the app needs in order to
@@ -298,6 +298,10 @@ small{color:#5d6b85}</style>
       return html(res, 502, '<p>Webhook unreachable. Is the app running, and is PUBLIC_URL correct?</p>');
     }
     offers.delete(id); // one-shot
+    // Like a real wallet after direct_post: follow the verifier's redirect_uri. That is the path
+    // that decides between "back into the call" and "done, continue on the other device"
+    // (public/app.js, backFromWallet) — a mock that never took it would leave it untested.
+    if (offer.redirectUri) { res.writeHead(303, { Location: offer.redirectUri }); return res.end(); }
     return html(res, 200, `<!doctype html><meta charset=utf-8><style>body{font:16px/1.5 system-ui;max-width:22rem;margin:12vh auto;text-align:center;color:#1b2433}</style>
 <h2>✓ Verified as ${escapeHtml(given_name)} ${escapeHtml(family_name)}</h2><p>You can return to the other tab — the call connects as soon as both sides have confirmed.</p>`);
   }
