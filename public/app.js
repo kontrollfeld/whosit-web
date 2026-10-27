@@ -654,7 +654,8 @@ const staffToken = (function () {
 
 /**
  * Back from the wallet: the verifier sends the wallet's browser to /zurueck?r=… after a
- * presentation (redirectUri in src/server.ts, ensureAuthOffer).
+ * presentation, or to /?room=…&zurueck=1 when the offer was made for the app (walletReturnUrl in
+ * src/server.ts).
  *
  * WHY NOT STRAIGHT INTO THE ROOM, as it was until 2026-10-27: on a phone the wallet opened
  * `/?room=…`, and with the whosit app installed that is a universal link — the app opened and
@@ -663,8 +664,8 @@ const staffToken = (function () {
  *
  * So: this browser already holds a seat in the room (the call runs here, same device) → back into
  * it, exactly as before. It does not (the call runs on another device or in the app) → say that it
- * worked and where to continue, and do not join. `/zurueck` is not one of the app's link paths
- * (.well-known/apple-app-site-association, assetlinks.json), so the app is never opened for it.
+ * worked and where to continue, and do not join. The app itself, when a link brings it to the
+ * front, only stays in its call or shows the same message (openRoomUrl) — it never joins for it.
  */
 //
 // The parameter is `r`, not `room`, on purpose: Android opens the app for EVERY link on the
@@ -3500,9 +3501,10 @@ function startPairedSigner(token) {
         // Back from the wallet (/zurueck?r=…, see backFromWallet). In this room already: nothing
         // to do — the app is in front again, which is the whole point. Anywhere else, and not in
         // a call: say "done" rather than leave a fresh room on screen. Never join.
+        // The app's own offers return as /?room=…&zurueck=1 (see walletReturnUrl) — same handling.
         const u = new URL(url);
-        if (u.pathname === '/zurueck') {
-          const r = u.searchParams.get('r');
+        if (u.pathname === '/zurueck' || u.searchParams.get('zurueck') === '1') {
+          const r = u.searchParams.get('r') || u.searchParams.get('room');
           if (r && r !== roomId && !callStarted) location.href = `index.html?zurueck=1&r=${encodeURIComponent(r)}`;
           return;
         }

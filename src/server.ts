@@ -245,19 +245,22 @@ async function reissueAuthOffer(participant: Participant, room: Room, origin: st
 // The active credential profiles decide the DCQL query (mdoc and/or SD-JWT etc.) and the
 // trust framework; multiple profiles → one offer the wallet can satisfy in any format.
 /**
- * Where the wallet sends its browser after a presentation: `/zurueck?r=`, not the room itself.
- * `r`, not `room`: Android opens the app for any link on the domain, and an app bundle that
- * predates this would read `room` and join.
- * The client goes back into the room only if that browser already sits in it; otherwise it says
- * "done, continue on the other device". `/?room=` would open the whosit app as a universal link
- * and join it as a second participant (see public/app.js, backFromWallet).
+ * Where the wallet sends its browser after a presentation. Never the bare room link: a phone that
+ * scanned the code shown on a computer would open the whosit app with it and join the caller's own
+ * room as the guest (see public/app.js, backFromWallet).
+ *
+ * - Offer for a browser: `/zurueck?r=`. `r`, not `room`: Android opens the app for any link on the
+ *   domain, and an app bundle that predates this would read `room` and join.
+ * - Offer for the whosit app: `/?room=…&zurueck=1&app=1`. The app link that has always reached the
+ *   app — on a real iPhone (2026-10-27) `/zurueck` kept opening the browser even after a reinstall,
+ *   `/?room=` opened the app. The app sits in that very room, so it only comes to the front;
+ *   `zurueck=1` keeps any browser that gets the link from joining. `app=1`: should iOS hand it to
+ *   the browser after all, that page offers whosit://open/zurueck — see showWalletDone.
  */
 function walletReturnUrl(origin: string, roomId: string, ws?: WebSocket): string {
-  // `app=1`: the offer was made for the whosit app. When iOS opens the return link in the
-  // browser anyway (association file not yet on the phone, or "open in browser" chosen once),
-  // the page offers whosit://open/zurueck to get back into the app — see showWalletDone.
-  const app = ws && appSockets.has(ws) ? '&app=1' : '';
-  return `${origin}/zurueck?r=${encodeURIComponent(roomId)}${app}`;
+  const room = encodeURIComponent(roomId);
+  if (ws && appSockets.has(ws)) return `${origin}/?room=${room}&zurueck=1&app=1`;
+  return `${origin}/zurueck?r=${room}`;
 }
 
 async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<void> {
