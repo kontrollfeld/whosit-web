@@ -620,7 +620,8 @@ const inviteCfg = inviteToken ? parseInviteCfg(inviteToken) : null;
 const pairToken = params.get('pair');
 
 // Back from the wallet — see backFromWallet below. Read here so that no fresh room is made up for it.
-const backFromWallet = location.pathname === '/zurueck';
+// In the app the bundle has no /zurueck path; openRoomUrl hands it over as ?zurueck=1&r=… instead.
+const backFromWallet = location.pathname === '/zurueck' || params.get('zurueck') === '1';
 let roomId = inviteCfg ? inviteCfg.room : (params.get('room') || (backFromWallet ? params.get('r') : null));
 if (!roomId && !inviteToken && !pairToken && !backFromWallet) {
   roomId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
@@ -3483,6 +3484,15 @@ function startPairedSigner(token) {
         // when the universal link opened Safari instead) — same parameter either way.
         const pair = new URL(url).searchParams.get('pair');
         if (pair) { if (pair !== pairToken) location.href = `index.html?pair=${encodeURIComponent(pair)}`; return; }
+        // Back from the wallet (/zurueck?r=…, see backFromWallet). In this room already: nothing
+        // to do — the app is in front again, which is the whole point. Anywhere else, and not in
+        // a call: say "done" rather than leave a fresh room on screen. Never join.
+        const u = new URL(url);
+        if (u.pathname === '/zurueck') {
+          const r = u.searchParams.get('r');
+          if (r && r !== roomId && !callStarted) location.href = `index.html?zurueck=1&r=${encodeURIComponent(r)}`;
+          return;
+        }
         const target = new URL(url).searchParams.get('room');
         if (target && target !== roomId) location.href = `index.html?room=${encodeURIComponent(target)}`;
       } catch { /* not a room link — ignore */ }
