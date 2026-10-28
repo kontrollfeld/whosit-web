@@ -516,6 +516,8 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
    any text there would be unreadable. A shared screen as well — it is not a mirror image but
    a document. */
 .tile[data-peer="self"] video { transform: scaleX(-1); }
+/* …except while a background with writing on it is on (logo, own picture): see renderBgPickers. */
+body.bg-unmirror .tile[data-peer="self"] video, body.bg-unmirror #mc-video { transform: none; }
 /* One-to-one (.duo, set in applyStage): the other person fills the stage, your own picture
    floats small in the top corner. A shared screen still gets the full stage via stage-mode. */
 .videos.duo { display: block; position: relative; }
@@ -1841,4 +1843,31 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
   padding: 8px 8px 8px 16px; box-shadow: var(--shadow); font-size: 0.9rem;
 }
 .muted-hint[hidden] { display: none; }
+
+/* Background effects: the same tile picker in the device check and above the call controls. */
+.bg-row { display: grid; gap: 6px; }
+.bg-row[hidden] { display: none; }
+.bg-row-label { font-size: 0.86rem; color: var(--text-muted); }
+.bg-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.bg-tile {
+  width: 56px; height: 40px; min-height: 0; padding: 0; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12)) center / cover no-repeat;
+  border: 2px solid var(--border); color: var(--text-muted); box-shadow: none;
+}
+.bg-tile svg { width: 20px; height: 20px; }
+.bg-tile:hover { border-color: var(--accent); }
+.bg-tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--text); }
+.bg-tile.is-busy { animation: bg-busy 1s ease-in-out infinite alternate; }
+@keyframes bg-busy { to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .bg-tile.is-busy { animation: none; opacity: 0.6; } }
+.bg-status { margin: 6px 0 0; font-size: 0.82rem; }
+.bg-status[hidden] { display: none; }
+.bg-pop {
+  position: fixed; z-index: 22; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 32px);
+  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + 76px);
+  padding: 12px; margin: 0; box-shadow: var(--shadow);
+}
+.bg-pop[hidden] { display: none; }
 .muted-hint button { min-height: 34px; padding: 6px 14px; font-size: 0.85rem; }

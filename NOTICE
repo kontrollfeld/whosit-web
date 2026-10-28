@@ -23,6 +23,12 @@ pdf.js — rendering shared PDFs in the in-call document viewer
   Licence:   Apache License 2.0  ·  Text: public/vendor/pdfjs/LICENSE
   Upstream:  https://github.com/mozilla/pdf.js
 
+MediaPipe Tasks Vision 0.10.35 + selfie segmenter model — background blur/replacement
+  Copyright: The MediaPipe Authors (Google LLC)
+  Licence:   Apache License 2.0  ·  Text: public/vendor/mediapipe/LICENSE
+  Upstream:  https://github.com/google-ai-edge/mediapipe
+  Runs entirely on the device; this version sends no usage metrics.
+
 PKI.js — CMS/PAdES signature creation and verification in the signing ceremony
   Copyright: (c) 2014 GlobalSign; (c) 2015-2019 Peculiar Ventures
              Author 2014-2019, Yury Strozhevsky

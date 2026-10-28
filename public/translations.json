@@ -584,7 +584,19 @@
     "Gastgeber:in ist da": "Your host is here",
     "Dein Gast ist da": "Your guest is here",
     "Ein weiterer Gast ist da": "Another guest is here",
-    "Zum Anruf wechseln": "Switch to the call"
+    "Zum Anruf wechseln": "Switch to the call",
+    "Hintergrund": "Background",
+    "Kein Effekt": "No effect",
+    "Weichzeichnen": "Blur",
+    "Nachtblau": "Night blue",
+    "Hell": "Light",
+    "Lichter": "Lights",
+    "Grün": "Green",
+    "Eigenes Bild": "Your own picture",
+    "Anderes Bild wählen": "Choose another picture",
+    "Hintergrund wird vorbereitet …": "Preparing background …",
+    "Hintergrund-Effekte sind auf diesem Gerät nicht verfügbar.": "Background effects are not available on this device.",
+    "Das Bild konnte nicht geladen werden.": "The picture could not be loaded."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1171,6 +1183,18 @@
     "Gastgeber:in ist da": "Votre hôte est là",
     "Dein Gast ist da": "Votre invité est là",
     "Ein weiterer Gast ist da": "Un autre invité est là",
-    "Zum Anruf wechseln": "Revenir à l’appel"
+    "Zum Anruf wechseln": "Revenir à l’appel",
+    "Hintergrund": "Arrière-plan",
+    "Kein Effekt": "Aucun effet",
+    "Weichzeichnen": "Flouter",
+    "Nachtblau": "Bleu nuit",
+    "Hell": "Clair",
+    "Lichter": "Lumières",
+    "Grün": "Vert",
+    "Eigenes Bild": "Votre propre image",
+    "Anderes Bild wählen": "Choisir une autre image",
+    "Hintergrund wird vorbereitet …": "Préparation de l'arrière-plan …",
+    "Hintergrund-Effekte sind auf diesem Gerät nicht verfügbar.": "Les effets d'arrière-plan ne sont pas disponibles sur cet appareil.",
+    "Das Bild konnte nicht geladen werden.": "L'image n'a pas pu être chargée."
   }
 }

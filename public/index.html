@@ -351,6 +351,10 @@
           <label><span data-i18n>Mikrofon</span><select id="mc-mic"></select></label>
           <label id="mc-spk-row" hidden><span data-i18n>Lautsprecher</span><select id="mc-spk"></select></label>
         </div>
+        <div id="mc-bg-row" class="bg-row" hidden>
+          <span class="bg-row-label" data-i18n>Hintergrund</span>
+          <div class="bg-picker" data-bg-picker></div>
+        </div>
         <button type="button" id="mc-tone" class="ghost mc-tone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>
           <span data-i18n>Testton abspielen</span>
@@ -619,6 +623,10 @@
       <span data-i18n>Du bist stummgeschaltet.</span>
       <button type="button" id="muted-hint-btn" data-i18n>Mikrofon einschalten</button>
     </div>
+    <div id="bg-pop" class="bg-pop card" hidden role="group" aria-label="Hintergrund" data-i18n-attr="aria-label">
+      <div class="bg-picker" data-bg-picker></div>
+    </div>
+    <input id="bg-file" type="file" accept="image/*" hidden />
     <div id="call-controls" class="call-controls" hidden>
       <button id="credreq-btn" class="ghost" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
@@ -631,6 +639,10 @@
       <button id="cam-btn" class="ghost" hidden aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
         <span id="cam-label" data-i18n>Kamera</span>
+      </button>
+      <button id="bg-btn" class="ghost" hidden aria-haspopup="true" aria-controls="bg-pop" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="3.2"/><path d="M6 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        <span data-i18n>Hintergrund</span>
       </button>
       <button id="hand-btn" class="ghost" hidden aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>

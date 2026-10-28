@@ -52,6 +52,11 @@ SPDX-FileCopyrightText = "Mozilla Foundation and contributors"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
+path = "public/vendor/mediapipe/**"
+SPDX-FileCopyrightText = "The MediaPipe Authors (Google LLC)"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
 path = "public/vendor/pkijs/**"
 SPDX-FileCopyrightText = "2014 GlobalSign, 2015-2019 Peculiar Ventures"
 SPDX-License-Identifier = "BSD-3-Clause"

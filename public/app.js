@@ -107,6 +107,7 @@ async function refreshCaps() {
     }
   } catch { /* keep defaults (all off, local whitelist mirror) */ }
   applyCapabilities();
+  renderBgPickers();
   applyVerifierMode();
   applyPolicyTexts();
   applyRelyingPartyDisclosure();
@@ -2131,6 +2132,11 @@ async function ensureMedia() {
     setMediaState('pending');
     try {
       localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+      // A chosen background is in place before the picture is shown or sent. If it takes too
+      // long (first download on a slow line), the call goes on and the effect follows.
+      if (mode === 'video' && devPref.bg && devPref.bg !== 'none') {
+        await Promise.race([queueBackground(localStream), new Promise((r) => setTimeout(r, 10000))]);
+      }
     } catch (e) {
       setMediaState(mediaErrorState(e));
       console.warn('getUserMedia failed:', e && e.name, e && e.message);
@@ -2991,10 +2997,11 @@ function teardownCall() {
   loopbackPeers = [];
   if (screenStream && screenStream.getTracks) screenStream.getTracks().forEach((t) => t.stop());
   screenStream = null; cameraTrack = null;
-  if (localStream && localStream.getTracks) localStream.getTracks().forEach((t) => t.stop());
+  if (localStream && localStream.getTracks) stopMediaStream(localStream);
   localStream = null;
   if (localVideo.srcObject) localVideo.srcObject = null;
   chatInput.disabled = true; chatSend.disabled = true;
+  renderBgPickers();
 }
 function showEnded(message) {
   setStatus(message);
@@ -3318,6 +3325,7 @@ function showMediaControls() {
   const hasVideo = localStream && localStream.getVideoTracks && localStream.getVideoTracks().length;
   micBtn.hidden = !(on && hasAudio);
   camBtn.hidden = !(on && hasVideo && mode === 'video');
+  renderBgPickers();
 }
 micBtn.addEventListener('click', toggleAudio);
 camBtn.addEventListener('click', toggleVideo);
@@ -3396,6 +3404,7 @@ function syncMediaCheck() {
   if (previewStream && ((!callStarted && (!show || previewStreamMode !== mode)) || ended)) stopPreview();
   if (mcTitle) mcTitle.textContent = t(mode === 'audio' ? 'Mikrofon prüfen' : 'Kamera und Mikrofon prüfen');
   if (mcCamOffRow) mcCamOffRow.hidden = mode !== 'video';
+  renderBgPickers();
 }
 
 async function startPreview() {
@@ -3410,6 +3419,7 @@ async function startPreview() {
     setMediaState('idle');
     mcVideo.hidden = mode !== 'video';
     mcVideo.srcObject = mode === 'video' ? s : null;
+    if (mode === 'video') queueBackground(s);
     previewMeter = levelMeter(s.getAudioTracks()[0]);
     const meterEl = mcLevel.parentElement;
     previewTimer = setInterval(() => {
@@ -3430,7 +3440,7 @@ async function startPreview() {
 function stopPreview(handover) {
   clearInterval(previewTimer); previewTimer = null;
   if (previewMeter) { previewMeter.stop(); previewMeter = null; }
-  if (previewStream && !handover) previewStream.getTracks().forEach((tr) => tr.stop());
+  if (previewStream && !handover) stopMediaStream(previewStream);
   previewStream = null; previewStreamMode = null;
   if (mcVideo) mcVideo.srcObject = null;
   if (mcLevel) mcLevel.style.width = '0';
@@ -3515,6 +3525,279 @@ function applyStartPrefs() {
   }
   enforceLocalMuteState();
 }
+
+// -- background: blur it or replace it (Community `background-effects`) --
+/* The effect wraps the camera track of whichever stream is current (device check or call):
+   background.mjs turns the real camera track into a composited canvas track, and that one takes
+   the camera's place in the stream and in every sender. The choice is remembered per browser
+   like the devices; a custom image stays in this browser (localStorage) and is never uploaded —
+   only the composited picture is sent, as the camera picture would be. */
+const BG_CUSTOM_KEY = 'eudi_bg_custom';
+/* The whosit background shows the approved logo FILE (public/logo, unchanged), and only on
+   unbranded instances: an operator's call should not carry our mark behind their customers. */
+const BG_BRANDED = !!(window.EUDI_BRANDING && (window.EUDI_BRANDING.name || window.EUDI_BRANDING.logo));
+const BG_CHOICES = [
+  ['none', 'Kein Effekt'], ['blur', 'Weichzeichnen'], ...(BG_BRANDED ? [] : [['whosit', 'whosit']]),
+  ['p1', 'Nachtblau'], ['p2', 'Hell'], ['p3', 'Lichter'], ['p4', 'Grün'], ['custom', 'Eigenes Bild'],
+];
+const bgLogo = BG_BRANDED ? null : new Image();
+if (bgLogo) {
+  bgLogo.onload = () => {
+    // Drawn before the logo had loaded: draw again, and refresh the thumbnails.
+    for (const k of [...bgPresetCache.keys()]) if (k.startsWith('whosit:')) bgPresetCache.delete(k);
+    for (const b of document.querySelectorAll('.bg-tile[data-bg="whosit"]')) b.style.backgroundImage = `url(${bgPresetCanvas('whosit', 160, 90).toDataURL()})`;
+    if (bgProc && devPref.bg === 'whosit') bgProc.setEffect({ image: bgPresetCanvas('whosit') });
+  };
+  bgLogo.src = 'logo/logo-horizontal-white.svg';
+}
+const bgFile = $('bg-file'), bgBtn = $('bg-btn'), bgPop = $('bg-pop'), mcBgRow = $('mc-bg-row');
+let bgMod = null, bgProc = null, bgRaw = null, bgStream = null;
+let bgBusy = false, bgFailed = false, bgNote = '', bgCustomImg = null, bgChain = Promise.resolve();
+const bgPresetCache = new Map();
+
+/* Only the SIMD WebAssembly build is shipped; without SIMD (or canvas capture) there is no
+   effect at all rather than a slow one. */
+const BG_CAPABLE = (() => {
+  try {
+    if (typeof WebAssembly !== 'object' || !('captureStream' in HTMLCanvasElement.prototype)) return false;
+    // (module (func (result v128) i32.const 0 i8x16.splat i8x16.popcnt)) — as in wasm-feature-detect
+    return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
+  } catch { return false; }
+})();
+function bgSupported() { return BG_CAPABLE && !bgFailed && capOn('background-effects') && mode === 'video'; }
+
+/* The built-in backgrounds are drawn, not shipped: no image licences, nothing to download. */
+function drawBgPreset(id, ctx, w, h) {
+  const lin = (stops) => { const g = ctx.createLinearGradient(0, 0, w, h); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
+  const glow = (x, y, r, c) => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  };
+  if (id === 'whosit') { // night blue with the logo top right, as the other side sees it
+    ctx.fillStyle = lin([[0, '#0b1530'], [1, '#17305c']]); ctx.fillRect(0, 0, w, h);
+    glow(w * 0.15, h * 0.9, w * 0.6, 'rgba(74, 163, 232, 0.14)');
+    if (bgLogo && bgLogo.complete && bgLogo.naturalWidth) {
+      // Inside the centred 4:3 area: tiles crop a wide picture at the sides (object-fit: cover),
+      // and a logo in the very corner would be cut off.
+      const sw = Math.min(w, h * 4 / 3), x0 = (w - sw) / 2;
+      const lw = sw * 0.32, lh = lw * (bgLogo.naturalHeight / bgLogo.naturalWidth), m = sw * 0.05;
+      ctx.drawImage(bgLogo, x0 + sw - lw - m, m, lw, lh);
+    }
+  } else if (id === 'p1') { // night blue, a warm light from the top right
+    ctx.fillStyle = lin([[0, '#0b1530'], [1, '#1d3a6e']]); ctx.fillRect(0, 0, w, h);
+    glow(w * 0.82, h * 0.12, w * 0.55, 'rgba(255, 204, 0, 0.16)');
+  } else if (id === 'p2') { // light and calm
+    ctx.fillStyle = lin([[0, '#f6f1e7'], [1, '#dbe5f1']]); ctx.fillRect(0, 0, w, h);
+    glow(w * 0.2, h * 0.2, w * 0.6, 'rgba(255, 255, 255, 0.7)');
+  } else if (id === 'p3') { // evening lights out of focus
+    ctx.fillStyle = lin([[0, '#1f1a24'], [1, '#3a2c2a']]); ctx.fillRect(0, 0, w, h);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 26; i++) {
+      const x = rnd() * w, y = rnd() * h * 0.85, r = (0.03 + rnd() * 0.07) * w, warm = rnd() > 0.35;
+      glow(x, y, r, warm ? `rgba(255, ${170 + Math.round(rnd() * 60)}, 90, 0.35)` : 'rgba(150, 190, 255, 0.28)');
+    }
+  } else { // p4: green, like plants in soft focus
+    ctx.fillStyle = lin([[0, '#cfe3d4'], [1, '#6f9a7e']]); ctx.fillRect(0, 0, w, h);
+    glow(w * 0.15, h * 0.75, w * 0.45, 'rgba(40, 90, 60, 0.45)');
+    glow(w * 0.9, h * 0.3, w * 0.4, 'rgba(255, 255, 240, 0.5)');
+  }
+}
+function bgPresetCanvas(id, w = 1280, h = 720) {
+  const key = `${id}:${w}`;
+  if (!bgPresetCache.has(key)) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    drawBgPreset(id, c.getContext('2d'), w, h);
+    bgPresetCache.set(key, c);
+  }
+  return bgPresetCache.get(key);
+}
+
+function loadBgImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img); img.onerror = reject;
+    img.src = src;
+  });
+}
+/* Scaled down once to at most 1280 px: enough for a background, small enough for localStorage. */
+function bgToCanvas(img) {
+  const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+async function bgCustom() {
+  if (bgCustomImg) return bgCustomImg;
+  let src = null;
+  try { src = localStorage.getItem(BG_CUSTOM_KEY); } catch {}
+  if (!src) return null;
+  try { bgCustomImg = bgToCanvas(await loadBgImage(src)); } catch { bgCustomImg = null; }
+  return bgCustomImg;
+}
+
+function currentBgStream() { return localStream || previewStream || null; }
+
+/* Put `to` where `from` was: in the stream, in every sender, in the screen-share memory, and in
+   every <video> showing that stream (an element does not always notice a swapped track). */
+function swapVideoTrack(stream, from, to) {
+  stream.removeTrack(from); stream.addTrack(to);
+  for (const p of peers.values()) {
+    if (!p.pc || typeof p.pc.getSenders !== 'function') continue;
+    for (const s of p.pc.getSenders()) if (s.track === from) s.replaceTrack(to).catch(() => {});
+  }
+  if (cameraTrack === from) cameraTrack = to;
+  for (const v of document.querySelectorAll('video')) {
+    if (v.srcObject === stream) { v.srcObject = null; v.srcObject = stream; v.play().catch(() => {}); }
+  }
+  enforceLocalMuteState();
+}
+
+function unwrapBackground() {
+  if (!bgProc) return;
+  const stream = bgStream, raw = bgRaw, proc = bgProc;
+  bgProc = bgRaw = bgStream = null;
+  raw.enabled = proc.track.enabled;
+  if (stream && raw.readyState !== 'ended') swapVideoTrack(stream, proc.track, raw);
+  proc.stop();
+}
+
+/** Stop a stream for good — including the real camera behind an effect, which the stream no
+ *  longer holds itself (the camera light would stay on). */
+function stopMediaStream(stream) {
+  if (!stream) return;
+  if (bgProc && bgStream === stream) {
+    const raw = bgRaw;
+    bgProc.stop(); raw.stop();
+    bgProc = bgRaw = bgStream = null;
+  }
+  stream.getTracks().forEach((tr) => tr.stop());
+}
+
+async function applyBackground(stream) {
+  if (bgProc && bgStream !== stream) unwrapBackground(); // the effect belongs to an older stream
+  const want = stream && bgSupported() ? (devPref.bg || 'none') : 'none';
+  if (want === 'none') { unwrapBackground(); return; }
+  let effect = 'blur';
+  if (want === 'custom') {
+    const img = await bgCustom();
+    if (!img) { devPref.bg = 'none'; saveDevPref(); unwrapBackground(); return; }
+    effect = { image: img };
+  } else if (want !== 'blur') {
+    effect = { image: bgPresetCanvas(want) };
+  }
+  if (bgProc) { bgProc.setEffect(effect); return; }
+  const raw = stream.getVideoTracks()[0];
+  if (!raw || raw.readyState === 'ended') return;
+  bgBusy = true; renderBgPickers();
+  try {
+    bgMod = bgMod || await import('./background.mjs');
+    const proc = await bgMod.createProcessor(raw, effect);
+    // Meanwhile the stream may have been replaced (other camera) or ended.
+    if (stream.getVideoTracks()[0] !== raw || raw.readyState === 'ended' || currentBgStream() !== stream) { proc.stop(); return; }
+    bgProc = proc; bgRaw = raw; bgStream = stream;
+    proc.track.enabled = raw.enabled;
+    swapVideoTrack(stream, raw, proc.track);
+  } catch (e) {
+    console.warn('Hintergrund-Effekt nicht verfügbar:', e && e.message);
+    bgFailed = true;
+  } finally {
+    bgBusy = false; renderBgPickers();
+  }
+}
+/** Serialised: quick taps on several tiles must not build several processors. */
+function queueBackground(stream = currentBgStream()) {
+  bgChain = bgChain.then(() => applyBackground(stream)).catch(() => {}).then(renderBgPickers);
+  return bgChain;
+}
+function setBackground(id) {
+  devPref.bg = id; saveDevPref(); bgNote = '';
+  renderBgPickers();
+  if (currentBgStream()) queueBackground();
+}
+
+function renderBgPicker(el) {
+  if (!el.dataset.built) {
+    el.dataset.built = '1';
+    const list = document.createElement('div'); list.className = 'bg-tiles';
+    for (const [id, label] of BG_CHOICES) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'bg-tile'; b.dataset.bg = id; b.dataset.label = label;
+      if (/^p\d$/.test(id) || id === 'whosit') b.style.backgroundImage = `url(${bgPresetCanvas(id, 160, 90).toDataURL()})`;
+      else b.innerHTML = id === 'none'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg>'
+        : id === 'blur'
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="9" r="3.2"/><path d="M6 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5"/><circle cx="3.5" cy="5" r=".6"/><circle cx="20.5" cy="5" r=".6"/><circle cx="3.5" cy="12" r=".6"/><circle cx="20.5" cy="12" r=".6"/><circle cx="3.5" cy="19" r=".6"/><circle cx="20.5" cy="19" r=".6"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>';
+      b.addEventListener('click', () => {
+        if (id !== 'custom') { setBackground(id); return; }
+        // The custom tile chooses a picture the first time and whenever it is already selected.
+        if (bgCustomImg && devPref.bg !== 'custom') setBackground('custom');
+        else if (bgFile) bgFile.click();
+      });
+      list.appendChild(b);
+    }
+    const status = document.createElement('p'); status.className = 'hint bg-status'; status.hidden = true;
+    el.append(list, status);
+  }
+  const cur = devPref.bg || 'none';
+  for (const b of el.querySelectorAll('.bg-tile')) {
+    const id = b.dataset.bg, on = id === cur;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const label = id === 'custom' && bgCustomImg ? (on ? t('Anderes Bild wählen') : t('Eigenes Bild')) : t(b.dataset.label);
+    b.setAttribute('aria-label', label); b.title = label;
+    if (id === 'custom' && bgCustomImg && !b.dataset.thumb) {
+      b.dataset.thumb = '1'; b.innerHTML = '';
+      b.style.backgroundImage = `url(${bgCustomImg.toDataURL('image/jpeg', 0.6)})`;
+    }
+    b.classList.toggle('is-busy', on && bgBusy);
+  }
+  const status = el.querySelector('.bg-status');
+  const msg = bgBusy ? t('Hintergrund wird vorbereitet …') : bgFailed ? t('Hintergrund-Effekte sind auf diesem Gerät nicht verfügbar.') : bgNote ? t(bgNote) : '';
+  status.hidden = !msg; status.textContent = msg;
+}
+function renderBgPickers() {
+  // A background with writing on it (the logo, possibly an own picture) would read backwards in
+  // the mirrored self-view; while one is on, you see yourself as the other side sees you.
+  document.body.classList.toggle('bg-unmirror', !!bgProc && (devPref.bg === 'whosit' || devPref.bg === 'custom'));
+  const show = bgSupported() || (bgFailed && capOn('background-effects') && mode === 'video' && BG_CAPABLE);
+  if (mcBgRow) mcBgRow.hidden = !show;
+  const inCall = callStarted && !ended && localStream && localStream.getVideoTracks && localStream.getVideoTracks().length > 0;
+  if (bgBtn) bgBtn.hidden = !(show && inCall);
+  if (bgPop && (!show || !inCall)) bgPop.hidden = true;
+  if (bgBtn) bgBtn.setAttribute('aria-expanded', bgPop && !bgPop.hidden ? 'true' : 'false');
+  for (const el of document.querySelectorAll('[data-bg-picker]')) renderBgPicker(el);
+}
+
+if (bgFile) {
+  bgFile.addEventListener('change', async () => {
+    const f = bgFile.files && bgFile.files[0];
+    bgFile.value = '';
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    try {
+      bgCustomImg = bgToCanvas(await loadBgImage(url));
+      for (const b of document.querySelectorAll('.bg-tile[data-bg="custom"]')) delete b.dataset.thumb;
+      try { localStorage.setItem(BG_CUSTOM_KEY, bgCustomImg.toDataURL('image/jpeg', 0.85)); } catch {}
+      if (bgProc && devPref.bg === 'custom') bgProc.setEffect({ image: bgCustomImg });
+      setBackground('custom');
+    } catch {
+      bgNote = 'Das Bild konnte nicht geladen werden.'; renderBgPickers();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  });
+}
+if (bgBtn && bgPop) {
+  bgBtn.addEventListener('click', () => { bgPop.hidden = !bgPop.hidden; renderBgPickers(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (!bgPop.hidden && !bgPop.contains(e.target) && !bgBtn.contains(e.target)) { bgPop.hidden = true; renderBgPickers(); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !bgPop.hidden) { bgPop.hidden = true; renderBgPickers(); bgBtn.focus(); } });
+}
+i18nReady.then(renderBgPickers);
 
 // -- arrival notice: whoever waits learns that the other side is there --
 const notifyBtn = $('notify-btn'), notifyLabel = $('notify-label');
