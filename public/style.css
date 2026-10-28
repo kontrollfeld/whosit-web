@@ -1072,6 +1072,23 @@ details.policy-note .policy-official { font-style: italic; }
 .auth-cta .wallet-need { margin: 0 0 12px; }
 .auth-cta .wallet-alt { margin: 12px 0 0; }
 
+/* Guest: what it takes, at the top of the identify card. */
+.need-box {
+  border: 1px solid var(--accent-border); border-radius: 12px;
+  padding: 12px 14px; margin: 0 0 14px;
+}
+.need-box .need-title { margin: 0 0 8px; font-weight: 600; color: var(--text); }
+.need-box ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.need-box li { display: flex; gap: 10px; align-items: flex-start; color: var(--text); }
+.need-box li[hidden] { display: none; }
+.need-box .need-ic { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--accent); }
+.need-box li .need-ic-audio, .need-box li.is-audio .need-ic-video { display: none; }
+.need-box li.is-audio .need-ic-audio { display: block; }
+.need-box a { white-space: nowrap; }
+.invite-wallet-note { display: flex; gap: 8px; align-items: flex-start; }
+.invite-wallet-note[hidden] { display: none; }
+.invite-wallet-note .h-ic { flex: none; margin-top: 2px; }
+
 /* The d-you button: the asset as it is — no background, border, shadow or filter of ours, and the
    operator's accent colour cannot reach it. Free space around it, as the guide asks. */
 .dyou-btn {

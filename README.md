@@ -329,6 +329,13 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
 - **Nothing starts by itself.** The card says what is shared, who asks (`rp-disclosure`) and that
   the d-you Wallet app is needed; guests also learn the way out (ask the host to start without an
   ID check). The QR code appears only after "Verifizieren mit d-you Wallet" is pressed.
+- **The guest learns it before the call, not at the button.** Setting up the wallet takes minutes and
+  the ID card PIN. So whenever the guest is asked for something (not with "Nichts abfragen"), the
+  calendar invitation and the share text say to set up the d-you Wallet beforehand and link
+  eudi-wallet.gov.de, and the host sees a note next to the invitation link. On the guest's identify
+  card a "Das brauchst du" box (wallet, camera/microphone) replaces the one-line wallet note. Only
+  German PIDs are accepted so far (the trust list holds the German PID provider), so the texts name
+  the d-you Wallet and no other wallet.
 - **The button is the unmodified asset** in `public/vendor/d-you/` (CC BY 4.0, BMDS; see its
   README). It is an `<img>`, so an operator's accent colour cannot restyle it. Never rebuild it.
 - **The modal** has the guide's anatomy and texts: "Jetzt verifizieren", QR code for another device,

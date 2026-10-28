@@ -531,7 +531,12 @@ function ensureWalletAttr(prefix) {
   if (cb) cb.checked = true;
 }
 const previewMode = $('preview-mode');
+// Whether the guest is asked for anything — only then do invitations say to set up the wallet.
+let guestNeedsWallet = true;
 function updatePreview(req, disc) {
+  guestNeedsWallet = !!(req && req.length);
+  const inviteWalletNote = $('invite-wallet-note');
+  if (inviteWalletNote) inviteWalletNote.hidden = !guestNeedsWallet;
   if (previewMode) previewMode.textContent = mode === 'audio' ? t('Audio') : mode === 'chat' ? t('Chat') : t('Video');
   previewDisclose.textContent = disc && disc.length ? disc.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
   previewRequest.textContent = req && req.length ? req.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
@@ -919,6 +924,14 @@ function calDescription(guestLink, hostLink) {
     '',
     t('Beide Seiten können sich vor dem Gespräch mit ihrer EUDI-Wallet ausweisen. Was geteilt wird, seht ihr vorher — und entscheidet selbst. Der Anruf läuft im Browser, Ende-zu-Ende verschlüsselt und direkt zwischen euren Geräten.'),
   ];
+  // Right below the link: setting up the wallet takes minutes and the ID card PIN, so the guest
+  // has to read it before the appointment, not at its start.
+  if (guestNeedsWallet) {
+    lines.splice(5, 0,
+      t('Vorher einmalig einrichten (dauert ein paar Minuten): Du brauchst die App „d-you Wallet“ auf deinem Smartphone, mit deinem Ausweis darin (Online-Ausweisfunktion und PIN). Download und Anleitung:'),
+      walletInfoUrl(),
+      '');
+  }
   if (hostLink) {
     lines.push(
       '',
@@ -1032,6 +1045,7 @@ if (navigator.share) {
       const when = range.start.toLocaleString(i18nLocale, { dateStyle: 'full', timeStyle: 'short' });
       text = t('{title} — {when} Uhr.', { title: calTitleValue(), when }) + '\n' + t('Verifizierter Anruf per EUDI-Wallet, hier beitreten:');
     }
+    if (guestNeedsWallet) text = t('Vorher bitte die App „d-you Wallet“ einrichten: {url}', { url: walletInfoUrl() }) + '\n\n' + text;
     try {
       await navigator.share({ title: calTitleValue(), text, url: shareInput.value });
     } catch (e) { /* user cancelled or share failed — no-op */ }
@@ -1382,6 +1396,7 @@ let walletModalCloseTimer = null;
 
 // The button's language follows the page; the asset exists in German and English only.
 const dyouLocale = () => (typeof i18nLocale === 'string' && i18nLocale === 'de' ? 'de' : 'en');
+function walletInfoUrl() { return `https://eudi-wallet.gov.de/${dyouLocale()}`; }
 function applyWalletButtons() {
   for (const img of document.querySelectorAll('img.dyou-img')) {
     img.src = `vendor/d-you/d-you-wallet_button_verify_${dyouLocale()}.svg`;
@@ -1490,6 +1505,18 @@ function renderAuthCard(role, attrs, opts) {
   // No wallet, no call — so the guest learns the way out before starting (Touchpoint Design
   // Guide: offer another way). Only the inviting host can lift the requirement, hence guests only.
   if (walletAlt) walletAlt.hidden = role !== 'callee' || !!(opts && opts.login);
+  // Guests get the "Das brauchst du" box instead of the one-line wallet note (same statement,
+  // still before the button); hosts know the wallet already.
+  const needBox = $('need-box'), walletNeed = $('wallet-need');
+  const guestBox = role === 'callee' && !(opts && opts.login);
+  if (needBox) {
+    needBox.hidden = !guestBox;
+    const media = $('need-media');
+    media.hidden = mode === 'chat';
+    media.classList.toggle('is-audio', mode === 'audio');
+    $('need-media-text').textContent = t(mode === 'audio' ? 'Ein Mikrofon an diesem Gerät.' : 'Kamera und Mikrofon an diesem Gerät.');
+  }
+  if (walletNeed) walletNeed.hidden = guestBox;
   // Sign-in rather than disclosure: on an instance with a host gate this is the proof THAT you
   // may host — not the choice of WHAT you share. The label has to say so, otherwise people look
   // for a selection that does not exist.

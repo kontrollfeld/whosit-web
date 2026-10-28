@@ -214,6 +214,16 @@
 
     <section id="auth" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg><span id="auth-title" data-i18n>Identität bestätigen</span></h2>
+      <!-- Guest only: what it takes, before anything else. Setting up the wallet takes minutes and
+           the ID card PIN — learnt at the button, it is too late for a call that starts now. A
+           neutral wallet icon: the d-you logo must not appear on its own (Touchpoint Design Guide). -->
+      <div class="need-box" id="need-box" hidden>
+        <p class="need-title" data-i18n>Das brauchst du</p>
+        <ul>
+          <li><svg class="need-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span><span data-i18n-html>Die App <strong>d-you Wallet</strong> auf deinem Smartphone, eingerichtet mit deinem Ausweis (Online-Ausweisfunktion und PIN).</span> <a href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Noch nicht eingerichtet? So geht’s</a></span></li>
+          <li id="need-media"><svg class="need-ic need-ic-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><svg class="need-ic need-ic-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg><span id="need-media-text" data-i18n>Kamera und Mikrofon an diesem Gerät.</span></li>
+        </ul>
+      </div>
       <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:</p>
       <ul class="consent" id="consent-list"></ul>
       <!-- Guest only: what the other side gives in return, and whether they are already
@@ -227,7 +237,7 @@
         <!-- Touchpoint Design Guide (d-you Wallet): say before the start that the app is needed,
              start the request only on the button, and the button is the unmodified asset from
              public/vendor/d-you (an <img>, so no brand accent can recolour it). -->
-        <p class="hint wallet-need" data-i18n-html>Dafür brauchst du die App <strong>d-you Wallet</strong> auf deinem Smartphone.</p>
+        <p class="hint wallet-need" id="wallet-need" data-i18n-html>Dafür brauchst du die App <strong>d-you Wallet</strong> auf deinem Smartphone.</p>
         <button type="button" id="dyou-open" class="dyou-btn" aria-haspopup="dialog" aria-controls="wallet-modal">
           <img class="dyou-img" src="vendor/d-you/d-you-wallet_button_verify_de.svg" alt="Verifizieren mit d-you Wallet" width="202" height="55" />
         </button>
@@ -251,6 +261,9 @@
            makes the setup read-only (lockSetup). Whoever invites first and is overtaken by
            their guest has pinned the call to the defaults and then sees only a dead form.
            So say it before it happens. -->
+      <!-- The guest has to prepare: wallet installed and the ID card read in. Only while the guest
+           is asked for something — "Nichts abfragen" needs no wallet. -->
+      <p class="hint invite-wallet-note" id="invite-wallet-note"><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span data-i18n-html>Dein Gast braucht die App <strong>d-you Wallet</strong>, eingerichtet mit dem eigenen Ausweis. Sag am besten vorher Bescheid – das Einrichten dauert ein paar Minuten.</span></p>
       <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lassen sich die Einstellungen nicht mehr ändern.</p>
       <div id="schedule-block" hidden>
       <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
@@ -422,7 +435,7 @@
       </div>
       <div class="strength">
         <span class="s-ic gold"><svg viewBox="0 0 24 24" fill="#FFCC00" stroke="none" aria-hidden="true"><path d="M12 2.5l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14.9l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2.5z"/></svg></span>
-        <div><h3 data-i18n>Europäischer Standard</h3><p data-i18n>Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto, keine Installation nötig.</p></div>
+        <div><h3 data-i18n>Europäischer Standard</h3><p data-i18n>Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto nötig – whosit läuft im Browser.</p></div>
       </div>
     </section>
     </div><!-- /setup-columns -->
