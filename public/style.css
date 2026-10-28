@@ -750,7 +750,10 @@ details.policy-note .policy-official { font-style: italic; }
 }
 /* masked field (pre-confirm review): name shown, value hidden until both agree */
 .result-row.pending { border-style: dashed; background: var(--surface); }
-.result-row .r-value.masked { color: var(--text-faint); letter-spacing: 3px; font-weight: 700; }
+.result-row .r-value.masked { display: inline-flex; align-items: center; gap: 5px; color: var(--text-faint); font-size: 0.78rem; font-weight: 500; }
+.result-row .r-value.masked svg { width: 13px; height: 13px; flex: none; }
+/* Guest's identification card: what the host gives in return — set apart from the own list. */
+.auth-peer { margin-top: 10px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 2px; color: var(--text); }
 
 /* ---- setup: mode segmented + field labels ---- */
 .field-label {

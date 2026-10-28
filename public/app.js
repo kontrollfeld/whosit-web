@@ -345,7 +345,10 @@ function renderFieldList(container, attrs, emptyMsg) {
     const lab = document.createElement('span'); lab.className = 'r-label';
     const ic = attrIconEl(k); if (ic) lab.appendChild(ic);
     const txt = document.createElement('span'); txt.textContent = t(labelFor(k)); lab.appendChild(txt);
-    const val = document.createElement('span'); val.className = 'r-value masked'; val.textContent = '•••';
+    // A lock and words instead of "•••", which read like something still loading.
+    const val = document.createElement('span'); val.className = 'r-value masked';
+    val.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    const vt = document.createElement('span'); vt.textContent = t('nach Zustimmung'); val.appendChild(vt);
     row.append(lab, val); container.appendChild(row);
   }
 }
@@ -1506,6 +1509,19 @@ function renderAuthCard(role, attrs, opts) {
   renderConsent(attrs);
 }
 
+/** Guest's identification card: what the host shows in return, and whether they are identified. */
+function renderAuthPeer(msg) {
+  const el = $('auth-peer');
+  if (!el) return;
+  const host = (msg.peers || []).find((p) => p.role === 'caller');
+  const gives = (msg.disclosedAttrs || []).map((k) => t(labelFor(k))).join(', ');
+  el.hidden = !host;
+  if (!host) return;
+  el.textContent = !gives ? t('Die einladende Person bleibt anonym.')
+    : host.verified ? t('Die einladende Person ist bereits ausgewiesen ✓ und zeigt dir im Gegenzug: {list}.', { list: gives })
+    : t('Im Gegenzug zeigt dir die einladende Person: {list}.', { list: gives });
+}
+
 function roleLabelFor(role) { return role === 'caller' ? t('Gastgeber:in') : t('Gast'); }
 
 // ---- progress stepper (role-aware; hidden in solo/embed) ----
@@ -1649,11 +1665,28 @@ function peerAttrsOf(msg) { return myRole === 'caller' ? msg.requestedAttrs : ms
 function attrsForPeer(msg, peer) { return peer.role === 'caller' ? msg.disclosedAttrs : msg.requestedAttrs; }
 
 // Pre-confirm: field names only (no values available yet).
+/**
+ * The other side by its role, the same words as on the chips: "Dein Gast", "Gastgeber:in".
+ * "Dein Gegenüber" was a third name for the same person.
+ */
+function otherSideLabels(peers) {
+  if (isHost()) return peers.length > 1
+    ? { shares: t('Deine Gäste teilen'), anon: t('Dein Gast bleibt anonym.') }
+    : { shares: t('Dein Gast teilt'), anon: t('Dein Gast bleibt anonym.') };
+  return { shares: t('Gastgeber:in teilt'), anon: t('Gastgeber:in bleibt anonym.') };
+}
+function setOtherSideHeading(box, label) {
+  const el = box && box.querySelector('.review-col.guest > .field-label');
+  if (el) el.textContent = label;
+}
+
 function renderReview(msg) {
   renderFieldList(reviewSelf, selfAttrs(msg), 'Du teilst nichts (anonym).');
   const peers = msg.peers || [];
+  const other = otherSideLabels(peers);
+  setOtherSideHeading(reviewBox, other.shares);
   if (peers.length <= 1) {
-    renderFieldList(reviewPeer, peers[0] ? attrsForPeer(msg, peers[0]) : [], 'Dein Gegenüber bleibt anonym.');
+    renderFieldList(reviewPeer, peers[0] ? attrsForPeer(msg, peers[0]) : [], other.anon);
   } else {
     // No names here: before consent only WHICH fields will be shared is shown, never a value.
     renderPeerBlocks(reviewPeer, peers, (el, peer) => renderFieldList(el, attrsForPeer(msg, peer), 'bleibt anonym.'), false);
@@ -1680,8 +1713,10 @@ function renderResult(msg) {
   renderResultInto(resultSelf, msg.self.claims, selfAttrs(msg), 'Du teilst nichts (anonym).');
   appendSharedCredentialRows(resultSelf, msg.self.sharedCredentials);
   const peers = msg.peers || [];
+  const other = otherSideLabels(peers);
+  setOtherSideHeading(resultBox, other.shares);
   if (peers.length <= 1) {
-    renderResultInto(resultPeer, peers[0] && peers[0].claims, peers[0] ? attrsForPeer(msg, peers[0]) : [], 'Dein Gegenüber bleibt anonym.');
+    renderResultInto(resultPeer, peers[0] && peers[0].claims, peers[0] ? attrsForPeer(msg, peers[0]) : [], other.anon);
     if (peers[0]) appendCredentialRows(resultPeer, peers[0].credentials);
   } else {
     renderPeerBlocks(resultPeer, peers, (el, peer) => {
@@ -1897,8 +1932,15 @@ function renderStatus(msg) {
     // For the guest the identification card is the only one — highlight it, but dim nothing.
     setActiveCard(authBox.hidden ? null : authBox);
 
-    if (!msg.self.verified) setStatus('Du wurdest eingeladen – weise dich mit deiner EUDI-Wallet aus.');
-    else if (!allVerified) setStatus('Bestätigt ✓ – warte auf die anderen …');
+    renderAuthPeer(msg);
+    // Say what kind of call this is: "Du wurdest eingeladen" alone left a first-time guest
+    // guessing whether a camera was about to switch on.
+    if (!msg.self.verified) {
+      setStatus(msg.mode === 'audio' ? 'Du bist zu einem Audioanruf eingeladen – weise dich mit deiner Wallet aus.'
+        : msg.mode === 'chat' ? 'Du bist zu einem Chat eingeladen – weise dich mit deiner Wallet aus.'
+        : 'Du bist zu einem Videoanruf eingeladen – weise dich mit deiner Wallet aus.', 'prompt');
+    }
+    else if (!allVerified) setStatus('Du bist ausgewiesen ✓ – warte auf die anderen …');
     else setStatus('Gleich geschafft …');
   }
 }
