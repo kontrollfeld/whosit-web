@@ -1778,6 +1778,8 @@ function renderStatus(msg) {
   if (msg.self.name) myName = msg.self.name;
   myRole = msg.self.role || myRole;
   mode = msg.mode || mode;
+  noticeArrivals(msg);
+  syncMediaCheck();
 
   // --- internal Solo-Demo (?solo=1) ---
   if (soloMode) {
@@ -2108,24 +2110,37 @@ function setMediaState(s) {
   renderMediaNotice();
 }
 
+function mediaErrorState(e) {
+  const n = (e && e.name) || '';
+  return n === 'NotAllowedError' || n === 'SecurityError' ? 'denied'
+    : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'nodevice'
+      : n === 'NotReadableError' || n === 'AbortError' ? 'busy'
+        : 'error';
+}
+
 async function ensureMedia() {
   if (localStream !== null) return localStream;
-  if (mode === 'chat') { setMediaState('skipped'); localStream = false; return false; }
-  setMediaState('pending');
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia(mode === 'audio' ? { audio: true, video: false } : { audio: true, video: true });
-    if (mode === 'video') localVideo.srcObject = localStream;
-    setMediaState('ok');
-  } catch (e) {
-    const n = (e && e.name) || '';
-    setMediaState(
-      n === 'NotAllowedError' || n === 'SecurityError' ? 'denied'
-        : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'nodevice'
-          : n === 'NotReadableError' || n === 'AbortError' ? 'busy'
-            : 'error');
-    console.warn('getUserMedia failed:', n, e && e.message);
-    localStream = false;
+  if (mode === 'chat') { stopPreview(); setMediaState('skipped'); localStream = false; return false; }
+  // A running device check hands its stream over: no second prompt, no flicker, and exactly the
+  // devices that were just tested.
+  if (previewStream && previewStreamMode === mode) {
+    localStream = previewStream;
+    stopPreview(true);
+  } else {
+    stopPreview();
+    setMediaState('pending');
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+    } catch (e) {
+      setMediaState(mediaErrorState(e));
+      console.warn('getUserMedia failed:', e && e.name, e && e.message);
+      localStream = false;
+      return localStream;
+    }
   }
+  if (mode === 'video') localVideo.srcObject = localStream;
+  setMediaState('ok');
+  applyStartPrefs();
   return localStream;
 }
 
@@ -2142,6 +2157,8 @@ async function ensureMedia() {
  */
 async function retryMedia() {
   if (mediaState === 'pending') return;
+  // Before the call the retry belongs to the device check — it shows what it got.
+  if (!callStarted) { startPreview(); return; }
   mediaRetryBtn.disabled = true;
   localStream = null;
   const stream = await ensureMedia();
@@ -2227,10 +2244,20 @@ function enforceLocalMuteState() {
 // Show a peer's remote stream in its own video tile (created on first track).
 function attachRemote(peerId, stream) {
   const p = peers.get(peerId);
-  if (!p || mode !== 'video') { revealCall(); return; }
+  if (!p) { revealCall(); return; }
+  // An audio call has no tiles, but its sound still needs an element to play from: a remote
+  // track that is attached nowhere stays silent.
+  if (mode !== 'video') {
+    if (mode === 'audio') {
+      if (!p.audio) { p.audio = document.createElement('audio'); p.audio.autoplay = true; p.audio.hidden = true; document.body.appendChild(p.audio); applySink(p.audio); }
+      p.audio.srcObject = stream;
+      p.audio.play().catch(() => {});
+    }
+    revealCall(); return;
+  }
   if (!p.tile) {
     const tile = document.createElement('div'); tile.className = 'tile'; tile.dataset.peer = peerId;
-    const video = document.createElement('video'); video.autoplay = true; video.playsInline = true;
+    const video = document.createElement('video'); video.autoplay = true; video.playsInline = true; applySink(video);
     const nameEl = document.createElement('div'); nameEl.className = 'name verified'; nameEl.textContent = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
     tile.append(video, nameEl); videosEl.appendChild(tile);
     p.tile = tile; p.video = video;
@@ -2246,6 +2273,7 @@ function removePeer(peerId) {
   try { if (p.dc) p.dc.close(); } catch {}
   try { p.pc.close(); } catch {}
   if (p.tile) p.tile.remove();
+  if (p.audio) { p.audio.srcObject = null; p.audio.remove(); }
   peers.delete(peerId);
   if (p.tile) applyStage(); // back from picture-in-picture when the other tile is gone
 }
@@ -2258,6 +2286,7 @@ async function startCall(msg) {
 
   if (!callStarted) {
     callStarted = true;
+    syncMediaCheck();
     document.body.classList.add('in-call');
     reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; startBar.hidden = true;
     setLocalLabel(titleCase(myName) || '');
@@ -2891,6 +2920,8 @@ function anyConnected() {
 function revealCall() {
   if (ended) return;
   callControls.hidden = false;
+  acquireWakeLock();
+  syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
@@ -2949,6 +2980,9 @@ function onPeerGone(from) {
 // ---- hang up ----
 function teardownCall() {
   earlyIce.clear();
+  releaseWakeLock();
+  stopMutedWatch();
+  stopPreview();
   if (qesShare) qesShare.teardown(true); // drop any document ceremony (no abort message — call is over)
   handsUp.clear(); handRaised = false;
   stopSasOverlay();
@@ -2979,6 +3013,7 @@ function showEnded(message) {
   authBox.hidden = true; setupBox.hidden = true; shareBox.hidden = true;
   restartLabel.textContent = t('Neuen Anruf starten');
   restartBtn.hidden = false;
+  syncMediaCheck();
   postToParent('ended', {});
 }
 /** The wallet came back to a browser that is not in the call — see backFromWallet. */
@@ -3187,6 +3222,9 @@ function wireChat(channel, peerId) {
     chatInput.disabled = false; chatSend.disabled = false;
     emojiBtn.disabled = !capOn('emoji'); fileBtn.disabled = !capOn('file-transfer');
     revealCall();
+    // Whoever connects later (or meets someone who started muted) must see the state as it is,
+    // not only the changes that follow.
+    try { if (micMuted) channel.send(JSON.stringify({ k: 'mic', on: false })); if (camOff) channel.send(JSON.stringify({ k: 'cam', on: false })); } catch {}
     if (!chatOpenedShown) { chatOpenedShown = true; addChat('System', soloMode ? 'Loopback-Kanal offen.' : 'Sichere Verbindung steht – Chat ist aktiv.'); }
   };
   channel.onmessage = (e) => handleChatData(peerId, e.data);
@@ -3248,6 +3286,7 @@ function toggleAudio() {
   micMuted = !on;
   enforceLocalMuteState(); // the sender is authoritative, not the source
   broadcast({ k: 'mic', on });
+  syncMutedWatch();
   refreshAllBadges();
 }
 function toggleVideo() {
@@ -3282,6 +3321,306 @@ function showMediaControls() {
 }
 micBtn.addEventListener('click', toggleAudio);
 camBtn.addEventListener('click', toggleVideo);
+
+
+// ---- comfort: device check, arrival notice, "you are muted", screen stays on ----
+
+/* One AudioContext for the chime and the level meters. Browsers keep it suspended until the
+   page has seen a gesture, so it is created (and resumed) on the first one; without a gesture the
+   chime simply stays silent — the tab title and the system notification still say it. */
+let audioCtx = null;
+function getAudioCtx() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!audioCtx) { try { audioCtx = new AC(); } catch { return null; } }
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); }, { passive: true, capture: true });
+
+/* Level of a microphone track, measured on a CLONE: the original may be disabled (muted), and a
+   disabled track reads as silence. The clone goes nowhere but into the analyser. */
+function levelMeter(track) {
+  const ctx = getAudioCtx();
+  if (!ctx || !track) return null;
+  const clone = track.clone(); clone.enabled = true;
+  const src = ctx.createMediaStreamSource(new MediaStream([clone]));
+  const an = ctx.createAnalyser(); an.fftSize = 1024;
+  src.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  return {
+    level() { an.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v; return Math.sqrt(sum / buf.length); },
+    stop() { try { src.disconnect(); } catch {} clone.stop(); },
+  };
+}
+
+// -- device check --
+const mcCard = $('media-check'), mcTitle = $('mc-title'), mcStart = $('mc-start'), mcLive = $('mc-live');
+const mcVideo = $('mc-video'), mcLevel = $('mc-level'), mcStop = $('mc-stop'), mcTone = $('mc-tone');
+const mcCam = $('mc-cam'), mcMic = $('mc-mic'), mcSpk = $('mc-spk');
+const mcCamRow = $('mc-cam-row'), mcSpkRow = $('mc-spk-row'), mcCamOffRow = $('mc-camoff-row');
+const mcStartMuted = $('mc-start-muted'), mcStartCamOff = $('mc-start-camoff');
+/* The chosen devices are remembered per browser (a convenience — nothing leaves the device); the
+   "join muted" choices are not: a mute nobody remembers setting is worse than none. */
+const DEV_KEY = 'eudi_devices';
+const devPref = (() => { try { return JSON.parse(localStorage.getItem(DEV_KEY)) || {}; } catch { return {}; } })();
+function saveDevPref() { try { localStorage.setItem(DEV_KEY, JSON.stringify(devPref)); } catch {} }
+const sinkSupported = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
+let previewStream = null, previewStreamMode = null, previewMeter = null, previewTimer = null;
+
+function mediaConstraints() {
+  const audio = devPref.mic ? { deviceId: { ideal: devPref.mic } } : true;
+  if (mode === 'audio') return { audio, video: false };
+  return { audio, video: devPref.cam ? { deviceId: { ideal: devPref.cam } } : true };
+}
+function applySink(el) {
+  if (sinkSupported && devPref.spk && el && el.setSinkId) el.setSinkId(devPref.spk).catch(() => {});
+}
+
+function syncMediaCheck() {
+  if (!mcCard) return;
+  const can = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const show = can && !callStarted && !ended && !soloMode && !isEmbedded && !!myRole && mode !== 'chat';
+  mcCard.hidden = !show;
+  // A different call type needs a different stream (audio only vs. with camera); the call itself
+  // takes the stream over, so only stop it while there is no call to hand it to.
+  if (previewStream && ((!callStarted && (!show || previewStreamMode !== mode)) || ended)) stopPreview();
+  if (mcTitle) mcTitle.textContent = t(mode === 'audio' ? 'Mikrofon prüfen' : 'Kamera und Mikrofon prüfen');
+  if (mcCamOffRow) mcCamOffRow.hidden = mode !== 'video';
+}
+
+async function startPreview() {
+  stopPreview();
+  if (mcStart) mcStart.disabled = true;
+  setMediaState('pending');
+  try {
+    const s = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+    if (callStarted || ended) { s.getTracks().forEach((tr) => tr.stop()); return; }
+    previewStream = s; previewStreamMode = mode;
+    setMediaState('idle');
+    mcVideo.hidden = mode !== 'video';
+    mcVideo.srcObject = mode === 'video' ? s : null;
+    previewMeter = levelMeter(s.getAudioTracks()[0]);
+    const meterEl = mcLevel.parentElement;
+    previewTimer = setInterval(() => {
+      const pct = previewMeter ? Math.min(100, Math.round(Math.sqrt(previewMeter.level()) * 180)) : 0;
+      mcLevel.style.width = pct + '%';
+      meterEl.setAttribute('aria-valuenow', String(pct));
+    }, 100);
+    mcLive.hidden = false; mcStart.hidden = true;
+    await fillDeviceLists();
+  } catch (e) {
+    setMediaState(mediaErrorState(e));
+  } finally {
+    if (mcStart) mcStart.disabled = false;
+  }
+}
+
+/** `handover`: the call took the stream — keep its tracks running. */
+function stopPreview(handover) {
+  clearInterval(previewTimer); previewTimer = null;
+  if (previewMeter) { previewMeter.stop(); previewMeter = null; }
+  if (previewStream && !handover) previewStream.getTracks().forEach((tr) => tr.stop());
+  previewStream = null; previewStreamMode = null;
+  if (mcVideo) mcVideo.srcObject = null;
+  if (mcLevel) mcLevel.style.width = '0';
+  if (mcLive) mcLive.hidden = true;
+  if (mcStart) mcStart.hidden = false;
+}
+
+async function fillDeviceLists() {
+  let devs = [];
+  try { devs = await navigator.mediaDevices.enumerateDevices(); } catch {}
+  const inUse = (kind) => {
+    const tr = previewStream && (kind === 'audioinput' ? previewStream.getAudioTracks()[0] : previewStream.getVideoTracks()[0]);
+    return tr && tr.getSettings ? tr.getSettings().deviceId : '';
+  };
+  const fill = (sel, kind, selected, fallback) => {
+    const list = devs.filter((d) => d.kind === kind && d.deviceId);
+    sel.textContent = '';
+    list.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || `${fallback} ${i + 1}`;
+      sel.appendChild(o);
+    });
+    if (selected && list.some((d) => d.deviceId === selected)) sel.value = selected;
+    return list.length;
+  };
+  const nCam = fill(mcCam, 'videoinput', inUse('videoinput'), t('Kamera'));
+  fill(mcMic, 'audioinput', inUse('audioinput'), t('Mikrofon'));
+  mcCamRow.hidden = mode !== 'video' || nCam < 1;
+  const nSpk = sinkSupported ? fill(mcSpk, 'audiooutput', devPref.spk, t('Lautsprecher')) : 0;
+  mcSpkRow.hidden = nSpk < 1;
+}
+
+/* A short two-note tone as a WAV, played through an <audio> element — unlike Web Audio, that
+   element can be routed to the chosen speaker. */
+let toneUrl = null;
+function testToneUrl() {
+  if (toneUrl) return toneUrl;
+  const rate = 22050, secs = 0.9, n = Math.floor(rate * secs);
+  const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const str = (o, x) => { for (let i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const tt = i / rate, f = tt < secs / 2 ? 660 : 880, local = tt % (secs / 2);
+    const env = Math.min(1, local * 40) * Math.max(0, 1 - local / (secs / 2));
+    v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * f * tt) * env * 0.35 * 32767, true);
+  }
+  toneUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  return toneUrl;
+}
+
+if (mcCard) {
+  mcStart.addEventListener('click', startPreview);
+  mcStop.addEventListener('click', () => { stopPreview(); setMediaState('idle'); });
+  mcCam.addEventListener('change', () => { devPref.cam = mcCam.value; saveDevPref(); startPreview(); });
+  mcMic.addEventListener('change', () => { devPref.mic = mcMic.value; saveDevPref(); startPreview(); });
+  mcSpk.addEventListener('change', () => {
+    devPref.spk = mcSpk.value; saveDevPref();
+    for (const el of document.querySelectorAll('video:not(#local-video):not(#mc-video), audio')) applySink(el);
+  });
+  mcTone.addEventListener('click', () => {
+    const a = new Audio(testToneUrl());
+    applySink(a);
+    a.play().catch(() => {});
+  });
+}
+
+/** "Join muted" / "join with camera off", applied once the call's own stream exists. */
+function applyStartPrefs() {
+  if (!localStream || !localStream.getTracks) return;
+  if (mcStartMuted && mcStartMuted.checked && !micMuted && localStream.getAudioTracks().length) {
+    localStream.getAudioTracks().forEach((tr) => (tr.enabled = false));
+    micMuted = true;
+    setToggle(micBtn, micLabel, false, t('Mikrofon'), t('Stumm'));
+  }
+  if (mcStartCamOff && mcStartCamOff.checked && mode === 'video' && !camOff && localStream.getVideoTracks().length) {
+    localStream.getVideoTracks().forEach((tr) => (tr.enabled = false));
+    camOff = true;
+    setToggle(camBtn, camLabel, false, t('Kamera'), t('Kamera aus'));
+    localVideo.style.opacity = '0.35';
+  }
+  enforceLocalMuteState();
+}
+
+// -- arrival notice: whoever waits learns that the other side is there --
+const notifyBtn = $('notify-btn'), notifyLabel = $('notify-label');
+const canNotify = () => typeof Notification !== 'undefined' && !isNativeApp() && !isEmbedded;
+let knownPeers = null; // null until the first status: whoever is already there when you arrive is no news
+let titleBefore = null;
+
+function syncNotifyBtn() {
+  if (!notifyBtn) return;
+  const perm = canNotify() ? Notification.permission : 'denied';
+  notifyBtn.hidden = !isHost() || perm === 'denied';
+  notifyBtn.disabled = perm === 'granted';
+  if (notifyLabel) notifyLabel.textContent = t(perm === 'granted' ? 'Du wirst benachrichtigt, wenn dein Gast da ist ✓' : 'Benachrichtigen, wenn mein Gast da ist');
+}
+if (notifyBtn) {
+  notifyBtn.addEventListener('click', async () => {
+    try { await Notification.requestPermission(); } catch {}
+    syncNotifyBtn();
+  });
+  i18nReady.then(syncNotifyBtn);
+}
+
+function playChime() {
+  const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return;
+  const now = ctx.currentTime;
+  [[660, 0], [990, 0.16]].forEach(([f, at]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, now + at);
+    g.gain.exponentialRampToValueAtTime(0.18, now + at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.45);
+    o.connect(g).connect(ctx.destination);
+    o.start(now + at); o.stop(now + at + 0.5);
+  });
+}
+
+function noticeArrivals(msg) {
+  syncNotifyBtn();
+  const now = new Map((msg.peers || []).filter((x) => x.peerId).map((x) => [x.peerId, x]));
+  const before = knownPeers;
+  knownPeers = new Set(now.keys());
+  if (!before || soloMode || ended) return;
+  const fresh = [...now.values()].filter((x) => !before.has(x.peerId));
+  if (!fresh.length) return;
+  // In the call, a newcomer already shows up in chat and tiles — only worth a sound when away.
+  if (callStarted && !document.hidden) return;
+  const text = fresh.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in ist da')
+    : before.size === 0 ? t('Dein Gast ist da') : t('Ein weiterer Gast ist da');
+  playChime();
+  if (document.hidden) {
+    if (titleBefore === null) titleBefore = document.title;
+    document.title = '● ' + text;
+    if (canNotify() && Notification.permission === 'granted') {
+      try {
+        const n = new Notification(text, { body: t('Zum Anruf wechseln'), tag: 'whosit-arrival' });
+        n.onclick = () => { window.focus(); n.close(); };
+      } catch {}
+    }
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && titleBefore !== null) { document.title = titleBefore; titleBefore = null; }
+});
+
+// -- "you are muted": speaking into a muted microphone --
+const mutedHint = $('muted-hint'), mutedHintBtn = $('muted-hint-btn');
+const MUTED_SPEECH_RMS = 0.015; // after the browser's noise suppression: above room noise, below quiet speech
+let mutedWatch = null, mutedHintTimer = null;
+function syncMutedWatch() {
+  const hasMic = localStream && localStream.getAudioTracks && localStream.getAudioTracks().length;
+  const want = callStarted && !ended && micMuted && !!hasMic;
+  if (want && !mutedWatch) startMutedWatch();
+  else if (!want) stopMutedWatch();
+}
+function startMutedWatch() {
+  const meter = levelMeter(localStream.getAudioTracks()[0]);
+  if (!meter) return;
+  const hist = [];
+  let quietUntil = 0;
+  const timer = setInterval(() => {
+    hist.push(meter.level() > MUTED_SPEECH_RMS);
+    if (hist.length > 10) hist.shift();
+    if (Date.now() < quietUntil || document.hidden) return;
+    // ~1.2 s of speech within 2 s: a cough or a door is not enough.
+    if (hist.filter(Boolean).length >= 6) { showMutedHint(); quietUntil = Date.now() + 30_000; hist.length = 0; }
+  }, 200);
+  mutedWatch = { stop() { clearInterval(timer); meter.stop(); } };
+}
+function stopMutedWatch() {
+  if (mutedWatch) { mutedWatch.stop(); mutedWatch = null; }
+  if (mutedHint) mutedHint.hidden = true;
+  clearTimeout(mutedHintTimer);
+}
+function showMutedHint() {
+  if (!mutedHint) return;
+  mutedHint.hidden = false;
+  clearTimeout(mutedHintTimer);
+  mutedHintTimer = setTimeout(() => { mutedHint.hidden = true; }, 6000);
+}
+if (mutedHintBtn) mutedHintBtn.addEventListener('click', () => { mutedHint.hidden = true; if (micMuted) toggleAudio(); });
+
+// -- the screen stays on during a call (phones would dim and lock mid-sentence) --
+let wakeLock = null, wakeLockPending = false;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock || wakeLockPending || ended || !callStarted || document.hidden) return;
+  wakeLockPending = true;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+    if (ended) releaseWakeLock();
+  } catch { wakeLock = null; } finally { wakeLockPending = false; }
+}
+function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
+// The lock is dropped whenever the page is hidden; take it again on return.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) acquireWakeLock(); });
 
 // ---- raise hand: signaled over the chat DataChannel ({ k:'hand', on }) ----
 // Indicator lives on the person's tile (✋ badge) AND on the participant chips, so it

@@ -323,7 +323,42 @@
         </button>
       </div>
 
+      <!-- Waiting in another tab: ask once for a system notification when the guest arrives. The
+           chime and the tab title come without asking; this button only exists where the browser
+           can notify at all (not in the app, not in Safari on iOS). -->
+      <button type="button" id="notify-btn" class="ghost notify-btn" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+        <span id="notify-label" data-i18n>Benachrichtigen, wenn mein Gast da ist</span>
+      </button>
+    </section>
 
+    <!-- Device check before the call: picture, microphone level, which devices, and whether to
+         start muted. The permission prompt comes here, while there is still time to fix it — not
+         after both sides have identified themselves and the call is already connecting. -->
+    <section id="media-check" class="card media-check" hidden>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span id="mc-title" data-i18n>Kamera und Mikrofon prüfen</span></h2>
+      <p class="hint" id="mc-hint" data-i18n>Teste vorab, ob alles funktioniert. Dein Browser fragt dafür nach der Freigabe – nichts verlässt dabei dein Gerät.</p>
+      <button type="button" id="mc-start" class="ghost" data-i18n>Jetzt testen</button>
+      <div id="mc-live" class="mc-live" hidden>
+        <video id="mc-video" autoplay playsinline muted></video>
+        <div class="mc-meter-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          <div class="mc-meter" role="meter" aria-label="Mikrofon-Pegel" data-i18n-attr="aria-label" aria-valuemin="0" aria-valuemax="100"><span id="mc-level"></span></div>
+        </div>
+        <p class="hint mc-say" data-i18n>Sag etwas – der Balken sollte sich bewegen.</p>
+        <div class="mc-fields">
+          <label id="mc-cam-row"><span data-i18n>Kamera</span><select id="mc-cam"></select></label>
+          <label><span data-i18n>Mikrofon</span><select id="mc-mic"></select></label>
+          <label id="mc-spk-row" hidden><span data-i18n>Lautsprecher</span><select id="mc-spk"></select></label>
+        </div>
+        <button type="button" id="mc-tone" class="ghost mc-tone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>
+          <span data-i18n>Testton abspielen</span>
+        </button>
+        <label class="openroom"><input type="checkbox" id="mc-start-muted" /><span data-i18n>Mit ausgeschaltetem Mikrofon beitreten</span></label>
+        <label class="openroom" id="mc-camoff-row"><input type="checkbox" id="mc-start-camoff" /><span data-i18n>Mit ausgeschalteter Kamera beitreten</span></label>
+        <button type="button" id="mc-stop" class="ghost mc-stop" data-i18n>Test beenden</button>
+      </div>
     </section>
 
     <!-- Host: explicitly start a multi-party call (only then does the room lock) -->
@@ -578,6 +613,12 @@
     <div id="credreq-panel" class="credreq-panel card" hidden></div>
 
     <!-- Call controls (all modes) -->
+    <!-- Speaking while muted: the most common stumble in any call. Detected locally from the
+         microphone level; nothing is sent. Floats just above the call controls. -->
+    <div id="muted-hint" class="muted-hint" role="status" aria-live="polite" hidden>
+      <span data-i18n>Du bist stummgeschaltet.</span>
+      <button type="button" id="muted-hint-btn" data-i18n>Mikrofon einschalten</button>
+    </div>
     <div id="call-controls" class="call-controls" hidden>
       <button id="credreq-btn" class="ghost" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
