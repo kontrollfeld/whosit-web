@@ -3333,24 +3333,33 @@ function getAudioCtx() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   if (!audioCtx) { try { audioCtx = new AC(); } catch { return null; } }
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  // iOS also reports 'interrupted' (e.g. after the microphone took over the audio session).
+  if (audioCtx.state !== 'running' && audioCtx.state !== 'closed') audioCtx.resume().catch(() => {});
   return audioCtx;
 }
-for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); }, { passive: true, capture: true });
+// Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); }, { passive: true, capture: true });
 
-/* Level of a microphone track, measured on a CLONE: the original may be disabled (muted), and a
-   disabled track reads as silence. The clone goes nowhere but into the analyser. */
+/* Level of a microphone track. A disabled (muted) track reads as silence, so that one is measured
+   on a CLONE; an enabled one directly (iOS has been unreliable with cloned microphone tracks).
+   The analyser feeds a silent gain into the output: WebKit does not render a graph that never
+   reaches the destination, and the meter would sit at zero. */
 function levelMeter(track) {
   const ctx = getAudioCtx();
   if (!ctx || !track) return null;
-  const clone = track.clone(); clone.enabled = true;
-  const src = ctx.createMediaStreamSource(new MediaStream([clone]));
+  const own = track.enabled ? null : track.clone();
+  if (own) own.enabled = true;
+  const src = ctx.createMediaStreamSource(new MediaStream([own || track]));
   const an = ctx.createAnalyser(); an.fftSize = 1024;
-  src.connect(an);
+  const sink = ctx.createGain(); sink.gain.value = 0;
+  src.connect(an); an.connect(sink); sink.connect(ctx.destination);
   const buf = new Float32Array(an.fftSize);
   return {
-    level() { an.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v; return Math.sqrt(sum / buf.length); },
-    stop() { try { src.disconnect(); } catch {} clone.stop(); },
+    level() {
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      an.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v; return Math.sqrt(sum / buf.length);
+    },
+    stop() { try { src.disconnect(); an.disconnect(); sink.disconnect(); } catch {} if (own) own.stop(); },
   };
 }
 
@@ -3390,6 +3399,7 @@ function syncMediaCheck() {
 }
 
 async function startPreview() {
+  getAudioCtx(); // still inside the tap: unlocks the meter's AudioContext on iOS
   stopPreview();
   if (mcStart) mcStart.disabled = true;
   setMediaState('pending');
