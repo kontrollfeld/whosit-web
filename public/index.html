@@ -126,7 +126,9 @@
         <!-- `checked` already in the markup: the default is "guided", and without the attribute
              the checkmark would briefly be wrong until the first run of syncActive(). -->
         <input type="checkbox" id="wiz-switch" checked />
-        <span data-i18n>Schritt für Schritt einrichten</span>
+        <!-- The label names what a click DOES, so it flips with the state (initSetupWizard). As
+             "Schritt für Schritt einrichten" with a ticked box it read like a step to complete. -->
+        <span id="wiz-switch-label">Alles auf einer Seite zeigen</span>
       </label>
 
       <div id="mode-block">
@@ -139,29 +141,42 @@
       </div><!-- /mode-block -->
 
       <div class="party you">
-        <span class="field-label"><span data-i18n>Ich teile</span> <span class="field-note" data-i18n>— deine eigenen Ausweis-Daten</span></span>
+        <!-- Asked as questions, with the person icon in the side's colour: "Ich teile" and "Der Gast
+             teilt" looked alike while meaning opposite things. -->
+        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was zeigst du deinem Gast?</span></span>
+        <span class="field-note party-note" data-i18n>Angaben aus deinem eigenen Ausweis</span>
         <div class="seg" id="disclose-seg" role="group" aria-label="Was du teilst" data-i18n-attr="aria-label">
           <button type="button" data-disclose="anon" data-i18n>Anonym bleiben</button>
           <button type="button" data-disclose="data" class="active" data-i18n>Daten teilen</button>
         </div>
         <div class="attr-list" id="disclose-list" hidden></div>
-        <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        <details class="policy-note">
+          <summary data-i18n>Warum nur diese Angaben?</summary>
+          <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+          <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        </details>
       </div>
 
       <div class="party guest">
-        <span class="field-label"><span data-i18n>Der Gast teilt</span> <span class="field-note" data-i18n>— was du vom Gast abfragst</span></span>
+        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was soll dein Gast dir zeigen?</span></span>
+        <span class="field-note party-note" data-i18n>Angaben aus dem Ausweis deines Gastes</span>
         <div class="seg" id="request-seg" role="group" aria-label="Was der Gast teilt" data-i18n-attr="aria-label">
-          <button type="button" data-request="anon" data-i18n>Anonym — nichts</button>
+          <button type="button" data-request="anon" data-i18n>Nichts abfragen</button>
           <button type="button" data-request="data" class="active" data-i18n>Daten abfragen</button>
         </div>
         <div id="request-extra">
           <div class="presets" id="presets">
+            <span class="presets-label" data-i18n>Schnellauswahl:</span>
             <button type="button" class="chip-btn" data-preset="age" data-i18n>Altersnachweis 18+</button>
             <button type="button" class="chip-btn" data-preset="name" data-i18n>Name</button>
             <button type="button" class="chip-btn" data-preset="full" data-i18n>Voll</button>
           </div>
           <div class="attr-list" id="request-list"></div>
-          <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+          <details class="policy-note">
+            <summary data-i18n>Warum nur diese Angaben?</summary>
+            <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+            <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+          </details>
         </div>
       </div>
 
@@ -174,7 +189,7 @@
 
       <label id="openroom-row" class="openroom" hidden>
         <input type="checkbox" id="openroom-toggle" />
-        <span><span data-i18n>Weitere Gäste später zulassen</span> <span class="field-note" data-i18n>— Anruf startet ab 2 Personen, weitere kommen später dazu</span></span>
+        <span><span data-i18n>Gruppenanruf</span> <span class="field-note" data-i18n>— weitere Personen dürfen später dazukommen</span></span>
       </label>
 
       <!-- Two lines as separate elements instead of split by <br>: in guided mode the
@@ -182,6 +197,7 @@
            next step's decision, and a summary anticipating it reads like a choice
            already made. -->
       <p class="preview">
+        <span class="prev-mode"><span data-i18n>Verbindungsart:</span> <strong id="preview-mode">Video</strong></span>
         <span class="prev-you"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong></span>
         <span class="prev-guest"><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></span>
       </p>
@@ -232,7 +248,7 @@
            makes the setup read-only (lockSetup). Whoever invites first and is overtaken by
            their guest has pinned the call to the defaults and then sees only a dead form.
            So say it before it happens. -->
-      <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.</p>
+      <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lassen sich die Einstellungen nicht mehr ändern.</p>
       <div id="schedule-block" hidden>
       <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
            der .ics-Datei. Auf einer gebrandeten Instanz traegt er die Marke des Betreibers
@@ -321,7 +337,11 @@
         <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="review-peer"></div></div>
       </div>
       <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
-      <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      <details class="policy-note">
+        <summary data-i18n>Warum nur diese Angaben?</summary>
+        <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+        <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      </details>
       <!-- On narrow screens this bar sticks to the bottom edge while the review is open
            (style.css). No modal: connecting is consent to sharing data, and a window that
            pops up at a moment the user does not control puts this button under their thumb

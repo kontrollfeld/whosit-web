@@ -527,7 +527,9 @@ function ensureWalletAttr(prefix) {
   const cb = document.getElementById(prefix + '-family_name');
   if (cb) cb.checked = true;
 }
+const previewMode = $('preview-mode');
 function updatePreview(req, disc) {
+  if (previewMode) previewMode.textContent = mode === 'audio' ? t('Audio') : mode === 'chat' ? t('Chat') : t('Video');
   previewDisclose.textContent = disc && disc.length ? disc.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
   previewRequest.textContent = req && req.length ? req.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
 }
@@ -1865,6 +1867,10 @@ function renderStatus(msg) {
       if (shareHint) shareHint.textContent = t('Das ist der Link, den du für diesen Termin geteilt hast.');
     }
     shareBox.hidden = !!msg.configPinned && !plannedGuestUrl;
+    // Guest there: the link has done its job and the settings are locked, so both cards fold
+    // away. Left standing, "Link kopieren" stayed the biggest button on screen while the actual
+    // next thing happened elsewhere. An open room keeps the link — people join over time.
+    if (peerPresent && !isOpenRoom) { shareBox.hidden = true; setupBox.hidden = true; }
     // host disclosure scan?
     const hostMustScan = !msg.self.verified && msg.disclosedAttrs.length > 0;
     if (hostMustScan) { renderAuthCard('caller', msg.disclosedAttrs); authBox.hidden = false; }
@@ -1874,9 +1880,15 @@ function renderStatus(msg) {
     // you are done yourself, there is nothing to press -> highlight no card.
     setActiveCard(hostMustScan ? authBox : (!peerPresent && !shareBox.hidden) ? shareBox : null);
 
-    if (!msg.self.verified) setStatus('Weise dich aus, um deine gewählten Daten zu teilen.');
-    else if (!peerPresent) setStatus(msg.configPinned ? 'Geplanter Anruf — warte auf deinen Gast …' : 'Richte den Anruf ein und teile den Einladungs-Link.');
-    else if (someoneUnverified) setStatus('Warte auf die Bestätigung deiner Gäste …');
+    // The status says where the host is, not what comes three steps later: "Weise dich aus"
+    // greeted a host who had not chosen anything yet (and an anonymous host, who has nothing to
+    // identify at all).
+    if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
+    else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein. Danach weist du dich aus und lädst deinen Gast ein.');
+    else if (!peerPresent && msg.self.verified) setStatus('Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.', 'ok');
+    else if (!peerPresent) setStatus('Richte den Anruf ein und schick den Link an deinen Gast.');
+    else if (hostMustScan) setStatus('Dein Gast ist da – weise dich jetzt aus.', 'prompt');
+    else if (someoneUnverified) setStatus(peerList.length > 1 ? 'Deine Gäste sind da und weisen sich gerade aus …' : 'Dein Gast ist da und weist sich gerade aus …', 'wait');
     else setStatus('Gleich geschafft …');
   } else {
     setupBox.hidden = true; shareBox.hidden = true;
@@ -3624,13 +3636,17 @@ function startPairedSigner(token) {
   const pref = () => { try { const v = localStorage.getItem(WIZ_KEY); return v === '1' ? true : v === '0' ? false : null; } catch { return null; } };
   const guided = () => pref() !== false;
 
-  // Step kinds: mode · you · guest · invite · (auth, only when the host has to identify
-  // themselves). The identification step shows the invite box collapsed beneath it.
-  const shareEl = $('share'), authEl = $('auth');
+  // Step kinds: mode · you · guest · (auth, only while the host still has to identify) · invite.
+  // Identifying comes BEFORE the link (since 2026-10-28): the guest joining locks the setup, so a
+  // link sent first could be overtaken. Once identified, the auth step drops out of the list and
+  // the same index lands on "invite" by itself — the wizard moves on without a click.
+  const authEl = $('auth');
+  const swLabel = $('wiz-switch-label');
   let idx = 0;
   const steps = () => {
-    const s = ['mode', 'you', 'guest', 'invite'];
+    const s = ['mode', 'you', 'guest'];
     if (authEl && !authEl.hidden) s.push('auth');
+    s.push('invite');
     return s;
   };
   const render = () => {
@@ -3639,21 +3655,23 @@ function startPairedSigner(token) {
     if (idx < 0) idx = 0;
     const kind = st[idx];
     document.body.dataset.wkind = kind;
-    dots.innerHTML = '';
-    st.forEach((_, i) => { const d = document.createElement('span'); d.className = 'dot' + (i === idx ? ' active' : i < idx ? ' done' : ''); dots.appendChild(d); });
+    // In words, not dots: five dots were easy to miscount. What the step is about, its own
+    // heading says (the two sides are asked as questions).
+    dots.className = 'wiz-dots wiz-step';
+    dots.textContent = t('Schritt {n} von {m}', { n: idx + 1, m: st.length });
     back.disabled = idx === 0;
+    // On the last step the card is the summary of the choices — going back means changing them.
+    back.textContent = t(kind === 'invite' ? 'Ändern' : 'Zurück');
     next.hidden = idx === st.length - 1;
-    if (shareEl) shareEl.classList.toggle('wiz-collapsed', kind === 'auth');
   };
   const go = (delta) => { const st = steps(); idx = Math.min(Math.max(idx + delta, 0), st.length - 1); render(); setup.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   back.addEventListener('click', () => go(-1));
   next.addEventListener('click', () => go(1));
-  // Fold the invite box on the identification step open or shut
-  if (shareEl) { const h = shareEl.querySelector('h2'); if (h) h.addEventListener('click', () => { if (document.body.dataset.wkind === 'auth') shareEl.classList.toggle('wiz-collapsed'); }); }
 
   const syncActive = () => {
     const want = guided();
     if (sw) sw.checked = want;
+    if (swLabel) swLabel.textContent = t(want ? 'Alles auf einer Seite zeigen' : 'Schritt für Schritt einrichten');
     const on = !setup.hidden && want;
     document.body.classList.toggle('wizard', on);
     if (on) render();
@@ -3666,6 +3684,8 @@ function startPairedSigner(token) {
     });
   }
   new MutationObserver(syncActive).observe(setup, { attributes: true, attributeFilter: ['hidden'] });
+  // Step title and switch label are set through t(): run again once the dictionary is there.
+  i18nReady.then(syncActive);
   // The visibility of #auth changes the step count -> re-render on change
   if (authEl) new MutationObserver(() => { if (!setup.hidden) render(); }).observe(authEl, { attributes: true, attributeFilter: ['hidden'] });
   syncActive();
