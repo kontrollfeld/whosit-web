@@ -412,7 +412,6 @@
     "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "The ID request is made by {rp} on behalf of {brand}.",
     "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "The ID request is not made by {brand}, but by the operator of this instance.",
     "Bitte {geraete} freigeben — der Anruf wartet so lange.": "Please allow {geraete} — the call is waiting for it.",
-    "Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.": "Access to {geraete} is blocked. Allow it in your browser (padlock icon in the address bar), then try again.",
     "Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.": "Cannot access {geraete} — no device found. You can hold the call as a chat instead.",
     "Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.": "Cannot access {geraete} — another application is using it right now. Close it and try again.",
     "Zugriff auf {geraete} ist fehlgeschlagen.": "Access to {geraete} failed.",
@@ -554,7 +553,11 @@
     "Dein Gast hat aufgelegt.": "Your guest hung up.",
     "Ein Gast hat aufgelegt.": "A guest hung up.",
     "✓ Du hast bestätigt — warte auf die anderen …": "✓ You confirmed — waiting for the others …",
-    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Set up the call and send the link to your guest. You can identify yourself now or later, when the call begins."
+    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Set up the call and send the link to your guest. You can identify yourself now or later, when the call begins.",
+    "Zugriff auf {geraete} ist blockiert. Erlaube {geraete} über das Symbol links neben der Adresse (Schloss oder Regler) und versuche es erneut.": "Access to {geraete} is blocked. Allow {geraete} via the icon to the left of the address (padlock or sliders), then try again.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → {browser}, erlaube dort {geraete} und lade diese Seite danach neu.": "Access to {geraete} is blocked. Open Settings → {browser}, allow {geraete} there, then reload this page.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → whosit und erlaube dort {geraete}.": "Access to {geraete} is blocked. Open Settings → whosit and allow {geraete} there.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "Access to {geraete} is blocked. Open Settings → Apps → whosit → Permissions and allow {geraete} there."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -969,7 +972,6 @@
     "Die Ausweisabfrage stellt {rp} im Auftrag von {brand}.": "La demande d'identité est présentée par {rp} pour le compte de {brand}.",
     "Die Ausweisabfrage stellt nicht {brand}, sondern der Betreiber dieser Instanz.": "La demande d'identité n'est pas présentée par {brand}, mais par l'exploitant de cette instance.",
     "Bitte {geraete} freigeben — der Anruf wartet so lange.": "Veuillez autoriser {geraete} — l’appel attend.",
-    "Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.": "L’accès à {geraete} est bloqué. Autorisez-le dans le navigateur (icône de cadenas dans la barre d’adresse), puis réessayez.",
     "Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.": "Accès à {geraete} impossible — aucun appareil trouvé. Vous pouvez poursuivre l’appel en mode chat.",
     "Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.": "Accès à {geraete} impossible — une autre application l’utilise actuellement. Fermez-la et réessayez.",
     "Zugriff auf {geraete} ist fehlgeschlagen.": "L’accès à {geraete} a échoué.",
@@ -1111,6 +1113,10 @@
     "Dein Gast hat aufgelegt.": "Votre invité a raccroché.",
     "Ein Gast hat aufgelegt.": "Un invité a raccroché.",
     "✓ Du hast bestätigt — warte auf die anderen …": "✓ Vous avez confirmé — en attente des autres …",
-    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Configurez l’appel et envoyez le lien à votre invité. Vous pouvez vous identifier maintenant ou plus tard, au début de l’appel."
+    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Configurez l’appel et envoyez le lien à votre invité. Vous pouvez vous identifier maintenant ou plus tard, au début de l’appel.",
+    "Zugriff auf {geraete} ist blockiert. Erlaube {geraete} über das Symbol links neben der Adresse (Schloss oder Regler) und versuche es erneut.": "L’accès à {geraete} est bloqué. Autorisez {geraete} via l’icône à gauche de l’adresse (cadenas ou réglages), puis réessayez.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → {browser}, erlaube dort {geraete} und lade diese Seite danach neu.": "L’accès à {geraete} est bloqué. Ouvrez Réglages → {browser}, autorisez-y {geraete}, puis rechargez cette page.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → whosit und erlaube dort {geraete}.": "L’accès à {geraete} est bloqué. Ouvrez Réglages → whosit et autorisez-y {geraete}.",
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "L’accès à {geraete} est bloqué. Ouvrez Paramètres → Applications → whosit → Autorisations et autorisez-y {geraete}."
   }
 }
