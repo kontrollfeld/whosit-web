@@ -3018,7 +3018,11 @@ function showInviteProblem(reason, opensAt, startsAt) {
  */
 function startFreshCall() {
   const u = new URL(location.href);
-  u.searchParams.delete('room');
+  // Everything that names the OLD room goes, not just `room`: back from the wallet the address
+  // is /zurueck?r=… (in the app index.html?zurueck=1&r=…), and an expired appointment carries
+  // ?inv=… — kept, they led straight back into the full room or the dead invitation.
+  for (const k of ['room', 'r', 'zurueck', 'app', 'response_code', 'inv', 'pair', 'fresh']) u.searchParams.delete(k);
+  if (u.pathname === '/zurueck') u.pathname = '/';
   u.searchParams.set('new', '1');
   location.replace(u.toString());
 }

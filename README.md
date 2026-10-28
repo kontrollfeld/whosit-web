@@ -361,6 +361,9 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
     link.
   - A link opened from the browser's address bar never opens an app — test app links by tapping
     them in Notes or Messages.
+  - "Neuen Raum/Anruf starten" (`startFreshCall`) must drop every marker of the old room — `r`,
+    `zurueck`, `app`, `inv`, the `/zurueck` path — not just `room`. Until 2026-10-28 it kept them,
+    and the app, back from the wallet, landed in the old (full) room again.
 - The same modal serves the in-call credential request (Pro), without the loading state.
 - **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
 
