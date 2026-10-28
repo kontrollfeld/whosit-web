@@ -362,7 +362,6 @@
     "Du bestimmst, was du zeigst": "You decide what you share",
     "Nur die Angaben, die du auswählst. Sichtbar werden sie erst, wenn beide zustimmen.": "Only the details you pick. They become visible only once both sides agree.",
     "Europäischer Standard": "European standard",
-    "Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto, keine Installation nötig.": "Built on eIDAS 2.0 and the EUDI wallet. No account, no install needed.",
     "Warte auf Bestätigung …": "Waiting for confirmation …",
     "Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.": "Limited to data-minimising core attributes under eIDAS 2.0 WRP approval.",
     "Identitätsverifikation für sichere P2P-Kommunikation": "Identity verification for secure peer-to-peer communication",
@@ -557,7 +556,16 @@
     "Zugriff auf {geraete} ist blockiert. Erlaube {geraete} über das Symbol links neben der Adresse (Schloss oder Regler) und versuche es erneut.": "Access to {geraete} is blocked. Allow {geraete} via the icon to the left of the address (padlock or sliders), then try again.",
     "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → {browser}, erlaube dort {geraete} und lade diese Seite danach neu.": "Access to {geraete} is blocked. Open Settings → {browser}, allow {geraete} there, then reload this page.",
     "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → whosit und erlaube dort {geraete}.": "Access to {geraete} is blocked. Open Settings → whosit and allow {geraete} there.",
-    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "Access to {geraete} is blocked. Open Settings → Apps → whosit → Permissions and allow {geraete} there."
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "Access to {geraete} is blocked. Open Settings → Apps → whosit → Permissions and allow {geraete} there.",
+    "Das brauchst du": "What you need",
+    "Die App <strong>d-you Wallet</strong> auf deinem Smartphone, eingerichtet mit deinem Ausweis (Online-Ausweisfunktion und PIN).": "The <strong>d-you Wallet</strong> app on your smartphone, set up with your ID card (online ID function and PIN).",
+    "Noch nicht eingerichtet? So geht’s": "Not set up yet? Here’s how",
+    "Kamera und Mikrofon an diesem Gerät.": "Camera and microphone on this device.",
+    "Ein Mikrofon an diesem Gerät.": "A microphone on this device.",
+    "Dein Gast braucht die App <strong>d-you Wallet</strong>, eingerichtet mit dem eigenen Ausweis. Sag am besten vorher Bescheid – das Einrichten dauert ein paar Minuten.": "Your guest needs the <strong>d-you Wallet</strong> app, set up with their own ID card. Best let them know beforehand – setting it up takes a few minutes.",
+    "Vorher einmalig einrichten (dauert ein paar Minuten): Du brauchst die App „d-you Wallet“ auf deinem Smartphone, mit deinem Ausweis darin (Online-Ausweisfunktion und PIN). Download und Anleitung:": "Set up once beforehand (takes a few minutes): you need the “d-you Wallet” app on your smartphone, with your ID card in it (online ID function and PIN). Download and instructions:",
+    "Vorher bitte die App „d-you Wallet“ einrichten: {url}": "Please set up the “d-you Wallet” app beforehand: {url}",
+    "Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto nötig – whosit läuft im Browser.": "Built on eIDAS 2.0 and the EUDI wallet. No account needed – whosit runs in your browser."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -922,7 +930,6 @@
     "Du bestimmst, was du zeigst": "Vous décidez ce que vous partagez",
     "Nur die Angaben, die du auswählst. Sichtbar werden sie erst, wenn beide zustimmen.": "Seulement les données que vous choisissez. Elles n’apparaissent qu’après accord des deux parties.",
     "Europäischer Standard": "Standard européen",
-    "Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto, keine Installation nötig.": "Basé sur eIDAS 2.0 et le portefeuille EUDI. Sans compte ni installation.",
     "Warte auf Bestätigung …": "En attente de confirmation …",
     "Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.": "Limité aux attributs de base minimisant les données, conformément à l'agrément WRP eIDAS 2.0.",
     "Identitätsverifikation für sichere P2P-Kommunikation": "Vérification d'identité pour une communication P2P sécurisée",
@@ -1117,6 +1124,15 @@
     "Zugriff auf {geraete} ist blockiert. Erlaube {geraete} über das Symbol links neben der Adresse (Schloss oder Regler) und versuche es erneut.": "L’accès à {geraete} est bloqué. Autorisez {geraete} via l’icône à gauche de l’adresse (cadenas ou réglages), puis réessayez.",
     "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → {browser}, erlaube dort {geraete} und lade diese Seite danach neu.": "L’accès à {geraete} est bloqué. Ouvrez Réglages → {browser}, autorisez-y {geraete}, puis rechargez cette page.",
     "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → whosit und erlaube dort {geraete}.": "L’accès à {geraete} est bloqué. Ouvrez Réglages → whosit et autorisez-y {geraete}.",
-    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "L’accès à {geraete} est bloqué. Ouvrez Paramètres → Applications → whosit → Autorisations et autorisez-y {geraete}."
+    "Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.": "L’accès à {geraete} est bloqué. Ouvrez Paramètres → Applications → whosit → Autorisations et autorisez-y {geraete}.",
+    "Das brauchst du": "Ce qu’il vous faut",
+    "Die App <strong>d-you Wallet</strong> auf deinem Smartphone, eingerichtet mit deinem Ausweis (Online-Ausweisfunktion und PIN).": "L’application <strong>d-you Wallet</strong> sur votre smartphone, configurée avec votre carte d’identité (fonction d’identification en ligne et code PIN).",
+    "Noch nicht eingerichtet? So geht’s": "Pas encore configurée ? Voici comment",
+    "Kamera und Mikrofon an diesem Gerät.": "Caméra et microphone sur cet appareil.",
+    "Ein Mikrofon an diesem Gerät.": "Un microphone sur cet appareil.",
+    "Dein Gast braucht die App <strong>d-you Wallet</strong>, eingerichtet mit dem eigenen Ausweis. Sag am besten vorher Bescheid – das Einrichten dauert ein paar Minuten.": "Votre invité a besoin de l’application <strong>d-you Wallet</strong>, configurée avec sa propre carte d’identité. Prévenez-le à l’avance – la configuration prend quelques minutes.",
+    "Vorher einmalig einrichten (dauert ein paar Minuten): Du brauchst die App „d-you Wallet“ auf deinem Smartphone, mit deinem Ausweis darin (Online-Ausweisfunktion und PIN). Download und Anleitung:": "À configurer une fois à l’avance (quelques minutes) : il vous faut l’application « d-you Wallet » sur votre smartphone, avec votre carte d’identité (fonction d’identification en ligne et code PIN). Téléchargement et instructions :",
+    "Vorher bitte die App „d-you Wallet“ einrichten: {url}": "Veuillez configurer l’application « d-you Wallet » à l’avance : {url}",
+    "Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto nötig – whosit läuft im Browser.": "Basé sur eIDAS 2.0 et le portefeuille EUDI. Sans compte – whosit fonctionne dans le navigateur."
   }
 }
