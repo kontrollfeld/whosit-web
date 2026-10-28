@@ -525,7 +525,6 @@
     "Audio": "Audio",
     "Chat": "Chat",
     "Video": "Video",
-    "Richte den Anruf ein. Danach weist du dich aus und lädst deinen Gast ein.": "Set up the call. Then you identify yourself and invite your guest.",
     "Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.": "You are identified ✓ – now send the link to your guest.",
     "Richte den Anruf ein und schick den Link an deinen Gast.": "Set up the call and send the link to your guest.",
     "Deine Gäste sind da und weisen sich gerade aus …": "Your guests are here and are identifying themselves …",
@@ -554,7 +553,8 @@
     "Gastgeber:in hat aufgelegt.": "The host hung up.",
     "Dein Gast hat aufgelegt.": "Your guest hung up.",
     "Ein Gast hat aufgelegt.": "A guest hung up.",
-    "✓ Du hast bestätigt — warte auf die anderen …": "✓ You confirmed — waiting for the others …"
+    "✓ Du hast bestätigt — warte auf die anderen …": "✓ You confirmed — waiting for the others …",
+    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Set up the call and send the link to your guest. You can identify yourself now or later, when the call begins."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1082,7 +1082,6 @@
     "Audio": "Audio",
     "Chat": "Chat",
     "Video": "Vidéo",
-    "Richte den Anruf ein. Danach weist du dich aus und lädst deinen Gast ein.": "Configurez l’appel. Ensuite, vous vous identifiez et invitez votre invité.",
     "Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.": "Vous êtes identifié ✓ – envoyez maintenant le lien à votre invité.",
     "Richte den Anruf ein und schick den Link an deinen Gast.": "Configurez l’appel et envoyez le lien à votre invité.",
     "Deine Gäste sind da und weisen sich gerade aus …": "Vos invités sont là et s’identifient …",
@@ -1111,6 +1110,7 @@
     "Gastgeber:in hat aufgelegt.": "L’hôte a raccroché.",
     "Dein Gast hat aufgelegt.": "Votre invité a raccroché.",
     "Ein Gast hat aufgelegt.": "Un invité a raccroché.",
-    "✓ Du hast bestätigt — warte auf die anderen …": "✓ Vous avez confirmé — en attente des autres …"
+    "✓ Du hast bestätigt — warte auf die anderen …": "✓ Vous avez confirmé — en attente des autres …",
+    "Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.": "Configurez l’appel et envoyez le lien à votre invité. Vous pouvez vous identifier maintenant ou plus tard, au début de l’appel."
   }
 }
