@@ -86,6 +86,9 @@ export const FEATURES: Feature[] = [
   { id: 'hand-raise', title: 'Raise hand (signal over the chat DataChannel)', edition: 'community', clientGated: true },
   { id: 'file-transfer', title: 'File transfer over DataChannel', edition: 'community', clientGated: true },
   { id: 'emoji', title: 'Emoji picker', edition: 'community', clientGated: true },
+  // On-device segmentation (self-hosted MediaPipe 0.10.x, no metrics to Google); only the
+  // composited picture is sent. Lazy-loaded, so a call without an effect costs nothing.
+  { id: 'background-effects', title: 'Background blur / replacement (on device)', edition: 'community', clientGated: true },
   // Additionally config-gated (EUDI_PASS_*): advertised only when a pass certificate is
   // configured — see enabledFeatures() in server.ts. A self-hoster needs their own Apple
   // certificate for this, which is a stronger gate than any edition check.

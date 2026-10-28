@@ -740,6 +740,18 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   when the page becomes visible again).
 - A new data channel learns the current mute/camera state, so "join muted" and late joiners show
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
+- **Background: blur or replace** (`background-effects`). Tiles in the device check and behind the
+  "Hintergrund" button in the call: no effect, blur, a whosit background (the logo *file* from
+  `public/logo/`, only on unbranded instances), four drawn backgrounds, and an own picture.
+  `public/background.mjs` segments the camera on the device with MediaPipe (self-hosted in
+  `public/vendor/mediapipe/`, SIMD build only) and composites onto a canvas whose
+  `captureStream()` track replaces the camera track in the stream and in every sender — the
+  other side only receives the composited picture. Lazy: the ~11 MB of WebAssembly load only when
+  someone picks an effect. The choice is remembered in `eudi_devices`, an own picture (scaled to
+  ≤1280 px) in `eudi_bg_custom`; neither leaves the browser. While the logo or an own picture is
+  on, the self-view is not mirrored (the writing would read backwards). Stopping a stream also
+  stops the real camera behind the effect (`stopMediaStream`). **Stay on MediaPipe 0.10.x** unless
+  a newer one is checked: 1.x sends usage metrics to Google (see the vendor README).
 
 **Three features are commercially licensed** — where there is a real obligation behind them. They
 come as modules released separately (see [Modules](#modules)), not in this repository.
