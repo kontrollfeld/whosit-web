@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /* Background effects for the outgoing camera picture: blur, or replace it with an image.
  *
  * Everything runs on the device. MediaPipe's selfie segmenter (vendor/mediapipe, self-hosted,
