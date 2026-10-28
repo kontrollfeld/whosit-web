@@ -1522,7 +1522,9 @@ function updateStepper(active) {
     // The last step is a destination, not a stop along the way: whoever is there has arrived.
     // Hence a tick there too instead of the number — otherwise "3 Connected" reads like an open
     // item even though the connection has long been up.
-    const done = i < active || (i === active && i === labels.length - 1);
+    // …but only once the connection is actually up. Ticked from the moment both had confirmed,
+    // it said "Verbunden ✓" right above "Verbindung wird aufgebaut …".
+    const done = i < active || (i === active && i === labels.length - 1 && anyConnected());
     const no = document.createElement('span'); no.className = 'step-dot'; no.textContent = done ? '✓' : String(i + 1);
     const tx = document.createElement('span'); tx.textContent = t(label);
     li.append(no, tx);
@@ -2085,7 +2087,7 @@ function getPeer(peerId, meta) {
   pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') { revealCall(); updateSas(); }
-    else if (pc.connectionState === 'failed') setStatus('Verbindung zu einem Teilnehmer fehlgeschlagen (evtl. TURN nötig).', 'error');
+    else if (pc.connectionState === 'failed') setStatus('Die Verbindung kam nicht zustande. Oft liegt es am Netzwerk – versuch es mit einem anderen WLAN oder mit mobilen Daten.', 'error');
     if (lastStatusMsg) updateChips(lastStatusMsg); // last chip step = connected
   };
   for (const tr of localTracks()) pc.addTrack(tr, localStream);
@@ -2141,6 +2143,7 @@ function removePeer(peerId) {
   try { p.pc.close(); } catch {}
   if (p.tile) p.tile.remove();
   peers.delete(peerId);
+  if (p.tile) applyStage(); // back from picture-in-picture when the other tile is gone
 }
 
 // 'ready' (may repeat on resume): open/refresh a connection to every listed peer.
@@ -2308,6 +2311,9 @@ function applyStage() {
   if (stagePeer && stagePeer !== 'self' && !tileFor(stagePeer) && !stageAuto) { stagePeer = null; }
   const staged = on ? stagePeer : null;
   videosEl.classList.toggle('stage-mode', !!staged && !!tileFor(staged));
+  // One-to-one: the other person large, your own picture small in the corner — as in every phone
+  // call app. Side by side (or, on a phone, your own picture on top) gave yourself the most room.
+  videosEl.classList.toggle('duo', !videosEl.classList.contains('stage-mode') && videosEl.querySelectorAll('.tile').length === 2);
   for (const tile of videosEl.querySelectorAll('.tile')) {
     const key = tile.dataset.peer;
     if (on) {
@@ -2805,7 +2811,8 @@ function revealCall() {
   reviewBox.hidden = true; setupBox.hidden = true; authBox.hidden = true;
   // In an open room keep the invite link visible during the call so more guests can join.
   shareBox.hidden = !isOpenRoom;
-  if (anyConnected()) setStatus('Verbunden ✓ – sichere P2P-Verbindung steht.');
+  if (anyConnected()) setStatus('Verbunden ✓ – Ende-zu-Ende verschlüsselt.');
+  updateStepper(2);
   if (mode === 'video') { peersBox.hidden = false; callBanner.hidden = true; applyStage(); }
   else {
     peersBox.hidden = true; callBanner.hidden = false;
@@ -2818,6 +2825,10 @@ function revealCall() {
 // A peer left (grace expired) or hung up: drop just that connection/tile.
 function onPeerGone(from) {
   if (ended || !from) return;
+  // Read the name before the peer is gone: "Erika Mustermann hat aufgelegt." tells the one left
+  // behind what happened; "Alle anderen haben den Anruf verlassen." made them count heads.
+  const gone = peers.get(from);
+  const goneName = gone && gone.name ? titleCase(gone.name) : '';
   removePeer(from);
   if (qesShare) qesShare.peerGone(from);
   screenSharers.delete(from);
@@ -2826,8 +2837,8 @@ function onPeerGone(from) {
   peerCamOff.delete(from);
   if (stagePeer === from) { stagePeer = null; stageAuto = false; }
   updateSas();
-  if (peers.size === 0) { ended = true; teardownCall(); showEnded('Alle anderen haben den Anruf verlassen.'); }
-  else { setStatus('Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
+  if (peers.size === 0) { ended = true; teardownCall(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : 'Dein Gegenüber hat aufgelegt.'); }
+  else { setStatus(goneName ? t('{name} hat den Anruf verlassen.', { name: goneName }) : 'Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
 }
 
 // ---- hang up ----
@@ -2848,6 +2859,12 @@ function teardownCall() {
 }
 function showEnded(message) {
   setStatus(message);
+  // The call is over, so its layout goes too: the trust bar would otherwise stay on top of an
+  // ended page and keep the participant chips hidden, and the stepper would still say
+  // "Verbunden". The chips stay — greyed — as the record of whom you spoke with.
+  document.body.classList.remove('in-call', 'trust-open');
+  document.body.classList.add('call-ended');
+  if (stepperEl) stepperEl.hidden = true;
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
   peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; sasCard.hidden = true; startBar.hidden = true;
@@ -3519,40 +3536,50 @@ function startPairedSigner(token) {
     CapApp.addListener('appUrlOpen', (e) => { if (e && e.url) openRoomUrl(e.url); });
     CapApp.getLaunchUrl().then((r) => { if (r && r.url) openRoomUrl(r.url); }).catch(() => {});
   }
+})();
 
-  // ---- in-call trust bar: shield + names + SAS code, expandable ------------
-  // Data is mirrored from the existing UI (chips + #sas-code) via observers, so
-  // there is no second source of truth; chip prefixes/checkmarks are stripped.
+// ---- in-call trust bar: shield + names + SAS code, expandable ------------
+// In the app AND on the website (since 2026-10-28): before, a phone browser stacked status,
+// participant chips, verified data and the security code above the video, which then started
+// below the fold. The bar keeps them one tap away.
+// Data is mirrored from the existing UI (chips + #sas-code) via observers, so
+// there is no second source of truth; chip prefixes/checkmarks are stripped.
+(function initTrustBar() {
   const trustBar = $('trust-bar'), trustNames = $('trust-names'), trustSas = $('trust-sas');
-  if (trustBar && trustNames && trustSas) {
-    const junk = () => new Set([
-      t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
-      // The chip states, so a state never ends up in the trust bar as if it were a name.
-      t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
-    ]);
-    const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
-    const refreshTrust = () => {
-      const inCall = document.body.classList.contains('in-call');
-      trustBar.hidden = !inCall;
-      if (!inCall) return;
-      const drop = junk();
-      const names = [stripChip(selfLabel.textContent || '')];
-      document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
-      const clean = names.filter((n) => n && !drop.has(n));
-      trustNames.textContent = clean.length ? clean.join(' ↔ ') : t('Verifizierter Anruf');
-      trustSas.textContent = (sasCode.textContent || '').trim();
-    };
-    trustBar.addEventListener('click', () => {
-      const open = document.body.classList.toggle('trust-open');
-      trustBar.setAttribute('aria-expanded', String(open));
-    });
-    const obs = new MutationObserver(refreshTrust);
-    const idsBox = $('identities');
-    if (idsBox) obs.observe(idsBox, { subtree: true, childList: true, characterData: true });
-    obs.observe(sasCode, { subtree: true, childList: true, characterData: true });
-    obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    refreshTrust();
-  }
+  if (!trustBar || !trustNames || !trustSas) return;
+  const junk = () => new Set([
+    t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
+    // The chip states, so a state never ends up in the trust bar as if it were a name.
+    t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
+  ]);
+  const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
+  const refreshTrust = () => {
+    const inCall = document.body.classList.contains('in-call');
+    trustBar.hidden = !inCall;
+    if (!inCall) return;
+    const drop = junk();
+    // The other side only: who you are is no news to you, and on a phone two names next to the
+    // security code left room for neither.
+    const names = [];
+    document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
+    const clean = names.filter((n) => n && !drop.has(n));
+    // Without names, say whether anyone is verified at all — "Verifizierter Anruf" over a call
+    // between two anonymous people would claim exactly what the product must never fake.
+    const m = lastStatusMsg;
+    const anyVerified = !!(m && ((m.self && m.self.verified) || (m.peers || []).some((p) => p.verified)));
+    trustNames.textContent = clean.length ? clean.join(' ↔ ') : t(anyVerified ? 'Verifizierter Anruf' : 'Anruf ohne Ausweisprüfung');
+    trustSas.textContent = (sasCode.textContent || '').trim();
+  };
+  trustBar.addEventListener('click', () => {
+    const open = document.body.classList.toggle('trust-open');
+    trustBar.setAttribute('aria-expanded', String(open));
+  });
+  const obs = new MutationObserver(refreshTrust);
+  const idsBox = $('identities');
+  if (idsBox) obs.observe(idsBox, { subtree: true, childList: true, characterData: true });
+  obs.observe(sasCode, { subtree: true, childList: true, characterData: true });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  refreshTrust();
 })();
 
 // ---- setup wizard (mobile/app): 4 steps ------------------------------------

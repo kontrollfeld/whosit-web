@@ -76,7 +76,6 @@
     "Geprüfte Angaben": "Verified attributes",
     "Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:": "Both consented — these attributes were confirmed via <strong>EUDI wallet</strong>:",
     "Verbindung steht": "Connected",
-    "· Ende-zu-Ende, direkt P2P": "· end-to-end, direct P2P",
     "Nachricht schreiben …": "Write a message …",
     "Chat-Nachricht": "Chat message",
     "Senden": "Send",
@@ -99,7 +98,6 @@
     "Dein Gast bestätigt gerade seine Identität …": "Your guest is confirming their identity …",
     "Gleich geschafft …": "Almost there …",
     "Bestätigt ✓ – warte auf den Gastgeber …": "Confirmed ✓ – waiting for the host …",
-    "Verbunden ✓ – sichere P2P-Verbindung steht.": "Connected ✓ – secure P2P connection established.",
     "Verbindung fehlgeschlagen (evtl. TURN nötig).": "Connection failed (TURN may be required).",
     "Verbindung getrennt.": "Connection lost.",
     "Bitte Kamera/Mikrofon erlauben – dann wird verbunden …": "Please allow camera/microphone – connecting afterwards …",
@@ -521,7 +519,14 @@
     "Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.": "The wallet did not complete the request. With a new code you can try again.",
     "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "You share these details from your <strong>wallet</strong>:",
     "Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.": "You are identified. Continue with the call: on your other device or in the whosit app. You can close this window.",
-    "Zurück zur whosit-App": "Back to the whosit app"
+    "Zurück zur whosit-App": "Back to the whosit app",
+    "Anruf ohne Ausweisprüfung": "Call without ID check",
+    "{name} hat aufgelegt.": "{name} hung up.",
+    "Dein Gegenüber hat aufgelegt.": "The other person hung up.",
+    "{name} hat den Anruf verlassen.": "{name} left the call.",
+    "Verbunden ✓ – Ende-zu-Ende verschlüsselt.": "Connected ✓ – end-to-end encrypted.",
+    "Die Verbindung kam nicht zustande. Oft liegt es am Netzwerk – versuch es mit einem anderen WLAN oder mit mobilen Daten.": "The connection could not be established. This is often down to the network – try another Wi-Fi or mobile data.",
+    "· Ende-zu-Ende verschlüsselt": "· end-to-end encrypted"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -600,7 +605,6 @@
     "Geprüfte Angaben": "Attributs vérifiés",
     "Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:": "Les deux ont consenti — ces attributs ont été confirmés via le <strong>portefeuille EUDI</strong> :",
     "Verbindung steht": "Connexion établie",
-    "· Ende-zu-Ende, direkt P2P": "· de bout en bout, P2P direct",
     "Nachricht schreiben …": "Écrire un message …",
     "Chat-Nachricht": "Message de chat",
     "Senden": "Envoyer",
@@ -623,7 +627,6 @@
     "Dein Gast bestätigt gerade seine Identität …": "Votre invité confirme son identité …",
     "Gleich geschafft …": "Presque terminé …",
     "Bestätigt ✓ – warte auf den Gastgeber …": "Confirmé ✓ – en attente de l'hôte …",
-    "Verbunden ✓ – sichere P2P-Verbindung steht.": "Connecté ✓ – connexion P2P sécurisée établie.",
     "Verbindung fehlgeschlagen (evtl. TURN nötig).": "Échec de la connexion (TURN peut être nécessaire).",
     "Verbindung getrennt.": "Connexion perdue.",
     "Bitte Kamera/Mikrofon erlauben – dann wird verbunden …": "Veuillez autoriser caméra/micro – connexion ensuite …",
@@ -1045,6 +1048,13 @@
     "Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.": "Le portefeuille n’a pas terminé la demande. Avec un nouveau code, tu peux réessayer.",
     "Diese Angaben teilst du aus deiner <strong>Wallet</strong>:": "Tu partages ces informations depuis ton <strong>portefeuille</strong> :",
     "Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.": "Ton identité est vérifiée. Poursuis l’appel : sur ton autre appareil ou dans l’application whosit. Tu peux fermer cette fenêtre.",
-    "Zurück zur whosit-App": "Retour à l’application whosit"
+    "Zurück zur whosit-App": "Retour à l’application whosit",
+    "Anruf ohne Ausweisprüfung": "Appel sans vérification d’identité",
+    "{name} hat aufgelegt.": "{name} a raccroché.",
+    "Dein Gegenüber hat aufgelegt.": "Votre interlocuteur a raccroché.",
+    "{name} hat den Anruf verlassen.": "{name} a quitté l’appel.",
+    "Verbunden ✓ – Ende-zu-Ende verschlüsselt.": "Connecté ✓ – chiffré de bout en bout.",
+    "Die Verbindung kam nicht zustande. Oft liegt es am Netzwerk – versuch es mit einem anderen WLAN oder mit mobilen Daten.": "La connexion n’a pas pu être établie. C’est souvent dû au réseau – essayez un autre Wi-Fi ou les données mobiles.",
+    "· Ende-zu-Ende verschlüsselt": "· chiffré de bout en bout"
   }
 }

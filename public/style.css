@@ -516,6 +516,26 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
    any text there would be unreadable. A shared screen as well — it is not a mirror image but
    a document. */
 .tile[data-peer="self"] video { transform: scaleX(-1); }
+/* One-to-one (.duo, set in applyStage): the other person fills the stage, your own picture
+   floats small in the top corner. A shared screen still gets the full stage via stage-mode. */
+.videos.duo { display: block; position: relative; }
+.videos.duo .tile:not([data-peer="self"]) { aspect-ratio: 16 / 10; max-height: 74vh; width: 100%; }
+.videos.duo .tile[data-peer="self"] {
+  position: absolute; top: 10px; right: 10px; z-index: 4;
+  width: clamp(96px, 24%, 220px); aspect-ratio: 3 / 4;
+  border: 2px solid rgba(255, 255, 255, 0.7); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+/* No name on your own small picture: cut down to "Erika Musterm…" it said nothing you need. */
+.videos.duo .tile[data-peer="self"] .name { display: none; }
+.videos.duo .tile[data-peer="self"] .tile-fs { display: none; }
+.videos.duo .tile[data-peer="self"] .tile-badges { transform: scale(0.8); transform-origin: top left; }
+/* The other tile's top-right corner now belongs to your own picture: its fullscreen button moves
+   left of it, the credential badge (Pro) down above the name. */
+.videos.duo .tile:not([data-peer="self"]) .tile-fs { right: calc(clamp(96px, 24%, 220px) + 20px); }
+.videos.duo .tile:not([data-peer="self"]) .cred-badge { top: auto; bottom: 46px; }
+@media (max-width: 560px) {
+  .videos.duo .tile:not([data-peer="self"]) { aspect-ratio: 3 / 4; max-height: 70vh; }
+}
 .tile[data-peer="self"].is-screen video { transform: none; }
 /* Fluid stage: during a video call the section breaks out of the narrow reading column
    and grows with the viewport (centered on it), so the stage isn't capped at ~680px. */
@@ -555,6 +575,10 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   text-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
 }
 .compat-note { text-align: center; margin: 14px 0 0; }
+/* After the call: the chips stay as the record of whom you spoke with, but greyed and without
+   the progress dots, so nothing looks like it is still going on. */
+body.call-ended .id-chip { opacity: 0.7; box-shadow: none; }
+body.call-ended .id-chip .steps { display: none; }
 /* Floating, always-reachable control bar: on a tall page (video + chat + shared
    document) the alternative is scrolling all the way down just to hang up. Sticks to
    the bottom of the viewport once scrolled to; a plain top border/shadow reads as a
@@ -569,6 +593,13 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   box-shadow: var(--shadow);
 }
 #hangup-btn svg { transform: rotate(135deg); }
+/* Apart from the rest: right next to "Bildschirm teilen", a slip of the thumb ended the call. */
+.call-controls #hangup-btn { margin-left: 12px; }
+/* Wide screens: one row. The reading column is narrower than six labelled buttons, so the bar
+   wrapped into two rows and covered a third of the picture; it may grow past the column. */
+@media (min-width: 900px) {
+  .call-controls { flex-wrap: nowrap; width: max-content; max-width: 96vw; margin-left: 50%; transform: translateX(-50%); }
+}
 #screen-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .call-controls .ghost.ctrl-off { background: var(--danger-soft); color: var(--danger); border-color: rgba(220, 38, 38, 0.4); }
 
@@ -839,10 +870,12 @@ body:not(.wizard) .card.is-active {
   .review-grid { grid-template-columns: 1fr; }
   .row { flex-direction: column; }
   .row button { width: 100%; }
-  /* .chat-row stacks too (icon buttons full-width) — but flex-direction:column turns
-     the main axis vertical, so the input's `flex:1` (built for a horizontal row) no
-     longer stretches its WIDTH; pin it explicitly so it matches the buttons above/below. */
-  .chat-row #chat-input { align-self: stretch; }
+  /* The chat row does NOT stack like the other rows: stacked, emoji and attachment became two
+     full-width bars above the input. One line — icons, input, send — as in any messenger. */
+  .row.chat-row { flex-direction: row; flex-wrap: nowrap; }
+  .row.chat-row button { width: auto; }
+  .chat-row #chat-input { flex: 1 1 0; min-width: 0; }
+  .chat-row #chat-send { padding-left: 14px; padding-right: 14px; }
   .schedule-fields { flex-wrap: wrap; }
   .schedule-fields select { flex-basis: 100%; }
 }
@@ -1341,12 +1374,14 @@ body.in-call .app-tabbar { display: none; }
 /* the moved-in footer pills keep their look; version badge loses its hover cursor */
 .settings-row .lang-switch, .settings-row .version-badge { font-size: 0.8rem; }
 
-/* ---- native app: in-call trust bar --------------------------------------
- * During a call the pre-call blocks (header, stepper, status, chips, verified
- * data, SAS card) collapse into one slim bar: shield + names + SAS code.
- * Tapping toggles body.trust-open which brings the original cards back. */
+/* ---- in-call trust bar (app and website) ---------------------------------
+ * During a call the pre-call blocks (participant chips, verified data, SAS card) collapse into
+ * one slim bar: shield + names + SAS code. Tapping toggles body.trust-open which brings the
+ * original cards back. Until 2026-10-28 only the app had it; on a phone browser those cards
+ * pushed the video below the fold. The status line stays: it is where a failing connection
+ * explains itself. */
 .trust-bar { display: none; }
-html.native-app body.in-call .trust-bar {
+body.in-call .trust-bar {
   display: flex; align-items: center; gap: 10px;
   width: 100%; min-height: 48px; margin: 0 0 12px; padding: 10px 14px;
   background: var(--surface); color: var(--navy);
@@ -1354,21 +1389,24 @@ html.native-app body.in-call .trust-bar {
   box-shadow: var(--shadow-sm);
   font-size: 0.9rem; font-weight: 600; text-align: left;
 }
-html.native-app body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; background: var(--surface); }
+body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; background: var(--surface); }
 .trust-bar .t-ic { width: 18px; height: 18px; flex: none; color: var(--ok); }
 .trust-bar .trust-names { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trust-bar .trust-sas { flex: none; font-size: 0.95rem; letter-spacing: 2px; }
 .trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-faint); transition: transform var(--t); }
 .trust-bar[aria-expanded="true"] .trust-chev { transform: rotate(180deg); }
-/* header + stepper are done once connected — always collapsed in-call (app) */
+/* header + stepper are done once connected — collapsed in-call in the app and on phones */
 html.native-app body.in-call header,
 html.native-app body.in-call #stepper { display: none; }
+@media (max-width: 640px) {
+  body.in-call header,
+  body.in-call #stepper { display: none; }
+}
 /* the informational blocks collapse behind the bar; body.trust-open restores them */
-html.native-app body.in-call:not(.trust-open) #status-bar,
-html.native-app body.in-call:not(.trust-open) #identities,
-html.native-app body.in-call:not(.trust-open) #call-banner,
-html.native-app body.in-call:not(.trust-open) #result,
-html.native-app body.in-call:not(.trust-open) #sas-card { display: none; }
+body.in-call:not(.trust-open) #identities,
+body.in-call:not(.trust-open) #call-banner,
+body.in-call:not(.trust-open) #result,
+body.in-call:not(.trust-open) #sas-card { display: none; }
 
 /* ---- setup wizard (mobile/app) ------------------------------------------
  * On small screens / in the native app the host setup becomes a 4-step flow:
