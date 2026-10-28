@@ -1522,7 +1522,15 @@ html.native-app .stepper { margin-bottom: 14px; }
   border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   padding: 20px 20px 6px; margin-top: 14px;
 }
-body:not(.in-call) .app-strengths { display: block; }
+/* Since 2026-10-28 (the rule for "first step only" had been lost): on one-column screens only
+   at the very start — the host's first wizard step, a guest before identifying (body.pre-start,
+   set in renderStatus). After that it pushed the actual step down, on the review even below the
+   connect button. Wide screens keep it in the side column, where it takes nothing away. */
+body.pre-start:not(.wizard) .app-strengths,
+body.pre-start.wizard[data-wkind="mode"] .app-strengths { display: block; }
+@media (min-width: 1020px) {
+  body:not(.in-call):not(.call-ended) .app-strengths { display: block; }
+}
 .app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
 .strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
 .strength .s-ic {
