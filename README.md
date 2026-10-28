@@ -721,6 +721,26 @@ microphone and camera toggles, screen sharing, stage layout, hand raising, file 
 calendar entries, an Apple Wallet pass, document sharing and signing, iframe embedding,
 in-call credentials, custom branding, and a self-hosting stack with your own TURN server.
 
+**Comfort around the call** (all in the community edition, all local to the device):
+
+- **Device check before the call.** A card next to inviting/identifying shows the camera picture, a
+  microphone level, camera/microphone/speaker selection (speaker only where the browser has
+  `setSinkId`), a test tone, and "join muted" / "join with camera off". The permission prompt comes
+  here, not after both sides have identified. A running check hands its stream to the call (no
+  second prompt); switching the call type stops it. Chosen devices are remembered in
+  `localStorage` (`eudi_devices`); the "join muted" choices are not.
+- **Arrival notice.** When the other side joins: a short chime (Web Audio, so only after the page
+  has seen a gesture), and while the tab is hidden the title reads "● Dein Gast ist da". Hosts can
+  additionally allow a system notification (button in the invitation card; hidden in the app and
+  wherever the browser cannot notify). Who is already there when you arrive is not announced.
+- **"Du bist stummgeschaltet."** While muted, the level of a *clone* of the microphone track is
+  measured (the muted original reads as silence); about 1.2 s of speech within 2 s shows a bubble
+  above the call controls with "Mikrofon einschalten", at most every 30 s. Nothing is sent.
+- **Screen stays on** during the call via the Screen Wake Lock API where available (re-acquired
+  when the page becomes visible again).
+- A new data channel learns the current mute/camera state, so "join muted" and late joiners show
+  the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
+
 **Three features are commercially licensed** — where there is a real obligation behind them. They
 come as modules released separately (see [Modules](#modules)), not in this repository.
 

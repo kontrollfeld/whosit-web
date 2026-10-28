@@ -1798,3 +1798,47 @@ body.wizard[data-wkind="you"] .preview .prev-guest { display: none; }
 .noverifier-hint a { color: var(--accent-strong, var(--accent)); font-weight: 600; text-decoration: none; }
 .noverifier-hint a:hover { text-decoration: underline; }
 .seg button[data-locked] { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- device check before the call ---- */
+.media-check .mc-live { display: grid; gap: 12px; margin-top: 4px; }
+.media-check .mc-live[hidden] { display: none; }
+.media-check video {
+  width: 100%; max-width: 360px; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: var(--r-sm); background: #0b1220; transform: scaleX(-1);
+}
+.media-check video[hidden] { display: none; }
+.mc-meter-row { display: flex; align-items: center; gap: 10px; max-width: 360px; }
+.mc-meter-row svg { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.mc-meter { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.mc-meter span { display: block; height: 100%; width: 0; background: var(--ok-strong, #16a34a); transition: width 90ms linear; }
+.media-check .mc-say { margin: -6px 0 0; }
+.mc-fields { display: grid; gap: 9px; max-width: 360px; }
+.mc-fields label { display: grid; gap: 4px; font-size: 0.86rem; color: var(--text-muted); }
+.mc-fields label[hidden] { display: none; }
+.mc-fields select {
+  width: 100%; min-width: 0; background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+  border-radius: var(--r-sm); padding: 10px 12px; font: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.mc-fields select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.media-check .openroom { margin-top: 0; }
+.media-check .openroom[hidden] { display: none; }
+.media-check .mc-tone, .media-check .mc-stop, .media-check #mc-start { justify-self: start; }
+.mc-tone svg { width: 18px; height: 18px; }
+/* Step wizard: the check belongs to the end of the setup, next to inviting and identifying. */
+body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { display: none; }
+
+/* Host: notification when the guest arrives */
+.notify-btn { margin-top: 12px; }
+.notify-btn svg { width: 18px; height: 18px; }
+.notify-btn:disabled { opacity: 1; color: var(--ok-strong, #16a34a); border-color: transparent; background: none; cursor: default; padding-left: 0; }
+
+/* "You are muted" — a bubble above the call controls */
+.muted-hint {
+  position: fixed; z-index: 21; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px);
+  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + 76px);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--text); color: var(--bg); border-radius: var(--r-pill);
+  padding: 8px 8px 8px 16px; box-shadow: var(--shadow); font-size: 0.9rem;
+}
+.muted-hint[hidden] { display: none; }
+.muted-hint button { min-height: 34px; padding: 6px 14px; font-size: 0.85rem; }
