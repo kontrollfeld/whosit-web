@@ -729,7 +729,7 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   here, not after both sides have identified. A running check hands its stream to the call (no
   second prompt); switching the call type stops it. Chosen devices are remembered in
   `localStorage` (`eudi_devices`); the "join muted" choices are not.
-- **Arrival notice.** When the other side joins: a short chime (Web Audio, so only after the page
+- **Arrival notice.** When the other side joins: a short sound (Web Audio, so only after the page
   has seen a gesture), and while the tab is hidden the title reads "● Dein Gast ist da". Hosts can
   additionally allow a system notification (button in the invitation card; hidden in the app and
   wherever the browser cannot notify). Who is already there when you arrive is not announced.
@@ -740,6 +740,10 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   when the page becomes visible again).
 - A new data channel learns the current mute/camera state, so "join muted" and late joiners show
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
+- **The whosit sound mark** (`public/sounds/`): "whosit?" and the Morse answer ME (− − ·). The
+  answer alone is the arrival sound; the whole mark plays once for everyone when a call connects.
+  Instances with operator branding (`EUDI_BRANDING`) keep a neutral two-tone chime and never play
+  the mark. Brand assets like the logo: copied unchanged from the media kit, see the README there.
 - **Background: blur or replace** (`background-effects`). Tiles in the device check and behind the
   "Hintergrund" button in the call: no effect, blur, a whosit background (the logo *file* from
   `public/logo/`, only on unbranded instances), four drawn backgrounds, and an own picture.

@@ -2930,6 +2930,7 @@ function revealCall() {
   syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
+  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; playSoundMark('connected', 0.45); }
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
   screenBtn.hidden = !screenShareSupported();
   handBtn.hidden = !capOn('hand-raise');
@@ -2986,6 +2987,7 @@ function onPeerGone(from) {
 // ---- hang up ----
 function teardownCall() {
   earlyIce.clear();
+  soundMarkPlayed = false;
   releaseWakeLock();
   stopMutedWatch();
   stopPreview();
@@ -3346,7 +3348,33 @@ function getAudioCtx() {
   return audioCtx;
 }
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
-for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); }, { passive: true, capture: true });
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); }, { passive: true, capture: true });
+
+/* The whosit sound mark: "whosit?" – and the answer ME in Morse (− − ·, "it's me"). The answer
+   alone when the other side arrives (a knock at the door), the whole mark once when a call
+   connects. Only without operator branding: an operator's call should not carry our mark, there
+   the neutral chime stays. Decoded once, after the first gesture (before it, nothing may sound). */
+const OPERATOR_BRANDED = !!(window.EUDI_BRANDING && (window.EUDI_BRANDING.name || window.EUDI_BRANDING.logo));
+const SOUND_MARK = { arrival: 'sounds/whosit-klangzeichen-ohne-stimme.mp3', connected: 'sounds/whosit-klangzeichen.mp3' };
+const soundMarkBufs = {};
+let soundMarkLoad = null, soundMarkPlayed = false;
+function loadSoundMarks() {
+  if (OPERATOR_BRANDED || soundMarkLoad) return soundMarkLoad;
+  const ctx = getAudioCtx();
+  if (!ctx) return null;
+  soundMarkLoad = Promise.all(Object.entries(SOUND_MARK).map(async ([kind, url]) => {
+    try { soundMarkBufs[kind] = await ctx.decodeAudioData(await (await fetch(url)).arrayBuffer()); } catch {}
+  }));
+  return soundMarkLoad;
+}
+function playSoundMark(kind, gain = 0.5) {
+  const ctx = getAudioCtx(), buf = soundMarkBufs[kind];
+  if (OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;
+  const src = ctx.createBufferSource(), g = ctx.createGain();
+  g.gain.value = gain; src.buffer = buf;
+  src.connect(g).connect(ctx.destination); src.start();
+  return true;
+}
 
 /* Level of a microphone track. A disabled (muted) track reads as silence, so that one is measured
    on a CLONE; an enabled one directly (iOS has been unreliable with cloned microphone tracks).
@@ -3535,7 +3563,7 @@ function applyStartPrefs() {
 const BG_CUSTOM_KEY = 'eudi_bg_custom';
 /* The whosit background shows the approved logo FILE (public/logo, unchanged), and only on
    unbranded instances: an operator's call should not carry our mark behind their customers. */
-const BG_BRANDED = !!(window.EUDI_BRANDING && (window.EUDI_BRANDING.name || window.EUDI_BRANDING.logo));
+const BG_BRANDED = OPERATOR_BRANDED;
 const BG_CHOICES = [
   ['none', 'Kein Effekt'], ['blur', 'Weichzeichnen'], ...(BG_BRANDED ? [] : [['whosit', 'whosit']]),
   ['p1', 'Nachtblau'], ['p2', 'Hell'], ['p3', 'Lichter'], ['p4', 'Grün'], ['custom', 'Eigenes Bild'],
@@ -3821,6 +3849,7 @@ if (notifyBtn) {
 }
 
 function playChime() {
+  if (playSoundMark('arrival', 0.6)) return;
   const ctx = getAudioCtx();
   if (!ctx || ctx.state !== 'running') return;
   const now = ctx.currentTime;

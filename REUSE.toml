@@ -44,6 +44,13 @@ path = "public/logo/*.svg"
 SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
+# The whosit sound mark, copied unchanged from the media kit (see public/sounds/README.md). The
+# licence covers the files; it grants no right to the sound mark as a trademark.
+[[annotations]]
+path = "public/sounds/**"
+SPDX-FileCopyrightText = "2026 Kontrollfeld GmbH"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
 # Third-party components with their own licences — the texts sit next to the files themselves,
 # with an overview in NOTICE.
 [[annotations]]
