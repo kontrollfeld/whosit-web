@@ -159,6 +159,56 @@ sbom:
       - sbom.cdx.json
     expire_in: 90 days
 
+# ERICA conformance run: the BMI's wallet simulator against a real EUDIPLO and this app. The one
+# test with real cryptography — everything in `test` uses a fake verifier. See test/erica/README.md.
+#
+# Heavy (it builds ERICA from source and starts four containers), so not on every push: nightly on
+# a schedule, automatically on merge requests that touch the verifier path, by hand otherwise.
+# allow_failure for now: ERICA's checks are maintained by hand and can be wrong themselves. Once it
+# has run green for a few weeks, drop allow_failure and it becomes a gate.
+#
+# Without bind mounts on purpose: in Docker-in-Docker the daemon cannot see this checkout, so the
+# compose file bakes the EUDIPLO import and the script into images, and the report is copied out.
+erica:
+  stage: test
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script: []
+  cache: []
+  timeout: 40 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - src/eudiplo.ts
+        - src/credential-profiles.ts
+        - src/channel-binding.ts
+        - src/server.ts
+        - scripts/test-erica.mjs
+        - test/erica/**/*
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH
+      when: manual
+  allow_failure: true
+  script:
+    - |
+      set +e
+      docker compose -f test/erica/docker-compose.yml run --build --name erica-runner runner
+      status=$?
+      mkdir -p test/erica/report
+      docker cp erica-runner:/report/. test/erica/report/
+      docker compose -f test/erica/docker-compose.yml logs --no-color erica eudiplo app app-bound > test/erica/report/stack.log 2>&1
+      exit $status
+  artifacts:
+    when: always
+    reports:
+      junit: test/erica/report/junit.xml
+    paths:
+      - test/erica/report/
+    expire_in: 30 days
+
 # ─────────────────────────────────────────────────────────────────────────────────────────
 # The core image: AGPL code only, so it may be redistributed. Checked rather than asserted: no
 # file in it may carry the commercial licence identifier.
@@ -257,6 +307,43 @@ instanzen:
   script:
     - test -n "$EUDI_INSTANCES" || { echo "EUDI_INSTANCES is not set — nothing to check. Add it under Settings → CI/CD → Variables (Protected)."; exit 1; }
     - npm run check:instances
+
+# The REQUEST the live verifier hands to wallets, checked by ERICA: access certificate in the JAR,
+# signature, x509_hash, registration certificate, DCQL. That is where the live breakages of
+# October 2026 were (a revoked access certificate, a WRPRC not bound to it), and check:instances
+# cannot see them. Validation only — nothing is presented, the session is deleted again.
+#
+# Needs EUDIPLO_LIVE_URL, EUDIPLO_LIVE_CLIENT_ID and EUDIPLO_LIVE_CLIENT_SECRET (Masked +
+# Protected; a client of its own with presentation:request and presentation:manage, not the app's,
+# whose secret the app may rotate). Optional: EUDIPLO_LIVE_REQUEST_ID. Without them it does not run.
+erica-live:
+  stage: betrieb
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script: []
+  cache: []
+  timeout: 30 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $EUDIPLO_LIVE_URL && $EUDIPLO_LIVE_CLIENT_ID && $EUDIPLO_LIVE_CLIENT_SECRET
+  allow_failure: true
+  script:
+    - |
+      set +e
+      docker compose -f test/erica/docker-compose.yml --profile live run --build --name erica-runner runner-live
+      status=$?
+      mkdir -p test/erica/report
+      docker cp erica-runner:/report/. test/erica/report/
+      exit $status
+  artifacts:
+    when: always
+    reports:
+      junit: test/erica/report/junit.xml
+    paths:
+      - test/erica/report/
+    expire_in: 30 days
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
 # The version stamp is NOT written by CI — it is committed, and this job only checks that nobody

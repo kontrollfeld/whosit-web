@@ -61,6 +61,7 @@ Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS)
 - [Running without a verifier](#running-without-a-verifier)
 - [Help with eIDAS 2.0 and the EUDI wallet](#help-with-eidas-20-and-the-eudi-wallet)
 - [Local development with the EUDIPLO mock](#local-development-with-the-eudiplo-mock)
+- [Conformance tests with ERICA](#conformance-tests-with-erica)
 - [Wiring up TURN properly](#wiring-up-turn-properly)
 - [Configuration (ENV)](#configuration-env)
 - [Security](#security)
@@ -454,6 +455,28 @@ review → the P2P connection is up.
 and set `EUDIPLO_BASE_URL=http://mock-eudiplo:8080` in `.env`, plus any non-placeholder values for
 `EUDIPLO_CLIENT_ID` and `EUDIPLO_CLIENT_SECRET` — the mock ignores them, the startup check does
 not. The mock wallet is then reachable at `https://<DOMAIN>/mock` (`SELF_URL` is set accordingly).
+
+## Conformance tests with ERICA
+
+The mock above proves the flow, not the cryptography. For that there is a second, heavier test:
+[ERICA](https://gitlab.opencode.de/bmi/eudi-wallet/erica), the BMI's wallet simulator, presents
+real SD-JWT and mdoc PIDs to a real EUDIPLO 9.1, which reports to the app as in production. Only
+Docker is needed:
+
+```bash
+npm run test:erica        # builds ERICA (pinned commit), EUDIPLO, the app; runs all scenarios
+npm run test:erica:down   # removes the containers again
+```
+
+What it covers: ERICA's HAIP checks of the request EUDIPLO builds from our configuration; that
+expired, not-yet-valid, unsigned, wrong-nonce, wrong-audience, unbound and incomplete
+presentations do **not** verify anyone; that names with umlauts, prefixes and double names arrive
+intact; that over-disclosed claims never reach the other side; that a wallet ignoring channel
+binding is refused. The report lands in `test/erica/report/junit.xml`.
+
+`npm run test:erica:live` checks the **request** of a live EUDIPLO instead (validation only, no
+presentation; the session is deleted afterwards). Passing ERICA is not a certification. Details,
+known gaps of ERICA and how to bump it: [test/erica/README.md](test/erica/README.md).
 
 ## Wiring up TURN properly
 

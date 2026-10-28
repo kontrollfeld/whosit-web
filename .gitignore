@@ -64,3 +64,6 @@ npm-debug.log*
 
 # Modules installed for tests (CI: the qes-device module for the QES end-to-end tests)
 .modules/
+
+# Reports of the ERICA conformance run (npm run test:erica).
+test/erica/report/

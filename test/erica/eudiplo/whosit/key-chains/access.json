@@ -1,0 +1,15 @@
+{
+  "$schema": "https://eudiplo.dev/schemas/v1/KeyChainConfigFile.schema.json",
+  "metadata": {
+    "generation": 1
+  },
+  "spec": {
+    "id": "access",
+    "description": "Access certificate, self-signed, generated at startup (test only)",
+    "usageType": "access",
+    "keySource": {
+      "type": "regenerate",
+      "keyChainType": "standalone"
+    }
+  }
+}

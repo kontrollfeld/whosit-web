@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Conformance tests against ERICA (BMI wallet simulator), with a real EUDIPLO in between.
+# Test stack only: test keys, no TLS, no TURN. Never deploy this. See README.md here.
+#
+#   npm run test:erica        local stack, all scenarios, exits with the runner's code
+#   npm run test:erica:live   request check against a live EUDIPLO (validation only)
+#   npm run test:erica:down   remove containers
+name: whosit-erica
+
+x-app-env: &app-env
+  EUDIPLO_BASE_URL: http://eudiplo:3000
+  EUDIPLO_CLIENT_ID: whosit-test
+  EUDIPLO_CLIENT_SECRET: whosit-test-secret
+  EUDI_TRUST_LIST_IDS: erica-test-pid
+  # ERICA's PIDs carry no status list; strict would reject every one of them.
+  EUDI_STATUS_CHECK_MODE: best_effort
+  TURN_PUBLIC_FALLBACK: "off"
+
+services:
+  erica:
+    build:
+      # Pinned commit: ERICA has no tags or images. Bump it here; CI reads it from this line.
+      context: https://gitlab.opencode.de/bmi/eudi-wallet/erica.git#a34ffd1eb8bdc53bc238ac8288b3001eabfca24c
+    image: ${ERICA_IMAGE:-whosit-erica/erica:a34ffd1}
+    environment:
+      LOG_LEVEL: warn
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+
+  # The import is baked in rather than mounted: in CI (Docker-in-Docker) the daemon cannot see
+  # the job's checkout, so a bind mount would arrive empty.
+  eudiplo:
+    build:
+      context: ./eudiplo
+      dockerfile_inline: |
+        FROM ghcr.io/eudiplo/eudiplo:9.1.0
+        COPY . /config
+    image: whosit-erica/eudiplo
+    environment:
+      PUBLIC_URL: http://eudiplo:3000
+      MASTER_SECRET: erica-test-master-secret-not-for-production
+      AUTH_CLIENT_ID: root
+      AUTH_CLIENT_SECRET: erica-test-root-secret
+      CONFIG_IMPORT_MODE: upsert
+      CONFIG_FOLDER: /config
+      # The webhooks go to http://app:3000 inside the Docker network. EUDIPLO drops them
+      # without a log line unless private network and HTTP are both allowed.
+      OUTBOUND_URL_ALLOW_HTTP: "true"
+      OUTBOUND_URL_ALLOW_PRIVATE_NETWORK: "true"
+      OUTBOUND_URL_ALLOWED_HOSTS: app,app-bound
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 60
+
+  # The combination .env.example recommends: the wallet (ERICA) picks mdoc or SD-JWT.
+  app:
+    build:
+      context: ../..
+    image: whosit-erica/app
+    environment:
+      <<: *app-env
+      PUBLIC_URL: http://app:3000
+      ALLOWED_ORIGINS: http://app:3000
+      EUDI_CREDENTIAL_PROFILES: pid_mdoc,pid_sdjwt
+    depends_on:
+      eudiplo:
+        condition: service_healthy
+
+  # Channel binding needs SD-JWT only (EUDIPLO evaluates transaction_data for dc+sd-jwt).
+  app-bound:
+    image: whosit-erica/app
+    pull_policy: never
+    environment:
+      <<: *app-env
+      PUBLIC_URL: http://app-bound:3000
+      ALLOWED_ORIGINS: http://app-bound:3000
+      EUDI_CREDENTIAL_PROFILES: pid_sdjwt
+      EUDI_CHANNEL_BINDING: "on"
+    depends_on:
+      app:
+        condition: service_started
+
+  runner:
+    build: &runner-build
+      context: ../../scripts
+      dockerfile_inline: |
+        FROM node:22-slim
+        COPY test-erica.mjs /work/
+    image: whosit-erica/runner
+    volumes:
+      - ./report:/report
+    environment:
+      APP_URL: http://app:3000
+      APP_BOUND_URL: http://app-bound:3000
+      ERICA_URL: http://erica:3001
+      ERICA_REPORT_DIR: /report
+    command: ["node", "/work/test-erica.mjs"]
+    depends_on:
+      app:
+        condition: service_healthy
+      app-bound:
+        condition: service_healthy
+      erica:
+        condition: service_healthy
+
+  # Validation only against a live EUDIPLO: ERICA fetches its request_uri over HTTPS itself.
+  # Nothing is presented; the session is deleted afterwards.
+  runner-live:
+    profiles: [live]
+    build: *runner-build
+    image: whosit-erica/runner
+    volumes:
+      - ./report:/report
+    environment:
+      ERICA_URL: http://erica:3001
+      ERICA_REPORT_DIR: /report
+      EUDIPLO_LIVE_URL: ${EUDIPLO_LIVE_URL:-}
+      EUDIPLO_LIVE_CLIENT_ID: ${EUDIPLO_LIVE_CLIENT_ID:-}
+      EUDIPLO_LIVE_CLIENT_SECRET: ${EUDIPLO_LIVE_CLIENT_SECRET:-}
+      EUDIPLO_LIVE_REQUEST_ID: ${EUDIPLO_LIVE_REQUEST_ID:-}
+    command: ["node", "/work/test-erica.mjs", "--live"]
+    depends_on:
+      erica:
+        condition: service_healthy

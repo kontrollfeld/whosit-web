@@ -1,0 +1,4 @@
+{
+  "name": "whosit ERICA test tenant",
+  "description": "Local conformance tests against ERICA. Test data only, never use in production."
+}
