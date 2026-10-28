@@ -126,7 +126,9 @@
         <!-- `checked` already in the markup: the default is "guided", and without the attribute
              the checkmark would briefly be wrong until the first run of syncActive(). -->
         <input type="checkbox" id="wiz-switch" checked />
-        <span data-i18n>Schritt für Schritt einrichten</span>
+        <!-- The label names what a click DOES, so it flips with the state (initSetupWizard). As
+             "Schritt für Schritt einrichten" with a ticked box it read like a step to complete. -->
+        <span id="wiz-switch-label">Alles auf einer Seite zeigen</span>
       </label>
 
       <div id="mode-block">
@@ -139,29 +141,42 @@
       </div><!-- /mode-block -->
 
       <div class="party you">
-        <span class="field-label"><span data-i18n>Ich teile</span> <span class="field-note" data-i18n>— deine eigenen Ausweis-Daten</span></span>
+        <!-- Asked as questions, with the person icon in the side's colour: "Ich teile" and "Der Gast
+             teilt" looked alike while meaning opposite things. -->
+        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was zeigst du deinem Gast?</span></span>
+        <span class="field-note party-note" data-i18n>Angaben aus deinem eigenen Ausweis</span>
         <div class="seg" id="disclose-seg" role="group" aria-label="Was du teilst" data-i18n-attr="aria-label">
           <button type="button" data-disclose="anon" data-i18n>Anonym bleiben</button>
           <button type="button" data-disclose="data" class="active" data-i18n>Daten teilen</button>
         </div>
         <div class="attr-list" id="disclose-list" hidden></div>
-        <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        <details class="policy-note">
+          <summary data-i18n>Warum nur diese Angaben?</summary>
+          <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+          <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        </details>
       </div>
 
       <div class="party guest">
-        <span class="field-label"><span data-i18n>Der Gast teilt</span> <span class="field-note" data-i18n>— was du vom Gast abfragst</span></span>
+        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was soll dein Gast dir zeigen?</span></span>
+        <span class="field-note party-note" data-i18n>Angaben aus dem Ausweis deines Gastes</span>
         <div class="seg" id="request-seg" role="group" aria-label="Was der Gast teilt" data-i18n-attr="aria-label">
-          <button type="button" data-request="anon" data-i18n>Anonym — nichts</button>
+          <button type="button" data-request="anon" data-i18n>Nichts abfragen</button>
           <button type="button" data-request="data" class="active" data-i18n>Daten abfragen</button>
         </div>
         <div id="request-extra">
           <div class="presets" id="presets">
+            <span class="presets-label" data-i18n>Schnellauswahl:</span>
             <button type="button" class="chip-btn" data-preset="age" data-i18n>Altersnachweis 18+</button>
             <button type="button" class="chip-btn" data-preset="name" data-i18n>Name</button>
             <button type="button" class="chip-btn" data-preset="full" data-i18n>Voll</button>
           </div>
           <div class="attr-list" id="request-list"></div>
-          <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+          <details class="policy-note">
+            <summary data-i18n>Warum nur diese Angaben?</summary>
+            <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+            <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+          </details>
         </div>
       </div>
 
@@ -174,7 +189,7 @@
 
       <label id="openroom-row" class="openroom" hidden>
         <input type="checkbox" id="openroom-toggle" />
-        <span><span data-i18n>Weitere Gäste später zulassen</span> <span class="field-note" data-i18n>— Anruf startet ab 2 Personen, weitere kommen später dazu</span></span>
+        <span><span data-i18n>Gruppenanruf</span> <span class="field-note" data-i18n>— weitere Personen dürfen später dazukommen</span></span>
       </label>
 
       <!-- Two lines as separate elements instead of split by <br>: in guided mode the
@@ -182,6 +197,7 @@
            next step's decision, and a summary anticipating it reads like a choice
            already made. -->
       <p class="preview">
+        <span class="prev-mode"><span data-i18n>Verbindungsart:</span> <strong id="preview-mode">Video</strong></span>
         <span class="prev-you"><span data-i18n>Du teilst:</span> <strong id="preview-disclose" data-i18n>Nachname</strong></span>
         <span class="prev-guest"><span data-i18n>Gast teilt:</span> <strong id="preview-request" data-i18n>Nachname</strong></span>
       </p>
@@ -200,6 +216,9 @@
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg><span id="auth-title" data-i18n>Identität bestätigen</span></h2>
       <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:</p>
       <ul class="consent" id="consent-list"></ul>
+      <!-- Guest only: what the other side gives in return, and whether they are already
+           identified. A guest saw only what THEY were asked to show — the exchange read one-way. -->
+      <p class="hint auth-peer" id="auth-peer" hidden></p>
       <div class="auth-cta">
         <!-- Who actually makes the request. Stays empty and hidden as long as brand and
              certificate holder are the same entity — see src/relying-party.ts. Sits BEFORE the
@@ -232,7 +251,7 @@
            makes the setup read-only (lockSetup). Whoever invites first and is overtaken by
            their guest has pinned the call to the defaults and then sees only a dead form.
            So say it before it happens. -->
-      <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lässt sich oben nichts mehr ändern — richte den Anruf also zuerst fertig ein.</p>
+      <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lassen sich die Einstellungen nicht mehr ändern.</p>
       <div id="schedule-block" hidden>
       <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in
            der .ics-Datei. Auf einer gebrandeten Instanz traegt er die Marke des Betreibers
@@ -306,14 +325,14 @@
     <!-- Review before connecting: fields only, no values -->
     <section id="review" class="card" hidden>
       <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n>Vor dem Verbinden</span></h2>
-      <p class="hint" data-i18n-html>Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>.</p>
+      <p class="hint" data-i18n-html>Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet der Anruf, ohne dass etwas geteilt wird.</p>
 
       <!-- Purpose limitation: the same text the server writes into the DCQL request and the
            wallet displays (src/wrp-policy.ts → WRP_PURPOSE_TEXT, delivered via
            /capabilities). One source, so consent screen and wallet cannot drift apart. -->
       <p class="purpose-binding">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span><span class="pb-label" data-i18n>Zweckbindung:</span> <span data-policy-purpose data-i18n>Identitätsverifikation für sichere P2P-Kommunikation</span></span>
+        <span><span class="pb-label" data-i18n>Zweck:</span> <span data-policy-purpose data-i18n>Identitätsverifikation für sichere P2P-Kommunikation</span></span>
       </p>
 
       <div class="review-grid">
@@ -321,7 +340,11 @@
         <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="review-peer"></div></div>
       </div>
       <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
-      <p class="policy-note" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      <details class="policy-note">
+        <summary data-i18n>Warum nur diese Angaben?</summary>
+        <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+        <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+      </details>
       <!-- On narrow screens this bar sticks to the bottom edge while the review is open
            (style.css). No modal: connecting is consent to sharing data, and a window that
            pops up at a moment the user does not control puts this button under their thumb
@@ -332,7 +355,7 @@
         <button id="decline-btn" class="ghost" data-i18n>Ablehnen</button>
         <button id="confirm-btn" data-i18n>Verbinden ✓</button>
       </div>
-      <p class="hint review-wait" id="review-wait" hidden data-i18n>✓ Du hast bestätigt — wartet auf das Gegenüber …</p>
+      <p class="hint review-wait" id="review-wait" hidden data-i18n>✓ Du hast bestätigt — warte auf die anderen …</p>
     </section>
     <!-- Verified data and security code belong IN the right column: outside it they
          would run in the narrower main column, visibly offset from the status line and
@@ -434,7 +457,7 @@
     <div id="call-panels" class="call-panels">
     <!-- Chat -->
     <section id="chat" class="card" hidden>
-      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat <span class="hint" data-i18n>· Ende-zu-Ende, direkt P2P</span></h2>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat <span class="hint" data-i18n>· Ende-zu-Ende verschlüsselt</span></h2>
       <div id="chat-log" class="chat-log"></div>
       <div id="emoji-palette" class="emoji-palette" hidden></div>
       <div class="row chat-row">

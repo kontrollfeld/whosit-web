@@ -345,7 +345,10 @@ function renderFieldList(container, attrs, emptyMsg) {
     const lab = document.createElement('span'); lab.className = 'r-label';
     const ic = attrIconEl(k); if (ic) lab.appendChild(ic);
     const txt = document.createElement('span'); txt.textContent = t(labelFor(k)); lab.appendChild(txt);
-    const val = document.createElement('span'); val.className = 'r-value masked'; val.textContent = '•••';
+    // A lock and words instead of "•••", which read like something still loading.
+    const val = document.createElement('span'); val.className = 'r-value masked';
+    val.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    const vt = document.createElement('span'); vt.textContent = t('nach Zustimmung'); val.appendChild(vt);
     row.append(lab, val); container.appendChild(row);
   }
 }
@@ -527,7 +530,9 @@ function ensureWalletAttr(prefix) {
   const cb = document.getElementById(prefix + '-family_name');
   if (cb) cb.checked = true;
 }
+const previewMode = $('preview-mode');
 function updatePreview(req, disc) {
+  if (previewMode) previewMode.textContent = mode === 'audio' ? t('Audio') : mode === 'chat' ? t('Chat') : t('Video');
   previewDisclose.textContent = disc && disc.length ? disc.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
   previewRequest.textContent = req && req.length ? req.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
 }
@@ -1504,6 +1509,19 @@ function renderAuthCard(role, attrs, opts) {
   renderConsent(attrs);
 }
 
+/** Guest's identification card: what the host shows in return, and whether they are identified. */
+function renderAuthPeer(msg) {
+  const el = $('auth-peer');
+  if (!el) return;
+  const host = (msg.peers || []).find((p) => p.role === 'caller');
+  const gives = (msg.disclosedAttrs || []).map((k) => t(labelFor(k))).join(', ');
+  el.hidden = !host;
+  if (!host) return;
+  el.textContent = !gives ? t('Die einladende Person bleibt anonym.')
+    : host.verified ? t('Die einladende Person ist bereits ausgewiesen ✓ und zeigt dir im Gegenzug: {list}.', { list: gives })
+    : t('Im Gegenzug zeigt dir die einladende Person: {list}.', { list: gives });
+}
+
 function roleLabelFor(role) { return role === 'caller' ? t('Gastgeber:in') : t('Gast'); }
 
 // ---- progress stepper (role-aware; hidden in solo/embed) ----
@@ -1522,7 +1540,9 @@ function updateStepper(active) {
     // The last step is a destination, not a stop along the way: whoever is there has arrived.
     // Hence a tick there too instead of the number — otherwise "3 Connected" reads like an open
     // item even though the connection has long been up.
-    const done = i < active || (i === active && i === labels.length - 1);
+    // …but only once the connection is actually up. Ticked from the moment both had confirmed,
+    // it said "Verbunden ✓" right above "Verbindung wird aufgebaut …".
+    const done = i < active || (i === active && i === labels.length - 1 && anyConnected());
     const no = document.createElement('span'); no.className = 'step-dot'; no.textContent = done ? '✓' : String(i + 1);
     const tx = document.createElement('span'); tx.textContent = t(label);
     li.append(no, tx);
@@ -1645,11 +1665,28 @@ function peerAttrsOf(msg) { return myRole === 'caller' ? msg.requestedAttrs : ms
 function attrsForPeer(msg, peer) { return peer.role === 'caller' ? msg.disclosedAttrs : msg.requestedAttrs; }
 
 // Pre-confirm: field names only (no values available yet).
+/**
+ * The other side by its role, the same words as on the chips: "Dein Gast", "Gastgeber:in".
+ * "Dein Gegenüber" was a third name for the same person.
+ */
+function otherSideLabels(peers) {
+  if (isHost()) return peers.length > 1
+    ? { shares: t('Deine Gäste teilen'), anon: t('Dein Gast bleibt anonym.') }
+    : { shares: t('Dein Gast teilt'), anon: t('Dein Gast bleibt anonym.') };
+  return { shares: t('Gastgeber:in teilt'), anon: t('Gastgeber:in bleibt anonym.') };
+}
+function setOtherSideHeading(box, label) {
+  const el = box && box.querySelector('.review-col.guest > .field-label');
+  if (el) el.textContent = label;
+}
+
 function renderReview(msg) {
   renderFieldList(reviewSelf, selfAttrs(msg), 'Du teilst nichts (anonym).');
   const peers = msg.peers || [];
+  const other = otherSideLabels(peers);
+  setOtherSideHeading(reviewBox, other.shares);
   if (peers.length <= 1) {
-    renderFieldList(reviewPeer, peers[0] ? attrsForPeer(msg, peers[0]) : [], 'Dein Gegenüber bleibt anonym.');
+    renderFieldList(reviewPeer, peers[0] ? attrsForPeer(msg, peers[0]) : [], other.anon);
   } else {
     // No names here: before consent only WHICH fields will be shared is shown, never a value.
     renderPeerBlocks(reviewPeer, peers, (el, peer) => renderFieldList(el, attrsForPeer(msg, peer), 'bleibt anonym.'), false);
@@ -1676,8 +1713,10 @@ function renderResult(msg) {
   renderResultInto(resultSelf, msg.self.claims, selfAttrs(msg), 'Du teilst nichts (anonym).');
   appendSharedCredentialRows(resultSelf, msg.self.sharedCredentials);
   const peers = msg.peers || [];
+  const other = otherSideLabels(peers);
+  setOtherSideHeading(resultBox, other.shares);
   if (peers.length <= 1) {
-    renderResultInto(resultPeer, peers[0] && peers[0].claims, peers[0] ? attrsForPeer(msg, peers[0]) : [], 'Dein Gegenüber bleibt anonym.');
+    renderResultInto(resultPeer, peers[0] && peers[0].claims, peers[0] ? attrsForPeer(msg, peers[0]) : [], other.anon);
     if (peers[0]) appendCredentialRows(resultPeer, peers[0].credentials);
   } else {
     renderPeerBlocks(resultPeer, peers, (el, peer) => {
@@ -1733,6 +1772,8 @@ function renderStatus(msg) {
   // Multi-party: the review only opens once the host started (server sets reviewOpen).
   const reviewOpen = msg.reviewOpen !== false; // 1:1 (undefined) → always open
   updateChips(msg);
+  // "Warum whosit?" only at the start (see .app-strengths in style.css).
+  document.body.classList.toggle('pre-start', isHost() ? !peerPresent : !msg.self.verified);
   // Reset before the phase branches take effect — renderStatus returns early in several places,
   // so no highlight from an earlier phase is left standing.
   setActiveCard(null);
@@ -1795,7 +1836,7 @@ function renderStatus(msg) {
     const othersReady = others.length > 0 && others.every((x) => x.confirmed);
     setReviewUrgency(othersReady);
     setStatus(othersReady
-      ? 'Du bist dran: Die Gegenseite hat bestätigt — prüfe und bestätige zum Verbinden.'
+      ? (isHost() ? 'Du bist dran: Dein Gast hat bestätigt — prüfe und bestätige zum Verbinden.' : 'Du bist dran: Gastgeber:in hat bestätigt — prüfe und bestätige zum Verbinden.')
       : 'Prüfe, was geteilt wird, und bestätige zum Verbinden.', 'prompt');
     return;
   }
@@ -1863,6 +1904,10 @@ function renderStatus(msg) {
       if (shareHint) shareHint.textContent = t('Das ist der Link, den du für diesen Termin geteilt hast.');
     }
     shareBox.hidden = !!msg.configPinned && !plannedGuestUrl;
+    // Guest there: the link has done its job and the settings are locked, so both cards fold
+    // away. Left standing, "Link kopieren" stayed the biggest button on screen while the actual
+    // next thing happened elsewhere. An open room keeps the link — people join over time.
+    if (peerPresent && !isOpenRoom) { shareBox.hidden = true; setupBox.hidden = true; }
     // host disclosure scan?
     const hostMustScan = !msg.self.verified && msg.disclosedAttrs.length > 0;
     if (hostMustScan) { renderAuthCard('caller', msg.disclosedAttrs); authBox.hidden = false; }
@@ -1872,9 +1917,15 @@ function renderStatus(msg) {
     // you are done yourself, there is nothing to press -> highlight no card.
     setActiveCard(hostMustScan ? authBox : (!peerPresent && !shareBox.hidden) ? shareBox : null);
 
-    if (!msg.self.verified) setStatus('Weise dich aus, um deine gewählten Daten zu teilen.');
-    else if (!peerPresent) setStatus(msg.configPinned ? 'Geplanter Anruf — warte auf deinen Gast …' : 'Richte den Anruf ein und teile den Einladungs-Link.');
-    else if (someoneUnverified) setStatus('Warte auf die Bestätigung deiner Gäste …');
+    // The status says where the host is, not what comes three steps later: "Weise dich aus"
+    // greeted a host who had not chosen anything yet (and an anonymous host, who has nothing to
+    // identify at all).
+    if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
+    else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein. Danach weist du dich aus und lädst deinen Gast ein.');
+    else if (!peerPresent && msg.self.verified) setStatus('Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.', 'ok');
+    else if (!peerPresent) setStatus('Richte den Anruf ein und schick den Link an deinen Gast.');
+    else if (hostMustScan) setStatus('Dein Gast ist da – weise dich jetzt aus.', 'prompt');
+    else if (someoneUnverified) setStatus(peerList.length > 1 ? 'Deine Gäste sind da und weisen sich gerade aus …' : 'Dein Gast ist da und weist sich gerade aus …', 'wait');
     else setStatus('Gleich geschafft …');
   } else {
     setupBox.hidden = true; shareBox.hidden = true;
@@ -1883,8 +1934,15 @@ function renderStatus(msg) {
     // For the guest the identification card is the only one — highlight it, but dim nothing.
     setActiveCard(authBox.hidden ? null : authBox);
 
-    if (!msg.self.verified) setStatus('Du wurdest eingeladen – weise dich mit deiner EUDI-Wallet aus.');
-    else if (!allVerified) setStatus('Bestätigt ✓ – warte auf die anderen …');
+    renderAuthPeer(msg);
+    // Say what kind of call this is: "Du wurdest eingeladen" alone left a first-time guest
+    // guessing whether a camera was about to switch on.
+    if (!msg.self.verified) {
+      setStatus(msg.mode === 'audio' ? 'Du bist zu einem Audioanruf eingeladen – weise dich mit deiner Wallet aus.'
+        : msg.mode === 'chat' ? 'Du bist zu einem Chat eingeladen – weise dich mit deiner Wallet aus.'
+        : 'Du bist zu einem Videoanruf eingeladen – weise dich mit deiner Wallet aus.', 'prompt');
+    }
+    else if (!allVerified) setStatus('Du bist ausgewiesen ✓ – warte auf die anderen …');
     else setStatus('Gleich geschafft …');
   }
 }
@@ -1933,12 +1991,12 @@ function setConfirmWaiting(w) {
 function setReviewUrgency(on) {
   confirmBtn.classList.toggle('urgent', !!on);
   reviewReady.hidden = !on;
-  if (on) reviewReady.textContent = t('Gegenseite bereit — es fehlt nur noch deine Bestätigung.');
+  if (on) reviewReady.textContent = t('Alle anderen sind bereit — es fehlt nur noch deine Bestätigung.');
 }
 startBtn.addEventListener('click', () => { startBtn.disabled = true; wsSend({ type: 'start-call' }); });
 confirmBtn.addEventListener('click', () => { wsSend({ type: 'confirm' }); reviewWait.hidden = true; setConfirmWaiting(true); });
 declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended = true; teardownCall(); showEnded('Du hast abgelehnt. Es wird keine Verbindung aufgebaut.'); });
-function onDeclined() { if (ended) return; ended = true; teardownCall(); showEnded('Das Gegenüber hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
+function onDeclined() { if (ended) return; ended = true; teardownCall(); showEnded(isHost() ? 'Dein Gast hat abgelehnt. Es wird keine Verbindung aufgebaut.' : 'Gastgeber:in hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
 
 // ---- WebRTC (full mesh: one RTCPeerConnection per peer) ----
 // peerId -> { pc, dc, pendingIce, remoteDescSet, initiator, name, role, video, tile }
@@ -2085,7 +2143,7 @@ function getPeer(peerId, meta) {
   pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'connected') { revealCall(); updateSas(); }
-    else if (pc.connectionState === 'failed') setStatus('Verbindung zu einem Teilnehmer fehlgeschlagen (evtl. TURN nötig).', 'error');
+    else if (pc.connectionState === 'failed') setStatus('Die Verbindung kam nicht zustande. Oft liegt es am Netzwerk – versuch es mit einem anderen WLAN oder mit mobilen Daten.', 'error');
     if (lastStatusMsg) updateChips(lastStatusMsg); // last chip step = connected
   };
   for (const tr of localTracks()) pc.addTrack(tr, localStream);
@@ -2125,7 +2183,7 @@ function attachRemote(peerId, stream) {
   if (!p.tile) {
     const tile = document.createElement('div'); tile.className = 'tile'; tile.dataset.peer = peerId;
     const video = document.createElement('video'); video.autoplay = true; video.playsInline = true;
-    const nameEl = document.createElement('div'); nameEl.className = 'name verified'; nameEl.textContent = p.name ? titleCase(p.name) : t('Gegenüber');
+    const nameEl = document.createElement('div'); nameEl.className = 'name verified'; nameEl.textContent = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
     tile.append(video, nameEl); videosEl.appendChild(tile);
     p.tile = tile; p.video = video;
     applyStage(); // pick up cursor/title + any pending screen-share auto-stage for this peer
@@ -2141,6 +2199,7 @@ function removePeer(peerId) {
   try { p.pc.close(); } catch {}
   if (p.tile) p.tile.remove();
   peers.delete(peerId);
+  if (p.tile) applyStage(); // back from picture-in-picture when the other tile is gone
 }
 
 // 'ready' (may repeat on resume): open/refresh a connection to every listed peer.
@@ -2308,6 +2367,9 @@ function applyStage() {
   if (stagePeer && stagePeer !== 'self' && !tileFor(stagePeer) && !stageAuto) { stagePeer = null; }
   const staged = on ? stagePeer : null;
   videosEl.classList.toggle('stage-mode', !!staged && !!tileFor(staged));
+  // One-to-one: the other person large, your own picture small in the corner — as in every phone
+  // call app. Side by side (or, on a phone, your own picture on top) gave yourself the most room.
+  videosEl.classList.toggle('duo', !videosEl.classList.contains('stage-mode') && videosEl.querySelectorAll('.tile').length === 2);
   for (const tile of videosEl.querySelectorAll('.tile')) {
     const key = tile.dataset.peer;
     if (on) {
@@ -2461,7 +2523,7 @@ function buildCredReqPanel() {
     for (const [peerId, p] of peerList) {
       const btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'credreq-item';
-      const who = p.name ? titleCase(p.name) : t('Gegenüber');
+      const who = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
       btn.textContent = peerList.length > 1
         ? t('{label} von {name} anfordern', { label: c.label, name: who })
         : t('{label} anfordern', { label: c.label });
@@ -2805,7 +2867,8 @@ function revealCall() {
   reviewBox.hidden = true; setupBox.hidden = true; authBox.hidden = true;
   // In an open room keep the invite link visible during the call so more guests can join.
   shareBox.hidden = !isOpenRoom;
-  if (anyConnected()) setStatus('Verbunden ✓ – sichere P2P-Verbindung steht.');
+  if (anyConnected()) setStatus('Verbunden ✓ – Ende-zu-Ende verschlüsselt.');
+  updateStepper(2);
   if (mode === 'video') { peersBox.hidden = false; callBanner.hidden = true; applyStage(); }
   else {
     peersBox.hidden = true; callBanner.hidden = false;
@@ -2818,6 +2881,11 @@ function revealCall() {
 // A peer left (grace expired) or hung up: drop just that connection/tile.
 function onPeerGone(from) {
   if (ended || !from) return;
+  // Read the name before the peer is gone: "Erika Mustermann hat aufgelegt." tells the one left
+  // behind what happened; "Alle anderen haben den Anruf verlassen." made them count heads.
+  const gone = peers.get(from);
+  const goneName = gone && gone.name ? titleCase(gone.name) : '';
+  const goneAnon = gone && gone.role === 'caller' ? 'Gastgeber:in hat aufgelegt.' : isHost() ? 'Dein Gast hat aufgelegt.' : 'Ein Gast hat aufgelegt.';
   removePeer(from);
   if (qesShare) qesShare.peerGone(from);
   screenSharers.delete(from);
@@ -2826,8 +2894,8 @@ function onPeerGone(from) {
   peerCamOff.delete(from);
   if (stagePeer === from) { stagePeer = null; stageAuto = false; }
   updateSas();
-  if (peers.size === 0) { ended = true; teardownCall(); showEnded('Alle anderen haben den Anruf verlassen.'); }
-  else { setStatus('Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
+  if (peers.size === 0) { ended = true; teardownCall(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : goneAnon); }
+  else { setStatus(goneName ? t('{name} hat den Anruf verlassen.', { name: goneName }) : 'Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
 }
 
 // ---- hang up ----
@@ -2848,6 +2916,12 @@ function teardownCall() {
 }
 function showEnded(message) {
   setStatus(message);
+  // The call is over, so its layout goes too: the trust bar would otherwise stay on top of an
+  // ended page and keep the participant chips hidden, and the stepper would still say
+  // "Verbunden". The chips stay — greyed — as the record of whom you spoke with.
+  document.body.classList.remove('in-call', 'trust-open', 'pre-start');
+  document.body.classList.add('call-ended');
+  if (stepperEl) stepperEl.hidden = true;
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
   peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; sasCard.hidden = true; startBar.hidden = true;
@@ -3056,7 +3130,9 @@ async function startLoopback(name) {
 
 // ---- chat (one DataChannel per peer; sending broadcasts to all) ----
 let chatOpenedShown = false;
-function peerName(peerId) { const p = peers.get(peerId); return p && p.name ? titleCase(p.name) : t('Gegenüber'); }
+// Without a name, the role ("Gast", "Gastgeber:in") — the same words as the chips; "Gegenüber"
+// only when not even that is known.
+function peerName(peerId) { const p = peers.get(peerId); return p && p.name ? titleCase(p.name) : p && p.role ? roleLabelFor(p.role) : t('Gegenüber'); }
 function wireChat(channel, peerId) {
   channel.binaryType = 'arraybuffer'; // receive file chunks as ArrayBuffer
   channel.onopen = () => {
@@ -3519,40 +3595,50 @@ function startPairedSigner(token) {
     CapApp.addListener('appUrlOpen', (e) => { if (e && e.url) openRoomUrl(e.url); });
     CapApp.getLaunchUrl().then((r) => { if (r && r.url) openRoomUrl(r.url); }).catch(() => {});
   }
+})();
 
-  // ---- in-call trust bar: shield + names + SAS code, expandable ------------
-  // Data is mirrored from the existing UI (chips + #sas-code) via observers, so
-  // there is no second source of truth; chip prefixes/checkmarks are stripped.
+// ---- in-call trust bar: shield + names + SAS code, expandable ------------
+// In the app AND on the website (since 2026-10-28): before, a phone browser stacked status,
+// participant chips, verified data and the security code above the video, which then started
+// below the fold. The bar keeps them one tap away.
+// Data is mirrored from the existing UI (chips + #sas-code) via observers, so
+// there is no second source of truth; chip prefixes/checkmarks are stripped.
+(function initTrustBar() {
   const trustBar = $('trust-bar'), trustNames = $('trust-names'), trustSas = $('trust-sas');
-  if (trustBar && trustNames && trustSas) {
-    const junk = () => new Set([
-      t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
-      // The chip states, so a state never ends up in the trust bar as if it were a name.
-      t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
-    ]);
-    const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
-    const refreshTrust = () => {
-      const inCall = document.body.classList.contains('in-call');
-      trustBar.hidden = !inCall;
-      if (!inCall) return;
-      const drop = junk();
-      const names = [stripChip(selfLabel.textContent || '')];
-      document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
-      const clean = names.filter((n) => n && !drop.has(n));
-      trustNames.textContent = clean.length ? clean.join(' ↔ ') : t('Verifizierter Anruf');
-      trustSas.textContent = (sasCode.textContent || '').trim();
-    };
-    trustBar.addEventListener('click', () => {
-      const open = document.body.classList.toggle('trust-open');
-      trustBar.setAttribute('aria-expanded', String(open));
-    });
-    const obs = new MutationObserver(refreshTrust);
-    const idsBox = $('identities');
-    if (idsBox) obs.observe(idsBox, { subtree: true, childList: true, characterData: true });
-    obs.observe(sasCode, { subtree: true, childList: true, characterData: true });
-    obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    refreshTrust();
-  }
+  if (!trustBar || !trustNames || !trustSas) return;
+  const junk = () => new Set([
+    t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
+    // The chip states, so a state never ends up in the trust bar as if it were a name.
+    t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
+  ]);
+  const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
+  const refreshTrust = () => {
+    const inCall = document.body.classList.contains('in-call');
+    trustBar.hidden = !inCall;
+    if (!inCall) return;
+    const drop = junk();
+    // The other side only: who you are is no news to you, and on a phone two names next to the
+    // security code left room for neither.
+    const names = [];
+    document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
+    const clean = names.filter((n) => n && !drop.has(n));
+    // Without names, say whether anyone is verified at all — "Verifizierter Anruf" over a call
+    // between two anonymous people would claim exactly what the product must never fake.
+    const m = lastStatusMsg;
+    const anyVerified = !!(m && ((m.self && m.self.verified) || (m.peers || []).some((p) => p.verified)));
+    trustNames.textContent = clean.length ? clean.join(' ↔ ') : t(anyVerified ? 'Verifizierter Anruf' : 'Anruf ohne Ausweisprüfung');
+    trustSas.textContent = (sasCode.textContent || '').trim();
+  };
+  trustBar.addEventListener('click', () => {
+    const open = document.body.classList.toggle('trust-open');
+    trustBar.setAttribute('aria-expanded', String(open));
+  });
+  const obs = new MutationObserver(refreshTrust);
+  const idsBox = $('identities');
+  if (idsBox) obs.observe(idsBox, { subtree: true, childList: true, characterData: true });
+  obs.observe(sasCode, { subtree: true, childList: true, characterData: true });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  refreshTrust();
 })();
 
 // ---- setup wizard (mobile/app): 4 steps ------------------------------------
@@ -3597,13 +3683,17 @@ function startPairedSigner(token) {
   const pref = () => { try { const v = localStorage.getItem(WIZ_KEY); return v === '1' ? true : v === '0' ? false : null; } catch { return null; } };
   const guided = () => pref() !== false;
 
-  // Step kinds: mode · you · guest · invite · (auth, only when the host has to identify
-  // themselves). The identification step shows the invite box collapsed beneath it.
-  const shareEl = $('share'), authEl = $('auth');
+  // Step kinds: mode · you · guest · (auth, only while the host still has to identify) · invite.
+  // Identifying comes BEFORE the link (since 2026-10-28): the guest joining locks the setup, so a
+  // link sent first could be overtaken. Once identified, the auth step drops out of the list and
+  // the same index lands on "invite" by itself — the wizard moves on without a click.
+  const authEl = $('auth');
+  const swLabel = $('wiz-switch-label');
   let idx = 0;
   const steps = () => {
-    const s = ['mode', 'you', 'guest', 'invite'];
+    const s = ['mode', 'you', 'guest'];
     if (authEl && !authEl.hidden) s.push('auth');
+    s.push('invite');
     return s;
   };
   const render = () => {
@@ -3612,21 +3702,26 @@ function startPairedSigner(token) {
     if (idx < 0) idx = 0;
     const kind = st[idx];
     document.body.dataset.wkind = kind;
-    dots.innerHTML = '';
-    st.forEach((_, i) => { const d = document.createElement('span'); d.className = 'dot' + (i === idx ? ' active' : i < idx ? ' done' : ''); dots.appendChild(d); });
+    // In words, not dots: five dots were easy to miscount. What the step is about, its own
+    // heading says (the two sides are asked as questions).
+    dots.className = 'wiz-dots wiz-step';
+    dots.textContent = t('Schritt {n} von {m}', { n: idx + 1, m: st.length });
     back.disabled = idx === 0;
-    next.hidden = idx === st.length - 1;
-    if (shareEl) shareEl.classList.toggle('wiz-collapsed', kind === 'auth');
+    // On the last step the card is the summary of the choices — going back means changing them.
+    back.textContent = t(kind === 'invite' ? 'Ändern' : 'Zurück');
+    // No "Weiter" past the identification: it is the way to the link, and skipping it brought back
+    // exactly the order this wizard avoids. Whoever does not want to identify picks "Anonym
+    // bleiben" one step back — then this step does not exist.
+    next.hidden = idx === st.length - 1 || kind === 'auth';
   };
   const go = (delta) => { const st = steps(); idx = Math.min(Math.max(idx + delta, 0), st.length - 1); render(); setup.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   back.addEventListener('click', () => go(-1));
   next.addEventListener('click', () => go(1));
-  // Fold the invite box on the identification step open or shut
-  if (shareEl) { const h = shareEl.querySelector('h2'); if (h) h.addEventListener('click', () => { if (document.body.dataset.wkind === 'auth') shareEl.classList.toggle('wiz-collapsed'); }); }
 
   const syncActive = () => {
     const want = guided();
     if (sw) sw.checked = want;
+    if (swLabel) swLabel.textContent = t(want ? 'Alles auf einer Seite zeigen' : 'Schritt für Schritt einrichten');
     const on = !setup.hidden && want;
     document.body.classList.toggle('wizard', on);
     if (on) render();
@@ -3639,6 +3734,8 @@ function startPairedSigner(token) {
     });
   }
   new MutationObserver(syncActive).observe(setup, { attributes: true, attributeFilter: ['hidden'] });
+  // Step title and switch label are set through t(): run again once the dictionary is there.
+  i18nReady.then(syncActive);
   // The visibility of #auth changes the step count -> re-render on change
   if (authEl) new MutationObserver(() => { if (!setup.hidden) render(); }).observe(authEl, { attributes: true, attributeFilter: ['hidden'] });
   syncActive();

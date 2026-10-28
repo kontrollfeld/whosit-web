@@ -476,6 +476,15 @@ username/password.
 > relay. In `docker-compose.yml`, `TURN_URL`/`TURN_SECRET` are already passed through to the app
 > service — you share the same `TURN_SECRET` with the coturn service.
 
+**One coturn per port and host.** A second coturn on the same machine that also binds 3478 (for
+another application) does not fail to start: Linux lets both listen (`SO_REUSEPORT`) and hands
+each new client to one of them at random. With two different secrets, about every second
+allocation then fails with `401` — calls work sometimes, mostly over Wi-Fi, and rarely between
+two phones on mobile data, which always need the relay. `ss -lunp | grep :3478` shows two
+`turnserver` processes. Give each coturn its own listening port **and** its own relay port range.
+On whosit.eu this happened in October 2026; whosit's coturn has run on **3479** with relays
+**49201–49300** since then.
+
 ### TURN over 443 — for corporate and government networks
 
 The normal situation there: outgoing **UDP blocked entirely**, TCP only on **80/443**. That rules
@@ -539,6 +548,13 @@ Three points where this otherwise fails:
 - **`host.docker.internal`** only works if the proxy container has
   `extra_hosts: ['host.docker.internal:host-gateway']` set (the default in Coolify). coturn runs
   on the host network and is reachable that way.
+- **Set `--relay-ip` to the public address** when coturn listens on all interfaces. Traefik
+  reaches coturn via `host.docker.internal`, i.e. the Docker bridge (`10.0.0.1`), and without
+  `relay-ip` coturn binds the relay port to the address the request came in on. The allocation
+  succeeds and advertises the public IP (`external-ip`), but the port is only open on the bridge:
+  nobody can send media to it. On a host whose public IP sits on an interface (e.g. Hetzner):
+  `--relay-ip=<public IP>`. Behind 1:1 NAT (e.g. AWS) it is the private interface address
+  instead, with `--external-ip=<public>/<private>`.
 
 `HostSNI` with a concrete name cannot capture other connections: everything else on 443 continues
 unchanged.
@@ -571,7 +587,10 @@ connection; response type `0x0101` is a binding success.
 `REQUESTED-TRANSPORT=UDP`, take `realm` and `nonce` from the `401` response, and send it again
 with `USERNAME`/`REALM`/`NONCE` and `MESSAGE-INTEGRITY` (key =
 `MD5(username:realm:credential)` from `/ice`). Response type `0x0103` with `XOR-RELAYED-ADDRESS`
-means a relay port was actually allocated. That is exactly what the browser would do.
+means a relay port was actually allocated. That is exactly what the browser would do — and still
+not enough: an allocated port can be unreachable (see `relay-ip` above). The last proof is media
+through it: two `RTCPeerConnection`s, both `iceTransportPolicy: 'relay'` with only the `turns:`
+entry, exchanging a DataChannel message.
 
 In the browser the same thing can be checked with an ICE gathering run using **only** the
 `turns:` entry (no STUN, no UDP TURN). Two traps there:
