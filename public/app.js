@@ -2037,20 +2037,41 @@ let mediaState = 'idle'; // idle | pending | ok | denied | nodevice | busy | err
    Phrased to avoid grammatical agreement with the inserted noun. */
 const MEDIA_MSG = {
   pending: 'Bitte {geraete} freigeben — der Anruf wartet so lange.',
-  denied: 'Zugriff auf {geraete} ist blockiert. Im Browser freigeben (Schloss-Symbol in der Adressleiste), danach erneut versuchen.',
+  denied: 'Zugriff auf {geraete} ist blockiert. Erlaube {geraete} über das Symbol links neben der Adresse (Schloss oder Regler) und versuche es erneut.',
   nodevice: 'Zugriff auf {geraete} nicht möglich — kein Gerät gefunden. Ihr könnt den Anruf als Chat führen.',
   busy: 'Zugriff auf {geraete} nicht möglich — eine andere Anwendung belegt sie gerade. Schließe sie und versuche es erneut.',
   error: 'Zugriff auf {geraete} ist fehlgeschlagen.',
 };
 
+/* Where a refused permission is undone depends on the device, and a hint that names the wrong
+   place is no hint at all: iOS browsers have no padlock — there, and in the app, the switch sits
+   in the system settings. Changing it there restarts the browser, hence "reload". */
+const UA = navigator.userAgent;
+const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_ANDROID = /Android/.test(UA);
+function deniedMsg() {
+  if (isNativeApp()) {
+    return IS_ANDROID
+      ? 'Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → Apps → whosit → Berechtigungen und erlaube dort {geraete}.'
+      : 'Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → whosit und erlaube dort {geraete}.';
+  }
+  if (IS_IOS) {
+    const browser = /CriOS/.test(UA) ? 'Chrome' : /FxiOS/.test(UA) ? 'Firefox' : /EdgiOS/.test(UA) ? 'Edge' : 'Safari';
+    return { key: 'Zugriff auf {geraete} ist blockiert. Öffne Einstellungen → {browser}, erlaube dort {geraete} und lade diese Seite danach neu.', browser };
+  }
+  return MEDIA_MSG.denied;
+}
+
 function mediaDevicesLabel() { return mode === 'audio' ? t('das Mikrofon') : t('Kamera und Mikrofon'); }
 
 function renderMediaNotice() {
-  const key = MEDIA_MSG[mediaState];
+  let key = mediaState === 'denied' ? deniedMsg() : MEDIA_MSG[mediaState];
   if (!key) { mediaNotice.hidden = true; return; }
+  let browser = '';
+  if (typeof key === 'object') ({ key, browser } = key);
   mediaNotice.hidden = false;
   mediaNotice.dataset.state = mediaState === 'pending' ? 'wait' : 'error';
-  mediaNoticeText.textContent = t(key, { geraete: mediaDevicesLabel() });
+  mediaNoticeText.textContent = t(key, { geraete: mediaDevicesLabel(), browser });
   // While the browser dialog is open there is nothing to retry — the answer is still pending.
   mediaRetryBtn.hidden = mediaState === 'pending';
 }
