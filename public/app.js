@@ -1921,7 +1921,7 @@ function renderStatus(msg) {
     // greeted a host who had not chosen anything yet (and an anonymous host, who has nothing to
     // identify at all).
     if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
-    else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein. Danach weist du dich aus und lädst deinen Gast ein.');
+    else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.');
     else if (!peerPresent && msg.self.verified) setStatus('Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.', 'ok');
     else if (!peerPresent) setStatus('Richte den Anruf ein und schick den Link an deinen Gast.');
     else if (hostMustScan) setStatus('Dein Gast ist da – weise dich jetzt aus.', 'prompt');
@@ -3683,17 +3683,19 @@ function startPairedSigner(token) {
   const pref = () => { try { const v = localStorage.getItem(WIZ_KEY); return v === '1' ? true : v === '0' ? false : null; } catch { return null; } };
   const guided = () => pref() !== false;
 
-  // Step kinds: mode · you · guest · (auth, only while the host still has to identify) · invite.
-  // Identifying comes BEFORE the link (since 2026-10-28): the guest joining locks the setup, so a
-  // link sent first could be overtaken. Once identified, the auth step drops out of the list and
-  // the same index lands on "invite" by itself — the wizard moves on without a click.
-  const authEl = $('auth');
+  // Step kinds: mode · you · guest · invite · (auth, only while the host still has to identify).
+  // The link comes BEFORE the identification, and stays within reach after it: the usual way is to
+  // prepare a call, send the link by mail or messenger and identify later, when the call begins.
+  // (For a few hours on 2026-10-28 identification came first — that hid the link behind the
+  // wallet, exactly when it is needed most.) The settings are complete by the invite step, so a
+  // guest joining early locks nothing that is still open. Once identified, the auth step drops
+  // out and the index lands back on "invite".
+  const shareEl = $('share'), authEl = $('auth');
   const swLabel = $('wiz-switch-label');
   let idx = 0;
   const steps = () => {
-    const s = ['mode', 'you', 'guest'];
+    const s = ['mode', 'you', 'guest', 'invite'];
     if (authEl && !authEl.hidden) s.push('auth');
-    s.push('invite');
     return s;
   };
   const render = () => {
@@ -3707,16 +3709,18 @@ function startPairedSigner(token) {
     dots.className = 'wiz-dots wiz-step';
     dots.textContent = t('Schritt {n} von {m}', { n: idx + 1, m: st.length });
     back.disabled = idx === 0;
-    // On the last step the card is the summary of the choices — going back means changing them.
+    // From the invite step on the card is the summary of the choices — going back means changing them.
     back.textContent = t(kind === 'invite' ? 'Ändern' : 'Zurück');
-    // No "Weiter" past the identification: it is the way to the link, and skipping it brought back
-    // exactly the order this wizard avoids. Whoever does not want to identify picks "Anonym
-    // bleiben" one step back — then this step does not exist.
-    next.hidden = idx === st.length - 1 || kind === 'auth';
+    next.hidden = idx === st.length - 1;
+    // On the identification step the invite card stays below it, folded to its heading: one tap
+    // and the link is there to copy again.
+    if (shareEl) shareEl.classList.toggle('wiz-collapsed', kind === 'auth');
   };
   const go = (delta) => { const st = steps(); idx = Math.min(Math.max(idx + delta, 0), st.length - 1); render(); setup.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   back.addEventListener('click', () => go(-1));
   next.addEventListener('click', () => go(1));
+  // Fold the invite card on the identification step open or shut
+  if (shareEl) { const h = shareEl.querySelector('h2'); if (h) h.addEventListener('click', () => { if (document.body.dataset.wkind === 'auth') shareEl.classList.toggle('wiz-collapsed'); }); }
 
   const syncActive = () => {
     const want = guided();

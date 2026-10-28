@@ -1465,14 +1465,22 @@ body.wizard[data-wkind="invite"] #openroom-row { display: none; }
 body.wizard[data-wkind="auth"] #mode-block,
 body.wizard[data-wkind="auth"] #setup .party.you,
 body.wizard[data-wkind="auth"] #setup .party.guest,
-body.wizard[data-wkind="auth"] #openroom-row,
-body.wizard[data-wkind="auth"] #setup .preview { display: none; }
+body.wizard[data-wkind="auth"] #openroom-row { display: none; }
 /* Own identification only on the identify step */
 body.wizard:not([data-wkind="auth"]) #auth { display: none; }
-/* Invite box on its own, LAST step: identify first, then share the link. Until 2026-10-28 the
-   link came before the identification, so a host could send it, be overtaken by the guest and
-   find the setup locked before being identified. */
-body.wizard:not([data-wkind="invite"]) #share { display: none; }
+/* Invite box on its own step AND, folded to its heading, on the identify step: the link must stay
+   within reach — it is usually sent ahead of the call, before the host identifies. */
+body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #share { display: none; }
+body.wizard[data-wkind="auth"] #share.wiz-collapsed > :not(h2) { display: none; }
+body.wizard[data-wkind="auth"] #share > h2 { cursor: pointer; display: flex; align-items: center; }
+body.wizard[data-wkind="auth"] #share > h2::after {
+  content: ""; margin-left: auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint);
+  transform: rotate(-45deg); transition: transform var(--t);
+}
+body.wizard[data-wkind="auth"] #share:not(.wiz-collapsed) > h2::after { transform: rotate(45deg); }
+/* The summary of the choices stays on the identify step too. */
+body.wizard[data-wkind="auth"] .preview .prev-mode { display: block; }
 
 /* invite card: "now vs. scheduled" segment sits directly under the heading */
 .invite-when { margin-bottom: 12px; }
