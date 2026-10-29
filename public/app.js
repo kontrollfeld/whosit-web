@@ -2932,7 +2932,7 @@ function revealCall() {
   syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
-  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; playSoundMark('connected', 0.45); showLogoMoment(); }
+  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; showLogoMoment({ sound: () => playSoundMark('connected', 0.45) }); }
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
   screenBtn.hidden = !screenShareSupported();
   handBtn.hidden = !capOn('hand-raise');
@@ -3414,17 +3414,21 @@ function loadLogoMoment() {
 }
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 /** `intro`: the app's start (see playAppIntro) — does not use up the call's one showing.
- *  `onStart`: called the moment the picture starts, to start a sound in step with it. */
-async function showLogoMoment({ intro = false, onStart = null } = {}) {
+ *  `sound`: starts the sound mark and returns its clock (seconds audible, see playSoundMark) or
+ *  a promise of one, or a falsy value when nothing plays. The sound plays even when the picture
+ *  does not (reduced motion); the picture follows the sound's clock, so a sound that starts late
+ *  — a media element still loading, Bluetooth — does not leave the picture ahead of it. */
+async function showLogoMoment({ intro = false, sound = null } = {}) {
   const box = $('logo-moment');
-  if (!box || OPERATOR_BRANDED || reducedMotion()) return;
-  if (!intro) { if (logoMomentShown) return; logoMomentShown = true; }
+  const soundOnly = () => { if (sound) sound(); };
+  if (!box || OPERATOR_BRANDED || reducedMotion()) return soundOnly();
+  if (!intro) { if (logoMomentShown) return soundOnly(); logoMomentShown = true; }
   const svg = await loadLogoMoment();
-  if (!svg || box.classList.contains('la-play')) return;
+  if (!svg || box.classList.contains('la-play')) return soundOnly();
   if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
+  const clock = sound ? await Promise.resolve(sound()).catch(() => null) : null;
   box.hidden = false; box.classList.remove('out');
-  if (onStart) onStart();
-  await whositLogoAnimation.play(box);
+  await whositLogoAnimation.play(box, { clock: typeof clock === 'function' ? clock : null });
   box.classList.add('out');
   setTimeout(() => { box.hidden = true; box.classList.remove('out'); }, 450);
 }
@@ -3434,8 +3438,11 @@ function playSoundMark(kind, gain = 0.5) {
   if (!soundsOn() || OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;
   const src = ctx.createBufferSource(), g = ctx.createGain();
   g.gain.value = gain; src.buffer = buf;
-  src.connect(g).connect(ctx.destination); src.start();
-  return true;
+  const at = ctx.currentTime;
+  src.connect(g).connect(ctx.destination); src.start(at);
+  // The clock of this sound for the logo animation: seconds audible now, the output latency
+  // (Bluetooth, CarPlay: a lot) taken off.
+  return () => ctx.currentTime - at - (ctx.outputLatency || ctx.baseLatency || 0);
 }
 
 /* Level of a microphone track. A disabled (muted) track reads as silence, so that one is measured
@@ -3669,15 +3676,22 @@ function drawBgPreset(id, ctx, w, h) {
     g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   };
-  if (id === 'whosit') { // night blue with the logo top right, as the other side sees it
+  if (id === 'whosit') { // night blue, the white logo file repeated as a quiet pattern
     ctx.fillStyle = lin([[0, '#0b1530'], [1, '#17305c']]); ctx.fillRect(0, 0, w, h);
     glow(w * 0.15, h * 0.9, w * 0.6, 'rgba(74, 163, 232, 0.14)');
     if (bgLogo && bgLogo.complete && bgLogo.naturalWidth) {
-      // Inside the centred 4:3 area: tiles crop a wide picture at the sides (object-fit: cover),
-      // and a logo in the very corner would be cut off.
-      const sw = Math.min(w, h * 4 / 3), x0 = (w - sw) / 2;
-      const lw = sw * 0.32, lh = lw * (bgLogo.naturalHeight / bgLogo.naturalWidth), m = sw * 0.05;
-      ctx.drawImage(bgLogo, x0 + sw - lw - m, m, lw, lh);
+      // Many small logos instead of one: the picture is cropped (a phone held upright shows only a
+      // narrow middle strip of this 16:9 canvas) and the person covers the middle, so a single
+      // logo was never in view (2026-10-29). Brick rows, sized by the height so the crop keeps
+      // them readable; the unchanged white file (dark ground), drawn faint so it stays a backdrop.
+      const lw = h * 0.2, lh = lw * (bgLogo.naturalHeight / bgLogo.naturalWidth);
+      const dx = lw * 1.7, dy = lh * 2.4;
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      for (let r = 0, y = dy * 0.35; y < h; r++, y += dy) {
+        for (let x = (r % 2 ? dx / 2 : 0) - dx / 2 + (w / 2 % dx); x < w; x += dx) ctx.drawImage(bgLogo, x, y, lw, lh);
+      }
+      ctx.restore();
     }
   }
 }
@@ -4322,10 +4336,20 @@ function playAppIntro() {
   const q = LAUNCH_QUERY;
   if (OPERATOR_BRANDED || reducedMotion() || q.has('room') || q.has('zurueck')) return;
   try { if (sessionStorage.getItem('whosit_intro')) return; sessionStorage.setItem('whosit_intro', '1'); } catch {}
-  showLogoMoment({
-    intro: true,
-    onStart: () => { if (soundsOn()) new Audio('sounds/whosit-klangzeichen-leise.mp3').play().catch(() => {}); },
-  });
+  showLogoMoment({ intro: true, sound: startIntroSound });
+}
+/* The quiet sound mark through a media element, started before the picture: loaded first, then
+   played, and its clock handed to the animation only once it really runs (until 2026-10-29 the
+   picture started at once and the sound came noticeably later on the phone). */
+async function startIntroSound() {
+  if (!soundsOn()) return null;
+  const a = new Audio('sounds/whosit-klangzeichen-leise.mp3');
+  a.preload = 'auto';
+  await new Promise((r) => { a.addEventListener('canplaythrough', r, { once: true }); a.addEventListener('error', r, { once: true }); setTimeout(r, 1500); a.load(); });
+  try { await a.play(); } catch { return null; }
+  const t0 = performance.now();
+  while (a.currentTime === 0 && !a.paused && performance.now() - t0 < 1000) await new Promise((r) => requestAnimationFrame(r));
+  return () => a.currentTime;
 }
 
 // ---- native app shell: bottom tab bar (call / settings) --------------
