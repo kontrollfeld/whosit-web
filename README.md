@@ -751,6 +751,12 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   "Branding" means an operator NAME (`EUDI_BRAND_NAME`), as for the `branded` class: a logo alone
   is not one (www.whosit.eu sets `EUDI_BRAND_LOGO` to our own mark — until 2026-10-29 that silenced
   the mark there and hid the whosit background). Brand assets like the logo: copied unchanged from the media kit, see the README there.
+- **The logo animation** (`public/logo-animation.js` / `.css`, the one approved animation of the
+  logo, see `public/logo/README.md`): once when a call connects, in step with the sound mark, as a
+  light card in the middle that lets taps through and fades after about 3 s. Only on unbranded
+  instances, not with "reduce motion", independent of the "Töne" switch (it is silent). The logo
+  file is fetched on the first gesture together with the sound mark, so picture and sound start
+  together.
 - **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
   "Töne" in the app's settings (moved there like the theme button). Off silences the arrival sound
   and the sound mark — not the device check's test tone, not the tab title or the system

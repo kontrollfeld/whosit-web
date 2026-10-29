@@ -14,3 +14,7 @@ on the i, above "EUDI VERIFIED CALL" at the same width). See `public/logo/README
 - The mark-plus-name block (`.brand-operator`) exists only for operators' own branding
   (`EUDI_BRAND_*`). It is not a whosit logo and must not be shown for whosit itself.
 - If the logo does not fit somewhere: **ask**, do not adapt it.
+- **The one exception: the approved logo animation** (brand owner, 2026-10-29, variant "Morse über
+  osi"): `public/logo-animation.js` / `.css`, built at runtime from the unchanged colour file. Where
+  the logo is animated — the call, films, press — use exactly this, never another choreography or a
+  variant, and nothing like "Who is it? / Wer ist dran?" above it. See `public/logo/README.md`.
