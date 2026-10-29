@@ -588,10 +588,6 @@
     "Hintergrund": "Background",
     "Kein Effekt": "No effect",
     "Weichzeichnen": "Blur",
-    "Nachtblau": "Night blue",
-    "Hell": "Light",
-    "Lichter": "Lights",
-    "Grün": "Green",
     "Eigenes Bild": "Your own picture",
     "Anderes Bild wählen": "Choose another picture",
     "Hintergrund wird vorbereitet …": "Preparing background …",
@@ -599,7 +595,9 @@
     "Das Bild konnte nicht geladen werden.": "The picture could not be loaded.",
     "Töne": "Sounds",
     "Töne: an": "Sounds: on",
-    "Töne: aus": "Sounds: off"
+    "Töne: aus": "Sounds: off",
+    "Dein Gast hat sich ausgewiesen": "Your guest has identified",
+    "Gastgeber:in hat sich ausgewiesen": "The host has identified"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1190,10 +1188,6 @@
     "Hintergrund": "Arrière-plan",
     "Kein Effekt": "Aucun effet",
     "Weichzeichnen": "Flouter",
-    "Nachtblau": "Bleu nuit",
-    "Hell": "Clair",
-    "Lichter": "Lumières",
-    "Grün": "Vert",
     "Eigenes Bild": "Votre propre image",
     "Anderes Bild wählen": "Choisir une autre image",
     "Hintergrund wird vorbereitet …": "Préparation de l'arrière-plan …",
@@ -1201,6 +1195,8 @@
     "Das Bild konnte nicht geladen werden.": "L'image n'a pas pu être chargée.",
     "Töne": "Sons",
     "Töne: an": "Sons : activés",
-    "Töne: aus": "Sons : désactivés"
+    "Töne: aus": "Sons : désactivés",
+    "Dein Gast hat sich ausgewiesen": "Votre invité·e s’est identifié·e",
+    "Gastgeber:in hat sich ausgewiesen": "L’hôte s’est identifié·e"
   }
 }
