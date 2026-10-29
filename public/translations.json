@@ -596,7 +596,10 @@
     "Anderes Bild wählen": "Choose another picture",
     "Hintergrund wird vorbereitet …": "Preparing background …",
     "Hintergrund-Effekte sind auf diesem Gerät nicht verfügbar.": "Background effects are not available on this device.",
-    "Das Bild konnte nicht geladen werden.": "The picture could not be loaded."
+    "Das Bild konnte nicht geladen werden.": "The picture could not be loaded.",
+    "Töne": "Sounds",
+    "Töne: an": "Sounds: on",
+    "Töne: aus": "Sounds: off"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1195,6 +1198,9 @@
     "Anderes Bild wählen": "Choisir une autre image",
     "Hintergrund wird vorbereitet …": "Préparation de l'arrière-plan …",
     "Hintergrund-Effekte sind auf diesem Gerät nicht verfügbar.": "Les effets d'arrière-plan ne sont pas disponibles sur cet appareil.",
-    "Das Bild konnte nicht geladen werden.": "L'image n'a pas pu être chargée."
+    "Das Bild konnte nicht geladen werden.": "L'image n'a pas pu être chargée.",
+    "Töne": "Sons",
+    "Töne: an": "Sons : activés",
+    "Töne: aus": "Sons : désactivés"
   }
 }
