@@ -72,8 +72,13 @@
   }
 
   /** Runs it once in `box` (which holds the built svg): adds `la-play`, and removes it again when
-   *  every animation has finished, so the resting picture is exactly the file. */
-  function play(box) {
+   *  every animation has finished, so the resting picture is exactly the file.
+   *  `opts.clock`: a function returning how many seconds of the sound mark are audible right now
+   *  (negative: not yet). The picture then follows the SOUND, not the other way round — a media
+   *  element or the audio output starts a little late, and on a phone that is easily heard. It is
+   *  set when the animation starts and once more shortly after (a media clock moves in steps). */
+  function play(box, opts) {
+    var clock = opts && opts.clock;
     box.classList.remove('la-play');
     void box.getBoundingClientRect(); // restart
     box.classList.add('la-play');
@@ -81,6 +86,14 @@
     return new Promise(function (resolve) {
       requestAnimationFrame(function () {
         var anims = box.getAnimations ? box.getAnimations({ subtree: true }) : [];
+        var sync = function () {
+          if (!clock || box.__laRun !== run) return;
+          var t = clock();
+          if (typeof t !== 'number' || !isFinite(t)) return;
+          anims.forEach(function (a) { try { a.currentTime = t * 1000; } catch (e) { /* finished */ } });
+        };
+        sync();
+        if (clock) setTimeout(sync, 300);
         Promise.all(anims.map(function (a) { return a.finished; }))
           .then(function () { if (box.__laRun === run) box.classList.remove('la-play'); resolve(); })
           .catch(resolve);

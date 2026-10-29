@@ -757,6 +757,9 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   instances, not with "reduce motion", independent of the "Töne" switch (it is silent). The logo
   file is fetched on the first gesture together with the sound mark, so picture and sound start
   together.
+  The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`): Web Audio's
+  start time minus the output latency in the call, the media element's `currentTime` at app start
+  (it loads first, then plays) — a late sound no longer leaves the picture ahead.
   In the **app**, the same card also greets once per launch, with the sound mark 12 dB quieter
   (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file):
   not when the app opens on an invitation or a wallet return, silent when "Töne" is off. The
@@ -768,7 +771,8 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   the arrival sound once, so you hear what you chose.
 - **Background: blur or replace** (`background-effects`). Tiles in the device check and behind the
   "Hintergrund" button in the call: no effect, blur, a whosit background (the logo *file* from
-  `public/logo/`, only on unbranded instances), and an own picture. (Four drawn backgrounds were
+  `public/logo/`, the white file repeated as a faint brick pattern so that some are in view in
+  any crop, only on unbranded instances), and an own picture. (Four drawn backgrounds were
   removed on 2026-10-29; a stored choice of one falls back to no effect.)
   `public/background.mjs` segments the camera on the device with MediaPipe (self-hosted in
   `public/vendor/mediapipe/`, SIMD build only) and composites onto a canvas whose
