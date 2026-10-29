@@ -3383,8 +3383,10 @@ function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } ca
 /* The whosit sound mark: "whosit?" – and the answer ME in Morse (− − ·, "it's me"). The answer
    alone when the other side arrives (a knock at the door), the whole mark once when a call
    connects. Only without operator branding: an operator's call should not carry our mark, there
-   the neutral chime stays. Decoded once, after the first gesture (before it, nothing may sound). */
-const OPERATOR_BRANDED = !!(window.EUDI_BRANDING && (window.EUDI_BRANDING.name || window.EUDI_BRANDING.logo));
+   the neutral chime stays. Decoded once, after the first gesture (before it, nothing may sound).
+   "Branded" means an operator NAME, exactly like the `branded` class (src/branding.ts): a logo
+   alone is no operator brand — www.whosit.eu sets EUDI_BRAND_LOGO to our own mark. */
+const OPERATOR_BRANDED = !!(window.EUDI_BRANDING && window.EUDI_BRANDING.name);
 const SOUND_MARK = { arrival: 'sounds/whosit-klangzeichen-ohne-stimme.mp3', connected: 'sounds/whosit-klangzeichen.mp3' };
 const soundMarkBufs = {};
 let soundMarkLoad = null, soundMarkPlayed = false;
@@ -3446,7 +3448,8 @@ let previewStream = null, previewStreamMode = null, previewMeter = null, preview
 function mediaConstraints() {
   const audio = devPref.mic ? { deviceId: { ideal: devPref.mic } } : true;
   if (mode === 'audio') return { audio, video: false };
-  return { audio, video: devPref.cam ? { deviceId: { ideal: devPref.cam } } : true };
+  // Without a chosen camera the front one: phones (and the app) otherwise may open the back camera.
+  return { audio, video: devPref.cam ? { deviceId: { ideal: devPref.cam } } : { facingMode: 'user' } };
 }
 function applySink(el) {
   if (sinkSupported && devPref.spk && el && el.setSinkId) el.setSinkId(devPref.spk).catch(() => {});
@@ -3561,7 +3564,8 @@ if (mcCard) {
     for (const el of document.querySelectorAll('video:not(#local-video):not(#mc-video), audio')) applySink(el);
   });
   mcTone.addEventListener('click', () => {
-    const a = new Audio(testToneUrl());
+    // The whosit sound mark (an operator's instance: the neutral tone), routed to the chosen speaker.
+    const a = new Audio(OPERATOR_BRANDED ? testToneUrl() : SOUND_MARK.connected);
     applySink(a);
     a.play().catch(() => {});
   });
@@ -3596,8 +3600,11 @@ const BG_CUSTOM_KEY = 'eudi_bg_custom';
 const BG_BRANDED = OPERATOR_BRANDED;
 const BG_CHOICES = [
   ['none', 'Kein Effekt'], ['blur', 'Weichzeichnen'], ...(BG_BRANDED ? [] : [['whosit', 'whosit']]),
-  ['p1', 'Nachtblau'], ['p2', 'Hell'], ['p3', 'Lichter'], ['p4', 'Grün'], ['custom', 'Eigenes Bild'],
+  ['custom', 'Eigenes Bild'],
 ];
+// A choice that is no longer offered (the drawn backgrounds p1–p4 until 2026-10-29, or whosit on a
+// branded instance) falls back to no effect instead of silently drawing nothing.
+if (devPref.bg && !BG_CHOICES.some(([id]) => id === devPref.bg)) { devPref.bg = 'none'; saveDevPref(); }
 const bgLogo = BG_BRANDED ? null : new Image();
 if (bgLogo) {
   bgLogo.onload = () => {
@@ -3624,7 +3631,7 @@ const BG_CAPABLE = (() => {
 })();
 function bgSupported() { return BG_CAPABLE && !bgFailed && capOn('background-effects') && mode === 'video'; }
 
-/* The built-in backgrounds are drawn, not shipped: no image licences, nothing to download. */
+/* The whosit background is drawn around the logo file: nothing else to ship or license. */
 function drawBgPreset(id, ctx, w, h) {
   const lin = (stops) => { const g = ctx.createLinearGradient(0, 0, w, h); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
   const glow = (x, y, r, c) => {
@@ -3642,24 +3649,6 @@ function drawBgPreset(id, ctx, w, h) {
       const lw = sw * 0.32, lh = lw * (bgLogo.naturalHeight / bgLogo.naturalWidth), m = sw * 0.05;
       ctx.drawImage(bgLogo, x0 + sw - lw - m, m, lw, lh);
     }
-  } else if (id === 'p1') { // night blue, a warm light from the top right
-    ctx.fillStyle = lin([[0, '#0b1530'], [1, '#1d3a6e']]); ctx.fillRect(0, 0, w, h);
-    glow(w * 0.82, h * 0.12, w * 0.55, 'rgba(255, 204, 0, 0.16)');
-  } else if (id === 'p2') { // light and calm
-    ctx.fillStyle = lin([[0, '#f6f1e7'], [1, '#dbe5f1']]); ctx.fillRect(0, 0, w, h);
-    glow(w * 0.2, h * 0.2, w * 0.6, 'rgba(255, 255, 255, 0.7)');
-  } else if (id === 'p3') { // evening lights out of focus
-    ctx.fillStyle = lin([[0, '#1f1a24'], [1, '#3a2c2a']]); ctx.fillRect(0, 0, w, h);
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let i = 0; i < 26; i++) {
-      const x = rnd() * w, y = rnd() * h * 0.85, r = (0.03 + rnd() * 0.07) * w, warm = rnd() > 0.35;
-      glow(x, y, r, warm ? `rgba(255, ${170 + Math.round(rnd() * 60)}, 90, 0.35)` : 'rgba(150, 190, 255, 0.28)');
-    }
-  } else { // p4: green, like plants in soft focus
-    ctx.fillStyle = lin([[0, '#cfe3d4'], [1, '#6f9a7e']]); ctx.fillRect(0, 0, w, h);
-    glow(w * 0.15, h * 0.75, w * 0.45, 'rgba(40, 90, 60, 0.45)');
-    glow(w * 0.9, h * 0.3, w * 0.4, 'rgba(255, 255, 240, 0.5)');
   }
 }
 function bgPresetCanvas(id, w = 1280, h = 720) {
@@ -3861,6 +3850,7 @@ i18nReady.then(renderBgPickers);
 const notifyBtn = $('notify-btn'), notifyLabel = $('notify-label');
 const canNotify = () => typeof Notification !== 'undefined' && !isNativeApp() && !isEmbedded;
 let knownPeers = null; // null until the first status: whoever is already there when you arrive is no news
+let knownVerified = null;
 let titleBefore = null;
 
 function syncNotifyBtn() {
@@ -3895,33 +3885,49 @@ function playChime() {
   });
 }
 
+/* Away = the tab is hidden OR the window is not in front (another app over a visible browser
+   window counts as visible for the Page Visibility API). */
+const awayFromCall = () => document.hidden || !document.hasFocus();
+function notifyAway(text, tag) {
+  if (!awayFromCall()) return;
+  if (titleBefore === null) titleBefore = document.title;
+  document.title = '● ' + text;
+  if (canNotify() && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(text, { body: t('Zum Anruf wechseln'), tag });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch {}
+  }
+}
+
 function noticeArrivals(msg) {
   syncNotifyBtn();
   const now = new Map((msg.peers || []).filter((x) => x.peerId).map((x) => [x.peerId, x]));
-  const before = knownPeers;
+  const before = knownPeers, verifiedBefore = knownVerified;
   knownPeers = new Set(now.keys());
+  knownVerified = new Set([...now.values()].filter((x) => x.verified).map((x) => x.peerId));
   if (!before || soloMode || ended) return;
   const fresh = [...now.values()].filter((x) => !before.has(x.peerId));
-  if (!fresh.length) return;
+  // Identified since the last status — the host's cue to identify too (or that the call can start).
+  const nowVerified = [...now.values()].filter((x) => x.verified && !verifiedBefore.has(x.peerId));
   // In the call, a newcomer already shows up in chat and tiles — only worth a sound when away.
-  if (callStarted && !document.hidden) return;
-  const text = fresh.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in ist da')
-    : before.size === 0 ? t('Dein Gast ist da') : t('Ein weiterer Gast ist da');
-  playChime();
-  if (document.hidden) {
-    if (titleBefore === null) titleBefore = document.title;
-    document.title = '● ' + text;
-    if (canNotify() && Notification.permission === 'granted') {
-      try {
-        const n = new Notification(text, { body: t('Zum Anruf wechseln'), tag: 'whosit-arrival' });
-        n.onclick = () => { window.focus(); n.close(); };
-      } catch {}
-    }
+  if (callStarted && !awayFromCall()) return;
+  if (fresh.length) {
+    const text = fresh.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in ist da')
+      : before.size === 0 ? t('Dein Gast ist da') : t('Ein weiterer Gast ist da');
+    playChime();
+    notifyAway(text, 'whosit-arrival');
+  }
+  if (nowVerified.length && !callStarted) {
+    const text = nowVerified.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in hat sich ausgewiesen')
+      : t('Dein Gast hat sich ausgewiesen');
+    if (!fresh.length) playChime(); // arriving already identified: one sound is enough
+    notifyAway(text, 'whosit-verified');
   }
 }
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && titleBefore !== null) { document.title = titleBefore; titleBefore = null; }
-});
+const restoreTitle = () => { if (!awayFromCall() && titleBefore !== null) { document.title = titleBefore; titleBefore = null; } };
+document.addEventListener('visibilitychange', restoreTitle);
+window.addEventListener('focus', restoreTitle);
 
 // -- "you are muted": speaking into a muted microphone --
 const mutedHint = $('muted-hint'), mutedHintBtn = $('muted-hint-btn');
