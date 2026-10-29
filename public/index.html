@@ -9,6 +9,7 @@
   <meta name="description" content="Video-, Audio- oder Chat-Anruf mit gegenseitiger Identitätsprüfung per EUDI-Wallet — beide sehen vor dem Verbinden, was geteilt wird." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0.12' y1='0' x2='0.85' y2='1'%3E%3Cstop stop-color='%231e7fd4'/%3E%3Cstop offset='1' stop-color='%23003b8e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M19.99 2.37 A22 22 0 0 1 28.01 2.37 M31.34 3.26 A22 22 0 0 1 38.29 7.27 M40.73 9.71 A22 22 0 0 1 44.74 16.66 M45.63 19.99 A22 22 0 0 1 45.63 28.01 M44.74 31.34 A22 22 0 0 1 40.73 38.29 M38.29 40.73 A22 22 0 0 1 31.34 44.74 M28.01 45.63 A22 22 0 0 1 19.99 45.63 M7.27 38.29 A22 22 0 0 1 3.26 31.34 M2.37 28.01 A22 22 0 0 1 2.37 19.99 M3.26 16.66 A22 22 0 0 1 7.27 9.71 M9.71 7.27 A22 22 0 0 1 16.66 3.26' fill='none' stroke='%231e7fd4' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M10.86 32.21 A15.5 15.5 0 1 1 23.46 39.49 C18.96 39.33 14.65 41.09 12.45 42.49 C13.05 40.09 12.45 34.76 10.86 32.21 Z' fill='url%28%23g%29'/%3E%3Cg transform='translate%2824 24%29 scale%280.95%29 translate%28-12 -12%29'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='%23fff' stroke-width='2.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="logo-animation.css" />
   <script src="theme.js"></script>
   <script>if (window.EUDI_APP_CONFIG && window.EUDI_APP_CONFIG.native) document.documentElement.classList.add('native-app');</script>
   <!-- Vendored, not from a CDN: see vendor/qrcodejs/README.md -->
@@ -742,6 +743,9 @@
     </span>
   </footer>
 
+  <!-- Logo moment: the logo animation once when the call connects (unbranded instances only). -->
+  <div id="logo-moment" class="logo-moment" hidden aria-hidden="true"></div>
+
   <!-- Native app: bottom tab bar (call / settings). Website: stays hidden. -->
   <nav id="app-tabbar" class="app-tabbar" hidden aria-label="App-Navigation">
     <button type="button" class="tab active" data-tab="call" aria-selected="true">
@@ -758,6 +762,8 @@
   <!-- Before app.js: the network check only provides a function; app.js calls it
        after refreshIce() with exactly the ICE servers the call uses too. -->
   <script src="netcheck.js"></script>
+  <!-- The approved logo animation (built from the logo file), shown once when a call connects. -->
+  <script src="logo-animation.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

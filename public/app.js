@@ -2930,7 +2930,7 @@ function revealCall() {
   syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
-  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; playSoundMark('connected', 0.45); }
+  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; playSoundMark('connected', 0.45); showLogoMoment(); }
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
   screenBtn.hidden = !screenShareSupported();
   handBtn.hidden = !capOn('hand-raise');
@@ -2987,7 +2987,7 @@ function onPeerGone(from) {
 // ---- hang up ----
 function teardownCall() {
   earlyIce.clear();
-  soundMarkPlayed = false;
+  soundMarkPlayed = false; logoMomentShown = false;
   releaseWakeLock();
   stopMutedWatch();
   stopPreview();
@@ -3348,7 +3348,7 @@ function getAudioCtx() {
   return audioCtx;
 }
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
-for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); }, { passive: true, capture: true });
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); }, { passive: true, capture: true });
 
 /* "Töne" switch (footer on the website, a row in the app's settings): off silences the arrival
    chime and the sound mark, nothing else — the device check's test tone is asked for explicitly,
@@ -3399,6 +3399,31 @@ function loadSoundMarks() {
   }));
   return soundMarkLoad;
 }
+/* The logo animation (public/logo-animation.js, the one approved animation of the logo) once when
+   a call connects, in step with the sound mark: a light card in the middle of the screen that lets
+   taps through and is gone after about 3 s. Only on unbranded instances (it is our logo), not with
+   "reduce motion". Independent of the "Töne" switch — it makes no sound. The logo file is fetched
+   with the sound mark (first gesture), so the picture does not lag behind the sound. */
+let logoMomentShown = false, logoMomentSvg = null;
+function loadLogoMoment() {
+  if (OPERATOR_BRANDED || logoMomentSvg || !window.whositLogoAnimation) return logoMomentSvg;
+  logoMomentSvg = whositLogoAnimation.load('logo/logo-horizontal-colour.svg').catch(() => null);
+  return logoMomentSvg;
+}
+async function showLogoMoment() {
+  const box = $('logo-moment');
+  if (!box || logoMomentShown || OPERATOR_BRANDED) return;
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  logoMomentShown = true;
+  const svg = await loadLogoMoment();
+  if (!svg) return;
+  if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
+  box.hidden = false; box.classList.remove('out');
+  await whositLogoAnimation.play(box);
+  box.classList.add('out');
+  setTimeout(() => { box.hidden = true; box.classList.remove('out'); }, 450);
+}
+
 function playSoundMark(kind, gain = 0.5) {
   const ctx = getAudioCtx(), buf = soundMarkBufs[kind];
   if (!soundsOn() || OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;

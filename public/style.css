@@ -1873,3 +1873,19 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
 }
 .bg-pop[hidden] { display: none; }
 .muted-hint button { min-height: 34px; padding: 6px 14px; font-size: 0.85rem; }
+
+/* Logo moment (app.js showLogoMoment): the logo animation once when a call connects. The colour
+   logo needs light ground, so the card stays light in dark mode too. Taps go through. */
+.logo-moment {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  padding: 16px; pointer-events: none; animation: logo-moment-in 0.25s ease both;
+}
+.logo-moment[hidden] { display: none; }
+.logo-moment.out { animation: logo-moment-out 0.4s ease forwards; }
+.logo-moment-card {
+  padding: 26px 32px; border-radius: var(--r-lg); background: #ffffff;
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.logo-moment-card .la { display: block; width: min(320px, 70vw); height: auto; }
+@keyframes logo-moment-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes logo-moment-out { to { opacity: 0; transform: scale(0.98); } }
