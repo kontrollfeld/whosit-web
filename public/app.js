@@ -19,6 +19,8 @@
 // overrides the base for API calls, the WebSocket, and invite links. In the
 // browser it is undefined and everything stays relative (same-origin).
 const APP_CONFIG = window.EUDI_APP_CONFIG || null;
+// The address the page was opened with — boot adds ?room= for a new call, so read this, not location.
+const LAUNCH_QUERY = new URLSearchParams(location.search);
 const API_BASE = (APP_CONFIG && APP_CONFIG.apiBase) ? APP_CONFIG.apiBase.replace(/\/+$/, '') : '';
 function apiUrl(path) { return API_BASE ? `${API_BASE}/${path}` : path; }
 function wsUrl() {
@@ -3410,15 +3412,18 @@ function loadLogoMoment() {
   logoMomentSvg = whositLogoAnimation.load('logo/logo-horizontal-colour.svg').catch(() => null);
   return logoMomentSvg;
 }
-async function showLogoMoment() {
+const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+/** `intro`: the app's start (see playAppIntro) — does not use up the call's one showing.
+ *  `onStart`: called the moment the picture starts, to start a sound in step with it. */
+async function showLogoMoment({ intro = false, onStart = null } = {}) {
   const box = $('logo-moment');
-  if (!box || logoMomentShown || OPERATOR_BRANDED) return;
-  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  logoMomentShown = true;
+  if (!box || OPERATOR_BRANDED || reducedMotion()) return;
+  if (!intro) { if (logoMomentShown) return; logoMomentShown = true; }
   const svg = await loadLogoMoment();
-  if (!svg) return;
+  if (!svg || box.classList.contains('la-play')) return;
   if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
   box.hidden = false; box.classList.remove('out');
+  if (onStart) onStart();
   await whositLogoAnimation.play(box);
   box.classList.add('out');
   setTimeout(() => { box.hidden = true; box.classList.remove('out'); }, 450);
@@ -4307,6 +4312,22 @@ function startPairedSigner(token) {
     });
 }
 
+/* App start: the logo animation once per launch, with the sound mark played quietly (a −12 dB copy,
+   see public/sounds/README.md). Not when the app opens on an invitation or comes back from the
+   wallet (then the person wants the call, not a greeting), not on branded instances, not with
+   "reduce motion"; silent when "Töne" is off. The app shell allows sound without a tap (Capacitor
+   turns off the user-gesture requirement on both platforms). Once per launch: sessionStorage
+   survives the reloads inside the app ("new call") but not a fresh start. */
+function playAppIntro() {
+  const q = LAUNCH_QUERY;
+  if (OPERATOR_BRANDED || reducedMotion() || q.has('room') || q.has('zurueck')) return;
+  try { if (sessionStorage.getItem('whosit_intro')) return; sessionStorage.setItem('whosit_intro', '1'); } catch {}
+  showLogoMoment({
+    intro: true,
+    onStart: () => { if (soundsOn()) new Audio('sounds/whosit-klangzeichen-leise.mp3').play().catch(() => {}); },
+  });
+}
+
 // ---- native app shell: bottom tab bar (call / settings) --------------
 // Only in the Capacitor app (isNativeApp()); the website keeps its footer pills.
 (function initAppShell() {
@@ -4320,6 +4341,7 @@ function startPairedSigner(token) {
   move('lang-switch', 'settings-lang-slot', false);
   move('theme-toggle', 'settings-theme-slot', true);
   move('sound-toggle', 'settings-sound-slot', true);
+  playAppIntro();
   move('app-version', 'settings-version-slot', true);
   const setTab = (tab) => {
     document.body.dataset.tab = tab;

@@ -757,6 +757,10 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   instances, not with "reduce motion", independent of the "Töne" switch (it is silent). The logo
   file is fetched on the first gesture together with the sound mark, so picture and sound start
   together.
+  In the **app**, the same card also greets once per launch, with the sound mark 12 dB quieter
+  (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file):
+  not when the app opens on an invitation or a wallet return, silent when "Töne" is off. The
+  launch address is kept in `LAUNCH_QUERY`, because boot adds `?room=` for a new call.
 - **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
   "Töne" in the app's settings (moved there like the theme button). Off silences the arrival sound
   and the sound mark — not the device check's test tone, not the tab title or the system
@@ -769,7 +773,11 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   `public/background.mjs` segments the camera on the device with MediaPipe (self-hosted in
   `public/vendor/mediapipe/`, SIMD build only) and composites onto a canvas whose
   `captureStream()` track replaces the camera track in the stream and in every sender — the
-  other side only receives the composited picture. Lazy: the ~11 MB of WebAssembly load only when
+  other side only receives the composited picture. Every camera frame is first copied onto a
+  canvas and only canvases are composited: WebKit (Safari, the iOS app) ignores the composite
+  operation when a `<video>` is drawn directly, so until 2026-10-29 the cut-out came out as the
+  raw picture there. Without any mask after 4 s the effect fails visibly instead of passing on
+  the room. Lazy: the ~11 MB of WebAssembly load only when
   someone picks an effect. The choice is remembered in `eudi_devices`, an own picture (scaled to
   ≤1280 px) in `eudi_bg_custom`; neither leaves the browser. While the logo or an own picture is
   on, the self-view is not mirrored (the writing would read backwards). Stopping a stream also

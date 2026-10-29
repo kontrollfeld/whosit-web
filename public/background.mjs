@@ -65,6 +65,12 @@ export async function createProcessor(track, effect) {
   const blurCanvas = document.createElement('canvas');
   const blurCtx = blurCanvas.getContext('2d');
   const canFilter = (() => { blurCtx.filter = 'blur(2px)'; const ok = blurCtx.filter === 'blur(2px)'; blurCtx.filter = 'none'; return ok; })();
+  // WebKit (Safari, the iOS app) ignores the composite operation when a <video> is drawn straight
+  // onto the canvas — its fast path for video frames: the "person only" step came out as the whole
+  // raw picture, and the background never showed. So every frame is copied onto this canvas first,
+  // and only canvases take part in the compositing.
+  const frameCanvas = document.createElement('canvas');
+  const frameCtx = frameCanvas.getContext('2d');
   const small = document.createElement('canvas'); // fallback blur where canvas filters are missing (older Safari)
   const smallCtx = small.getContext('2d');
 
@@ -85,7 +91,7 @@ export async function createProcessor(track, effect) {
       const bw = Math.max(1, Math.round(W / 2)), bh = Math.max(1, Math.round(H / 2));
       if (blurCanvas.width !== bw || blurCanvas.height !== bh) { blurCanvas.width = bw; blurCanvas.height = bh; }
       blurCtx.filter = `blur(${Math.max(4, Math.round(bw / 40))}px)`;
-      blurCtx.drawImage(video, 0, 0, bw, bh);
+      blurCtx.drawImage(frameCanvas, 0, 0, bw, bh);
       blurCtx.filter = 'none';
       return blurCanvas;
     }
@@ -93,7 +99,7 @@ export async function createProcessor(track, effect) {
     const sw = Math.max(1, Math.round(W / 16)), sh = Math.max(1, Math.round(H / 16));
     if (small.width !== sw || small.height !== sh) { small.width = sw; small.height = sh; }
     smallCtx.imageSmoothingQuality = 'high';
-    smallCtx.drawImage(video, 0, 0, sw, sh);
+    smallCtx.drawImage(frameCanvas, 0, 0, sw, sh);
     const mw = sw * 4, mh = sh * 4;
     if (blurCanvas.width !== mw || blurCanvas.height !== mh) { blurCanvas.width = mw; blurCanvas.height = mh; }
     blurCtx.imageSmoothingQuality = 'high';
@@ -124,11 +130,12 @@ export async function createProcessor(track, effect) {
     if (!running) return;
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!vw || !vh || video.readyState < 2) return;
-    if (vw !== W || vh !== H) { W = out.width = vw; H = out.height = vh; bgDirty = true; } // phones rotate
+    if (vw !== W || vh !== H) { W = out.width = frameCanvas.width = vw; H = out.height = frameCanvas.height = vh; bgDirty = true; } // phones rotate
     if (bgDirty && cur !== 'blur') prepareBackground();
     const ts = Math.max(performance.now(), lastTs + 1); lastTs = ts;
     try { seg.segmentForVideo(video, ts, onMask); } catch { /* frame not ready */ }
-    if (!maskImg) { ctx.drawImage(video, 0, 0, W, H); return; } // nothing to cut out yet
+    if (!maskImg) return; // nothing to cut out yet (the track is handed out only after the first mask)
+    frameCtx.drawImage(video, 0, 0, W, H);
     ctx.save();
     ctx.globalCompositeOperation = 'copy';
     ctx.imageSmoothingEnabled = true;
@@ -137,7 +144,7 @@ export async function createProcessor(track, effect) {
     ctx.drawImage(maskCanvas, 0, 0, W, H);
     ctx.filter = 'none';
     ctx.globalCompositeOperation = 'source-in';
-    ctx.drawImage(video, 0, 0, W, H);                // the person only
+    ctx.drawImage(frameCanvas, 0, 0, W, H);          // the person only
     ctx.globalCompositeOperation = 'destination-over';
     ctx.drawImage(cur === 'blur' ? blurredFrame() : bgCanvas, 0, 0, W, H);
     ctx.restore();
@@ -167,9 +174,19 @@ export async function createProcessor(track, effect) {
   document.addEventListener('visibilitychange', onVis);
 
   // First composited frame before handing the track out, so the other side never sees the room.
+  // No mask at all: fail instead of handing out a track — app.js then keeps the plain camera and
+  // says so, rather than pretending the room is hidden.
   const t0 = performance.now();
   while (!maskImg && performance.now() - t0 < 4000) { frame(); await new Promise((r) => setTimeout(r, 30)); }
-  if (!W) { W = out.width = 640; H = out.height = 480; }
+  if (!maskImg) {
+    running = false;
+    if (clock) clock.terminate();
+    if (clockUrl) URL.revokeObjectURL(clockUrl);
+    document.removeEventListener('visibilitychange', onVis);
+    video.srcObject = null; video.remove();
+    throw new Error('background: no segmentation mask');
+  }
+  frame(); // the first mask is in: draw the first real composite before the track goes out
   const outStream = out.captureStream(30);
   const outTrack = outStream.getVideoTracks()[0];
   schedule();
