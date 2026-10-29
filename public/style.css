@@ -180,6 +180,7 @@ main {
 /* ---- footer / version badge + language switcher ---- */
 .app-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 10px;
@@ -1534,7 +1535,8 @@ html.native-app .stepper { margin-bottom: 14px; }
 /* Imprint links: settings-tab link + web footer link */
 .settings-row .settings-link { color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600; }
 .settings-row .settings-link:hover { text-decoration: underline; }
-.app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; }
+.app-footer .footer-links { display: inline-flex; gap: 10px; } /* wrap together, not one by one */
+.app-footer .footer-link { color: var(--text-faint); text-decoration: none; font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
 .app-footer .footer-link:hover { color: var(--text-muted); }
 
 /* ---- „Warum whosit?" ----

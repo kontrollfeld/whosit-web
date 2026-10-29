@@ -725,6 +725,7 @@
     </button>
     <div class="settings-row"><span class="settings-label" data-i18n>Sprache</span><span id="settings-lang-slot"></span></div>
     <div class="settings-row"><span class="settings-label" data-i18n>Design</span><span id="settings-theme-slot"></span></div>
+    <div class="settings-row"><span class="settings-label" data-i18n>Töne</span><span id="settings-sound-slot"></span></div>
     <div class="settings-row"><span class="settings-label" data-i18n>Version</span><span id="settings-version-slot"></span></div>
     <div class="settings-row"><span class="settings-label" data-i18n>Rechtliches</span><a class="settings-link" href="impressum.html" data-i18n>Impressum</a> · <a class="settings-link" href="datenschutz.html" data-i18n>Datenschutz</a></div>
     <p class="settings-about muted" data-i18n data-brand-product>whosit — verifizierte Anrufe per EUDI-Wallet.</p>
@@ -732,10 +733,13 @@
 
   <footer class="app-footer">
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Design: automatisch (Systemeinstellung)"></button>
+    <button id="sound-toggle" class="theme-toggle" type="button" aria-pressed="true" aria-label="Töne: an"></button>
     <select id="lang-switch" class="lang-switch" aria-label="Sprache" data-i18n-attr="aria-label" hidden></select>
     <span class="version-badge" id="app-version" title="Version">v…</span>
-    <a class="footer-link" href="impressum.html" data-i18n>Impressum</a>
-    <a class="footer-link" href="datenschutz.html" data-i18n>Datenschutz</a>
+    <span class="footer-links">
+      <a class="footer-link" href="impressum.html" data-i18n>Impressum</a>
+      <a class="footer-link" href="datenschutz.html" data-i18n>Datenschutz</a>
+    </span>
   </footer>
 
   <!-- Native app: bottom tab bar (call / settings). Website: stays hidden. -->

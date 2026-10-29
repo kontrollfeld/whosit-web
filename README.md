@@ -744,6 +744,11 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   answer alone is the arrival sound; the whole mark plays once for everyone when a call connects.
   Instances with operator branding (`EUDI_BRANDING`) keep a neutral two-tone chime and never play
   the mark. Brand assets like the logo: copied unchanged from the media kit, see the README there.
+- **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
+  "Töne" in the app's settings (moved there like the theme button). Off silences the arrival sound
+  and the sound mark — not the device check's test tone, not the tab title or the system
+  notification. Stored per browser as `eudi_sounds` = `0` (unset = on); switching it back on plays
+  the arrival sound once, so you hear what you chose.
 - **Background: blur or replace** (`background-effects`). Tiles in the device check and behind the
   "Hintergrund" button in the call: no effect, blur, a whosit background (the logo *file* from
   `public/logo/`, only on unbranded instances), four drawn backgrounds, and an own picture.

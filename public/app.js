@@ -3350,6 +3350,36 @@ function getAudioCtx() {
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
 for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); }, { passive: true, capture: true });
 
+/* "Töne" switch (footer on the website, a row in the app's settings): off silences the arrival
+   chime and the sound mark, nothing else — the device check's test tone is asked for explicitly,
+   the tab title and the system notification still say who arrived. Remembered per browser
+   (`eudi_sounds`, like `eudi_theme`: a choice the visitor made, nothing leaves the device). */
+const SOUND_KEY = 'eudi_sounds';
+function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } catch { return true; } }
+(function initSoundToggle() {
+  const btn = $('sound-toggle');
+  if (!btn) return;
+  const ICON = {
+    on: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/></svg>',
+    off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>',
+  };
+  const render = () => {
+    const on = soundsOn(), label = t(on ? 'Töne: an' : 'Töne: aus');
+    btn.innerHTML = ICON[on ? 'on' : 'off'];
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+  };
+  btn.addEventListener('click', async () => {
+    const on = !soundsOn();
+    try { if (on) localStorage.removeItem(SOUND_KEY); else localStorage.setItem(SOUND_KEY, '0'); } catch {}
+    render();
+    if (on) { await loadSoundMarks(); playChime(); } // what "on" sounds like
+  });
+  render();
+  i18nReady.then(render);
+})();
+
 /* The whosit sound mark: "whosit?" – and the answer ME in Morse (− − ·, "it's me"). The answer
    alone when the other side arrives (a knock at the door), the whole mark once when a call
    connects. Only without operator branding: an operator's call should not carry our mark, there
@@ -3369,7 +3399,7 @@ function loadSoundMarks() {
 }
 function playSoundMark(kind, gain = 0.5) {
   const ctx = getAudioCtx(), buf = soundMarkBufs[kind];
-  if (OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;
+  if (!soundsOn() || OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;
   const src = ctx.createBufferSource(), g = ctx.createGain();
   g.gain.value = gain; src.buffer = buf;
   src.connect(g).connect(ctx.destination); src.start();
@@ -3849,6 +3879,7 @@ if (notifyBtn) {
 }
 
 function playChime() {
+  if (!soundsOn()) return;
   if (playSoundMark('arrival', 0.6)) return;
   const ctx = getAudioCtx();
   if (!ctx || ctx.state !== 'running') return;
@@ -4257,6 +4288,7 @@ function startPairedSigner(token) {
   const move = (id, slotId, show) => { const el = $(id), slot = $(slotId); if (el && slot) { slot.appendChild(el); if (show) el.hidden = false; } };
   move('lang-switch', 'settings-lang-slot', false);
   move('theme-toggle', 'settings-theme-slot', true);
+  move('sound-toggle', 'settings-sound-slot', true);
   move('app-version', 'settings-version-slot', true);
   const setTab = (tab) => {
     document.body.dataset.tab = tab;
