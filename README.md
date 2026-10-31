@@ -760,9 +760,17 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`): Web Audio's
   start time minus the output latency in the call, the media element's `currentTime` at app start
   (it loads first, then plays) — a late sound no longer leaves the picture ahead.
-  In the **app**, the same card also greets once per launch, with the sound mark 12 dB quieter
-  (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file):
-  not when the app opens on an invitation or a wallet return, silent when "Töne" is off. The
+  In the **app**, a page of its own greets once per launch (`#app-intro`, `playAppIntro`, since
+  2026-10-31): the same logo animation with the sound mark 12 dB quieter
+  (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file)
+  on a sky whose colours move with the sound — blue with the bubble, turquoise with the two long
+  tones, gold and a wave from the call ring with the star — then the app fades in underneath
+  (about 3.5 s; a tap skips it, 8 s at most whatever happens). The sky and the logo both follow
+  the sound's clock. The colour logo needs light ground, so in dark mode it sits in a light halo.
+  Not when the app opens on an invitation or a wallet return, not with "reduce motion", silent
+  when "Töne" is off. A head script in `index.html` shows the page from the first paint
+  (`html.ai-on`, not `app-intro`: that class would also match the page's own `display: none`),
+  so nothing of the app flashes first; `playAppIntro` takes it away on a branded instance. The
   launch address is kept in `LAUNCH_QUERY`, because boot adds `?room=` for a new call.
 - **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
   "Töne" in the app's settings (moved there like the theme button). Off silences the arrival sound
