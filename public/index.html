@@ -12,10 +12,19 @@
   <link rel="stylesheet" href="logo-animation.css" />
   <script src="theme.js"></script>
   <script>if (window.EUDI_APP_CONFIG && window.EUDI_APP_CONFIG.native) document.documentElement.classList.add('native-app');</script>
+  <!-- App start: the intro page covers the app from the first paint, so nothing of the app flashes
+       before it. The same conditions as app.js playAppIntro, which also takes it away again. -->
+  <script>try { var q = new URLSearchParams(location.search); if (window.EUDI_APP_CONFIG && window.EUDI_APP_CONFIG.native && !q.has('room') && !q.has('zurueck') && !sessionStorage.getItem('whosit_intro') && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('ai-on'); } catch (e) {}</script>
   <!-- Vendored, not from a CDN: see vendor/qrcodejs/README.md -->
   <script src="vendor/qrcodejs/qrcode.min.js"></script>
 </head>
 <body>
+  <!-- App start (native app only): a page of its own — the logo animation with the sound mark on a
+       moving sky, then the app fades in. app.js playAppIntro; shown by the head script. -->
+  <div id="app-intro" class="app-intro" aria-hidden="true">
+    <div class="ai-sky"><i class="ai-blob ai-b1"></i><i class="ai-blob ai-b2"></i><i class="ai-blob ai-b3"></i><i class="ai-blob ai-b4"></i><i class="ai-halo"></i></div>
+    <div class="ai-stage"><i class="ai-wave ai-w1"></i><i class="ai-wave ai-w2"></i><i class="ai-wave ai-w3"></i><i class="ai-glow"></i><div class="ai-logo" id="app-intro-logo"></div></div>
+  </div>
   <main>
     <!-- EUDI_VERIFIER=none: this instance verifies nobody. Permanent while that holds — the
          product's promise ("you know who you are talking to") does not, and a test call must

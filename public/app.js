@@ -3413,16 +3413,16 @@ function loadLogoMoment() {
   return logoMomentSvg;
 }
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-/** `intro`: the app's start (see playAppIntro) — does not use up the call's one showing.
- *  `sound`: starts the sound mark and returns its clock (seconds audible, see playSoundMark) or
+/** `sound`: starts the sound mark and returns its clock (seconds audible, see playSoundMark) or
  *  a promise of one, or a falsy value when nothing plays. The sound plays even when the picture
  *  does not (reduced motion); the picture follows the sound's clock, so a sound that starts late
  *  — a media element still loading, Bluetooth — does not leave the picture ahead of it. */
-async function showLogoMoment({ intro = false, sound = null } = {}) {
+async function showLogoMoment({ sound = null } = {}) {
   const box = $('logo-moment');
   const soundOnly = () => { if (sound) sound(); };
   if (!box || OPERATOR_BRANDED || reducedMotion()) return soundOnly();
-  if (!intro) { if (logoMomentShown) return soundOnly(); logoMomentShown = true; }
+  if (logoMomentShown) return soundOnly();
+  logoMomentShown = true;
   const svg = await loadLogoMoment();
   if (!svg || box.classList.contains('la-play')) return soundOnly();
   if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
@@ -4326,17 +4326,56 @@ function startPairedSigner(token) {
     });
 }
 
-/* App start: the logo animation once per launch, with the sound mark played quietly (a −12 dB copy,
-   see public/sounds/README.md). Not when the app opens on an invitation or comes back from the
+/* App start: a page of its own once per launch (index.html #app-intro, style.css "App intro") —
+   the logo animation with the sound mark played quietly (a −12 dB copy, see
+   public/sounds/README.md) on a sky whose colours move with the sound, then the app fades in
+   underneath. A tap skips it. Not when the app opens on an invitation or comes back from the
    wallet (then the person wants the call, not a greeting), not on branded instances, not with
-   "reduce motion"; silent when "Töne" is off. The app shell allows sound without a tap (Capacitor
-   turns off the user-gesture requirement on both platforms). Once per launch: sessionStorage
-   survives the reloads inside the app ("new call") but not a fresh start. */
+   "reduce motion"; silent when "Töne" is off. The head script shows the page from the first paint
+   on the same conditions (it cannot know the branding, so this takes the page away again). The
+   app shell allows sound without a tap (Capacitor turns off the user-gesture requirement on both
+   platforms). Once per launch: sessionStorage survives the reloads inside the app ("new call")
+   but not a fresh start. */
 function playAppIntro() {
-  const q = LAUNCH_QUERY;
-  if (OPERATOR_BRANDED || reducedMotion() || q.has('room') || q.has('zurueck')) return;
-  try { if (sessionStorage.getItem('whosit_intro')) return; sessionStorage.setItem('whosit_intro', '1'); } catch {}
-  showLogoMoment({ intro: true, sound: startIntroSound });
+  const root = $('app-intro'), html = document.documentElement, q = LAUNCH_QUERY;
+  if (!root || !html.classList.contains('ai-on')) return;
+  if (OPERATOR_BRANDED || reducedMotion() || q.has('room') || q.has('zurueck') || !window.whositLogoAnimation) {
+    html.classList.remove('ai-on');
+    return;
+  }
+  try { sessionStorage.setItem('whosit_intro', '1'); } catch {}
+  let done = false, clock = null;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    root.classList.add('ai-out');
+    html.classList.add('ai-reveal');
+    setTimeout(() => { html.classList.remove('ai-on', 'ai-reveal'); root.remove(); }, 1000);
+  };
+  root.addEventListener('click', () => { if (clock && clock.audio) clock.audio.pause(); finish(); }, { once: true });
+  setTimeout(finish, 8000); // whatever happens, the app is never held behind it
+  (async () => {
+    // Its own copy of the logo, not the call's (loadLogoMoment): one svg cannot be in two places.
+    const svg = await whositLogoAnimation.load('logo/logo-horizontal-colour.svg').catch(() => null);
+    if (done) return;
+    if (!svg) return finish();
+    const box = $('app-intro-logo');
+    box.appendChild(svg);
+    clock = await startIntroSound().catch(() => null);
+    if (done) return;
+    // The sky follows the sound's clock like the logo does (whositLogoAnimation.play).
+    root.classList.add('ai-run');
+    await new Promise((r) => requestAnimationFrame(r));
+    const sky = root.getAnimations ? root.getAnimations({ subtree: true }) : [];
+    const sync = () => {
+      const t = typeof clock === 'function' ? clock() : NaN;
+      if (isFinite(t)) sky.forEach((a) => { try { a.currentTime = t * 1000; } catch { /* finished */ } });
+    };
+    sync();
+    setTimeout(sync, 300);
+    await whositLogoAnimation.play(box, { clock: typeof clock === 'function' ? clock : null });
+    if (!done) setTimeout(finish, 350); // the logo rests as the file for a moment, then the app
+  })();
 }
 /* The quiet sound mark through a media element, started before the picture: loaded first, then
    played, and its clock handed to the animation only once it really runs (until 2026-10-29 the
@@ -4349,7 +4388,9 @@ async function startIntroSound() {
   try { await a.play(); } catch { return null; }
   const t0 = performance.now();
   while (a.currentTime === 0 && !a.paused && performance.now() - t0 < 1000) await new Promise((r) => requestAnimationFrame(r));
-  return () => a.currentTime;
+  const clock = () => a.currentTime;
+  clock.audio = a; // for a tap that skips the intro
+  return clock;
 }
 
 // ---- native app shell: bottom tab bar (call / settings) --------------

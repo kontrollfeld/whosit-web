@@ -1889,3 +1889,114 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
 .logo-moment-card .la { display: block; width: min(320px, 70vw); height: auto; }
 @keyframes logo-moment-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes logo-moment-out { to { opacity: 0; transform: scale(0.98); } }
+
+/* App intro (app.js playAppIntro): at app start a page of its own — the logo animation with the
+   sound mark on a sky whose colours move with the sound, then the app fades in underneath. Shown
+   from the first paint by the head script (html.ai-on). Times follow the sound mark like the
+   logo animation (logo-animation.css): ME at 0.9 / 1.3 / 1.9 s — a wave from the call ring on each
+   tone, gold where the star lands. The colour logo needs light ground: in dark mode a light halo
+   carries it, the sky around stays dark. Only the logo file and the approved animation are shown
+   — no text added (public/logo/README.md). */
+.app-intro { display: none; }
+html.ai-on .app-intro {
+  --ai-w: min(320px, 72vw);
+  --ai-base: linear-gradient(165deg, #e4f0fc 0%, #f5f8fc 48%, #edf2fb 100%);
+  --ai-halo: rgba(255, 255, 255, 0.75); --ai-halo-mid: rgba(255, 255, 255, 0.4);
+  --ai-blob-a: 0.55;
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; overflow: hidden;
+  background: var(--ai-base); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+html.ai-on body { overflow: hidden; }
+html[data-theme="dark"].ai-on .app-intro {
+  --ai-base: linear-gradient(165deg, #0b1220 0%, #0d1830 55%, #0b1220 100%);
+  --ai-halo: #f5f8fc; --ai-halo-mid: rgba(245, 248, 252, 0.55); --ai-blob-a: 0.8;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]).ai-on .app-intro {
+    --ai-base: linear-gradient(165deg, #0b1220 0%, #0d1830 55%, #0b1220 100%);
+    --ai-halo: #f5f8fc; --ai-halo-mid: rgba(245, 248, 252, 0.55); --ai-blob-a: 0.8;
+  }
+}
+.ai-sky { position: absolute; inset: 0; pointer-events: none; }
+.ai-blob {
+  position: absolute; width: 95vmax; height: 95vmax; left: 50%; top: 50%; margin: -47.5vmax 0 0 -47.5vmax;
+  border-radius: 50%; opacity: 0; will-change: transform, opacity;
+}
+.ai-b1 { background: radial-gradient(closest-side, #4a9fe8, rgba(74, 159, 232, 0)); }
+.ai-b2 { background: radial-gradient(closest-side, #1747b8, rgba(23, 71, 184, 0)); }
+.ai-b3 { background: radial-gradient(closest-side, #3cc8e0, rgba(60, 200, 224, 0)); }
+.ai-b4 { background: radial-gradient(closest-side, #ffcc00, rgba(255, 204, 0, 0)); }
+.ai-halo {
+  position: absolute; left: 50%; top: 50%; width: calc(var(--ai-w) * 1.9); height: calc(var(--ai-w) * 1.25);
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(closest-side, var(--ai-halo) 50%, var(--ai-halo-mid) 72%, rgba(245, 248, 252, 0) 100%);
+}
+.ai-stage { position: relative; width: var(--ai-w); will-change: transform, opacity; }
+.ai-logo { position: relative; }
+/* until it plays: the picture waits for its sound (startIntroSound), not shown at rest first */
+.app-intro:not(.ai-run) .ai-logo { visibility: hidden; }
+.ai-logo .la { display: block; width: 100%; height: auto; }
+/* the call ring of the mark sits at about 14 % / 52 % of the file, the star at 90 % / 32 % */
+.ai-wave {
+  position: absolute; left: 14%; top: 52%; width: calc(var(--ai-w) * 0.3); aspect-ratio: 1;
+  margin: calc(var(--ai-w) * -0.15) 0 0 calc(var(--ai-w) * -0.15);
+  border-radius: 50%; border: 2px solid rgba(30, 127, 212, 0.55); opacity: 0;
+}
+.ai-w3 { border-color: rgba(255, 204, 0, 0.8); }
+.ai-glow {
+  position: absolute; left: 90%; top: 32%; width: calc(var(--ai-w) * 0.6); aspect-ratio: 1;
+  margin: calc(var(--ai-w) * -0.3) 0 0 calc(var(--ai-w) * -0.3);
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 204, 0, 0.6), rgba(255, 204, 0, 0)); opacity: 0;
+}
+
+/* the colour journey: blue sweeps in with the bubble, turquoise swells with the two long tones,
+   gold rises with the star, then it settles into blue and a little gold */
+.ai-run .ai-b1 { animation: ai-b1 2.8s cubic-bezier(0.3, 0.6, 0.3, 1) both; }
+.ai-run .ai-b2 { animation: ai-b2 2.8s ease-in-out both; }
+.ai-run .ai-b3 { animation: ai-b3 2.8s ease-in-out both; }
+.ai-run .ai-b4 { animation: ai-b4 2.8s ease-out both; }
+.ai-run .ai-w1 { animation: ai-wave 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) 0.9s forwards; }
+.ai-run .ai-w2 { animation: ai-wave 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) 1.3s forwards; }
+.ai-run .ai-w3 { animation: ai-wave 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) 1.9s forwards; }
+.ai-run .ai-glow { animation: ai-glow 0.9s ease-out 1.9s both; }
+@keyframes ai-b1 {
+  0% { opacity: 0; transform: translate(-40%, 35%) scale(0.7); }
+  30% { opacity: var(--ai-blob-a); }
+  100% { opacity: calc(var(--ai-blob-a) * 0.7); transform: translate(-28%, 30%) scale(1); }
+}
+@keyframes ai-b2 {
+  0% { opacity: 0; transform: translate(45%, -45%) scale(0.8); }
+  25% { opacity: calc(var(--ai-blob-a) * 0.45); }
+  60% { opacity: calc(var(--ai-blob-a) * 0.6); transform: translate(30%, -38%) scale(1); }
+  100% { opacity: calc(var(--ai-blob-a) * 0.5); transform: translate(26%, -36%) scale(1.05); }
+}
+@keyframes ai-b3 {
+  0%, 30% { opacity: 0; transform: translate(-30%, -30%) scale(0.6); }
+  48% { opacity: calc(var(--ai-blob-a) * 0.55); }
+  62% { opacity: calc(var(--ai-blob-a) * 0.75); transform: translate(-20%, -26%) scale(0.95); }
+  100% { opacity: calc(var(--ai-blob-a) * 0.25); transform: translate(-16%, -22%) scale(1.1); }
+}
+@keyframes ai-b4 {
+  0%, 66% { opacity: 0; transform: translate(40%, 10%) scale(0.4); }
+  80% { opacity: calc(var(--ai-blob-a) * 0.6); }
+  100% { opacity: calc(var(--ai-blob-a) * 0.3); transform: translate(34%, 22%) scale(0.9); }
+}
+@keyframes ai-wave {
+  0% { opacity: 0.85; transform: scale(1); }
+  100% { opacity: 0; transform: scale(5); }
+}
+@keyframes ai-glow {
+  0% { opacity: 0; transform: scale(0.2); }
+  40% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0.35; transform: scale(1); }
+}
+
+/* into the app: the logo comes a little closer and fades, the sky fades, the app rises */
+.app-intro.ai-out { animation: ai-out 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards; pointer-events: none; }
+.app-intro.ai-out .ai-stage { animation: ai-stage-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.app-intro.ai-out .ai-sky { animation: ai-sky-out 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+html.ai-reveal body > :not(.app-intro) { animation: ai-app-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both; }
+@keyframes ai-out { 0%, 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ai-stage-out { to { opacity: 0; transform: scale(1.12) translateY(-8px); } }
+@keyframes ai-sky-out { to { transform: scale(1.1); } }
+@keyframes ai-app-in { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
