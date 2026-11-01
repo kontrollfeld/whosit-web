@@ -34,7 +34,7 @@ const OPERATOR = readOperatorPages();
 /** Who the wallet will show as asking, against whose name the page carries (see
  *  ./relying-party). Computed once: both inputs are environment variables. */
 const RELYING_PARTY = relyingParty(BRANDING?.name);
-import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, type SemanticAttr, type CredentialProfile } from './credential-profiles';
+import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, pidConfigId as configId, type SemanticAttr, type CredentialProfile } from './credential-profiles';
 import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFingerprint, fingerprintFromSdp, type TransactionDataEntry } from './channel-binding';
 import {
   resolveAttributes, partitionAttributes, PolicyViolationError, policyDescriptor,
@@ -66,7 +66,8 @@ assertHostGateOrExit(
 import type { Room, Participant, Role, Mode } from './rooms';
 import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
-import type { Extensions, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
+import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
+import { presentationPort, handlePresentationWebhook } from './presentations';
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
@@ -125,12 +126,6 @@ function auditPolicyViolation(
     event: 'policy-violation', status,
     roomId, clientId: p?.clientId, role: p?.role, attrs, rejected,
   });
-}
-// Stable config id for a (profile-set × attribute-set) combination — so a Community
-// mdoc-only request and a Pro multi-format request register distinct EUDIPLO configs.
-function configId(profileIds: string[], attrs: string[]): string {
-  const key = [...profileIds].sort().join('|') + '::' + [...attrs].sort().join(',');
-  return 'pid_req_' + createHash('sha1').update(key).digest('hex').slice(0, 12);
 }
 /**
  * The widest PID config this instance may ask for: every attribute its policy allows.
@@ -783,6 +778,51 @@ app.use((req, res, next) => {
   serveModuleFiles(mod.clientAssetsDir)(req, res, (err?: any) => { req.url = original; next(err); });
 });
 
+// HTTP routes modules add (ports `ModuleRoutes`) — a form page, its API. Same prefixes as their
+// browser files, after them, and only while one of the module's features is on: switching a
+// module off with EUDI_FEATURES_OFF must take its pages down, not just hide a button. Each router
+// is built once, on first use, because the modules load after this file registered its routes.
+const moduleRouters = new Map<string, express.Router>();
+function moduleContext(id: string): ModuleContext {
+  const base = process.env.EUDI_DATA_DIR || (fs.existsSync('/data') ? '/data' : path.join(process.cwd(), 'data'));
+  const dataDir = path.join(base, 'modules', id);
+  try { fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 }); }
+  catch (e: any) { console.warn(`[modules] ${id}: data directory ${dataDir} not writable: ${e?.message || e}`); }
+  return {
+    presentations: presentationPort(id, { record: recordVerification }),
+    staff: {
+      active: staffGateActive,
+      verify: (t) => { const v = verifyStaffToken(t); return v.ok ? { ok: true, label: v.payload.label } : { ok: false }; },
+    },
+    publicOrigin: publicOriginFrom,
+    dataDir,
+    brandName: BRANDING?.name ?? null,
+  };
+}
+function moduleRouter(mod: NonNullable<Extensions['modules']>[number]): express.Router {
+  let r = moduleRouters.get(mod.id);
+  if (!r) {
+    r = express.Router();
+    try { mod.routes!(r, moduleContext(mod.id)); }
+    catch (e: any) { console.error(`[modules] ${mod.id}: its routes failed to register:`, e?.message || e); r = express.Router(); }
+    moduleRouters.set(mod.id, r);
+  }
+  return r;
+}
+app.use((req, res, next) => {
+  const [, first, second] = req.path.split('/');
+  const mod = first === 'modules'
+    ? ext.modules?.find((m) => m.id === second)
+    : ext.modules?.find((m) => m.clientAliases.includes(first));
+  if (!mod?.routes) return next();
+  const on = enabledFeatures();
+  if (!mod.features.some((f) => on.has(f.id))) return next();
+  const prefix = first === 'modules' ? `/modules/${second}` : `/${first}`;
+  const original = req.url;
+  req.url = req.url.slice(prefix.length) || '/';
+  moduleRouter(mod)(req, res, (err?: any) => { req.url = original; next(err); });
+});
+
 // The native app fetches these read-only, credential-free endpoints from its local
 // bundle origin (e.g. https://localhost) — allow that cross-origin read. `*` is safe
 // here: no cookies, no per-user data, everything below is public to any web visitor.
@@ -1076,6 +1116,8 @@ function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res
 
 // EUDIPLO posts the verification result here once the wallet has responded.
 app.post('/webhook/:sessionId', (req, res) => {
+  // A module's presentation outside a call (./presentations) — its own registry, random UUIDs.
+  if (handlePresentationWebhook(req, res, { record: recordVerification })) return;
   // In-call credential sessions live in their own registry (disjoint UUID namespaces).
   const credentialRequest = requestBySession(req.params.sessionId);
   if (credentialRequest) {

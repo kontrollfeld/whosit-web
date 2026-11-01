@@ -220,6 +220,76 @@ export interface ContributedSignatureProvider {
   appUrl?: string;
 }
 
+/**
+ * A wallet presentation OUTSIDE a call, for a module (a form, a delivery, a receipt). The core
+ * keeps the rules: only attributes the instance's WRP policy permits, exactly those asked for,
+ * zero retention at the verifier, values handed to the module once and then dropped, the record
+ * without values (implementation: ../presentations).
+ */
+export interface PresentationPort {
+  /** What this instance may ask a wallet for at all — offer nothing else to a form builder. */
+  allowedAttributes(): string[];
+  /** Start one. Refuses (throws) an attribute the policy does not permit. `origin` is the public
+   *  origin the verifier calls back (ModuleContext.publicOrigin); `returnUrl` where a wallet on
+   *  the same device sends the browser afterwards. */
+  start(req: { attrs: string[]; origin: string; returnUrl?: string }): Promise<PresentationStart>;
+  /** Its state. `ok` carries the claims and is answered ONCE — afterwards `unknown`. */
+  poll(id: string, secret: string): PresentationState;
+  /** Give up on it (the person left); purges the verifier session. */
+  cancel(id: string, secret: string): void;
+}
+
+export interface PresentationStart {
+  id: string;
+  /** Required to poll; keep it with the person's session, never in a URL the verifier sees. */
+  secret: string;
+  /** Same-device link and the QR code content for another device. */
+  uri: string;
+  crossDeviceUri: string;
+  expiresAt: string;
+}
+
+export type PresentationState =
+  | { state: 'pending' | 'failed' | 'expired' | 'unknown' }
+  | {
+      state: 'ok';
+      /** The attributes that were asked for. */
+      attrs: string[];
+      /** Canonical claim keys (given_name, family_name, birth_date, address, …) → values; only
+       *  attributes from `attrs`, and only those the wallet actually presented. */
+      claims: Record<string, unknown>;
+      at: string;
+      format?: string;
+      profileId?: string;
+    };
+
+/** The instance's staff links (EUDI_STAFF_SECRET, ../staff-token) for a module's own staff
+ *  pages. Without a secret there are no staff links: `active()` is false and every token fails —
+ *  a module must then keep its staff pages closed, not open. */
+export interface StaffPort {
+  active(): boolean;
+  verify(token: unknown): { ok: true; label: string } | { ok: false };
+}
+
+/** What a module's routes get from the core. */
+export interface ModuleContext {
+  presentations: PresentationPort;
+  staff: StaffPort;
+  /** The origin the outside world reaches this instance at (proxy headers or PUBLIC_URL). */
+  publicOrigin(req: import('http').IncomingMessage): string;
+  /** A directory for this module's own files, under the instance's data volume. Created. */
+  dataDir: string;
+  /** The operator's brand name, or null on whosit itself — for page titles. */
+  brandName: string | null;
+}
+
+/**
+ * HTTP routes a module adds. The core mounts the router under `/modules/<id>/` and under each of
+ * the module's `clientAliases`, after its browser files and only while one of its features is on.
+ * A module may only add: the core's own routes come first and cannot be shadowed.
+ */
+export type ModuleRoutes = (router: import('express').Router, ctx: ModuleContext) => void;
+
 /** The pluggable pieces the server resolves once at startup. A module's `register()` returns a
  *  subset of these; the loader merges all modules into one. */
 export interface Extensions {
@@ -237,6 +307,8 @@ export interface Extensions {
   signatureProviders?: ContributedSignatureProvider[];
   /** Directory of browser files a module ships, served under /modules/<id>/ (and its aliases). */
   clientAssetsDir?: string;
+  /** HTTP routes the module adds (see ModuleRoutes). Optional — an addition, not a change. */
+  routes?: ModuleRoutes;
   /** The loaded modules — set by the loader, not by a module. */
   modules?: LoadedModule[];
 }

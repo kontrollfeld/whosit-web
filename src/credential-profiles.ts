@@ -24,6 +24,7 @@
  * the ARF PID rulebook and MUST be verified against the target PID issuer / EUDIPLO
  * instance. They are centralized here so a correction is a one-line change.
  */
+import { createHash } from 'crypto';
 import { effectiveEdition } from './core/edition';
 import {
   ALLOWED_PID_ATTRIBUTES,
@@ -445,4 +446,14 @@ export function normalizeClaims(payload: any): Record<string, any> {
     if (v != null) out[k] = v;
   }
   return out;
+}
+
+/**
+ * Stable EUDIPLO config id for a (profile set × attribute set) combination — so a Community
+ * mdoc-only request and a Pro multi-format request register distinct configs, and a call and a
+ * module asking for the same attributes share one (and its registration certificate).
+ */
+export function pidConfigId(profileIds: readonly string[], attrs: readonly string[]): string {
+  const key = [...profileIds].sort().join('|') + '::' + [...attrs].sort().join(',');
+  return 'pid_req_' + createHash('sha1').update(key).digest('hex').slice(0, 12);
 }

@@ -833,6 +833,22 @@ EUDI_MODULES=@whosit/audit-trail,@whosit/qes-device   # or paths: ./instance/nod
 - **Its features are on exactly when it is loaded,** and `EUDI_FEATURES_OFF` switches them off
   like any other. `GET /capabilities` lists the loaded modules with their versions.
 - **Browser files** a module ships are served under `/modules/<id>/`, plus any `clientAliases`.
+- **Routes** (`routes(router, ctx)` in what `register()` returns, ports `ModuleRoutes`): pages and
+  an API of its own, mounted under `/modules/<id>/` and its `clientAliases`, after its browser
+  files, and **only while one of its features is on** — `EUDI_FEATURES_OFF` takes the pages down.
+  The core's own routes come first. `ctx` brings:
+  - `presentations` — a **wallet presentation outside a call** (`src/presentations.ts`), for a form
+    or a delivery. Only attributes the instance's WRP policy permits (anything else and the
+    room-scoped `pseudonym_id` are refused, not narrowed); the wallet is asked for exactly those,
+    and only those come back even when it presents more; the verifier session is purged at once;
+    the values are handed to the module **once** (with the secret from `start`, never by id alone)
+    and dropped after ten minutes at the latest; the record names attributes, never values. The
+    callback arrives on the core's `/webhook/:sessionId` like a room's.
+  - `staff` — the instance's staff links (`EUDI_STAFF_SECRET`); without a secret `active()` is
+    false and every token fails, so a module keeps its staff pages closed.
+  - `dataDir` — `<EUDI_DATA_DIR or /data>/modules/<id>`, created; `publicOrigin(req)`; `brandName`.
+  Optional additions to the API, so `coreApi` stays `^1`. Tested in `test:module-presentations`
+  with a throwaway module.
 - **Several modules side by side** are fine; their verification sinks all receive every record.
 - **Failure:** in production a listed module that does not load stops the start. In development
   it is skipped with a warning.

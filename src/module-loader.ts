@@ -231,10 +231,11 @@ export async function loadExtensions(): Promise<Extensions> {
     if (undeclared.length) console.warn(`[modules] "${m.id}" enables undeclared features, ignored: ${undeclared.join(', ')}`);
     merged.enabledFeatures.push(...declared);
 
-    const loaded: LoadedModule = { ...m, spec: r.spec, clientAssetsDir: ext?.clientAssetsDir };
+    const loaded: LoadedModule = { ...m, spec: r.spec, clientAssetsDir: ext?.clientAssetsDir, routes: typeof ext?.routes === 'function' ? ext.routes : undefined };
     merged.modules!.push(loaded);
     console.log(`[modules] loaded ${m.id}@${m.version} from "${r.spec}" — features: [${declared.join(', ') || 'none'}]`
-      + (loaded.clientAssetsDir ? `, browser files under /modules/${m.id}/${m.clientAliases.map((a) => ` and /${a}/`).join('')}` : ''));
+      + (loaded.clientAssetsDir ? `, browser files under /modules/${m.id}/${m.clientAliases.map((a) => ` and /${a}/`).join('')}` : '')
+      + (loaded.routes ? ', with routes' : ''));
   }
 
   if (problems.length) configurationError(problems);

@@ -174,4 +174,6 @@ export interface LoadedModule extends ModuleManifest {
   spec: string;
   /** Directory of browser files the module ships, served under `/modules/<id>/`. */
   clientAssetsDir?: string;
+  /** HTTP routes the module adds (ports `ModuleRoutes`), mounted next to its browser files. */
+  routes?: import('./ports').ModuleRoutes;
 }
