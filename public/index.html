@@ -625,6 +625,8 @@
 
     <!-- In-call credential request (Pro): the host's picker panel -->
     <div id="credreq-panel" class="credreq-panel card" hidden></div>
+    <!-- Actions in a call (modules: a form, a signature): the host's picker panel -->
+    <div id="aktion-panel" class="credreq-panel card" hidden></div>
 
     <!-- Call controls (all modes) -->
     <!-- Speaking while muted: the most common stumble in any call. Detected locally from the
@@ -638,6 +640,10 @@
     </div>
     <input id="bg-file" type="file" accept="image/*" hidden />
     <div id="call-controls" class="call-controls" hidden>
+      <button id="aktion-btn" class="ghost" hidden aria-haspopup="true" aria-controls="aktion-panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span data-i18n>Aktionen</span>
+      </button>
       <button id="credreq-btn" class="ghost" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
         <span id="credreq-label" data-i18n>Nachweis anfordern</span>
@@ -671,6 +677,28 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
         <span data-i18n>Auflegen</span>
       </button>
+    </div>
+    <!-- Actions in a call: the guest's consent (who asks, for what, which verified data goes
+         to it) and the panel the module's page opens in, over the call. -->
+    <div id="aktion-modal" class="cred-modal" hidden>
+      <div class="cred-dialog card" role="dialog" aria-modal="true" aria-labelledby="aktion-titel">
+        <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span id="aktion-titel"></span></h2>
+        <p class="hint" id="aktion-hint"></p>
+        <p class="hint" id="aktion-daten-hint"></p>
+        <ul class="consent" id="aktion-daten"></ul>
+        <div class="row cred-actions">
+          <button id="aktion-ok" data-i18n>Öffnen</button>
+          <button id="aktion-nein" class="ghost" data-i18n>Ablehnen</button>
+        </div>
+      </div>
+    </div>
+    <div id="aktion-fenster" class="aktion-fenster" hidden>
+      <div class="aktion-kopf">
+        <span class="aktion-laeuft"><span class="aktion-punkt" aria-hidden="true"></span><span data-i18n>Das Gespräch läuft weiter</span></span>
+        <strong id="aktion-fenster-titel"></strong>
+        <button type="button" id="aktion-zu" class="ghost" data-i18n>Schließen</button>
+      </div>
+      <iframe id="aktion-frame" title="Aktion" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"></iframe>
     </div>
     <!-- In-call credential request (Pro): the other party's consent modal -->
     <div id="cred-modal" class="cred-modal" hidden>

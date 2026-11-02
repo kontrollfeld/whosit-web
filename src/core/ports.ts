@@ -271,6 +271,46 @@ export interface StaffPort {
   verify(token: unknown): { ok: true; label: string } | { ok: false };
 }
 
+/**
+ * Something a module offers to do WITH a participant DURING a call — send a form, have a document
+ * signed. The host picks it from the call's "Aktionen" menu; the guest agrees and gets the
+ * module's page in a panel over the call, with a one-time token in its address
+ * (`?ruf=<token>`). The page exchanges the token (CallPort.redeem) for the guest's identity as
+ * verified IN THIS CALL — no second wallet presentation — and reports back when it is done
+ * (CallPort.done); the host is told. The same page serves the case without a call, where the
+ * module asks the wallet itself (PresentationPort). Implementation: ../call-actions.
+ */
+export interface ModuleAction {
+  /** Unique within the module. */
+  id: string;
+  /** The host's menu entry, e.g. "Formular senden". */
+  label: string;
+  /** What the host picks from right now (e.g. the published forms). Empty: not offered. `attrs`
+   *  are the PID attributes the choice would take from the call. */
+  choices(): ActionChoice[] | Promise<ActionChoice[]>;
+  /** The page the guest's panel opens, relative to the instance (e.g. /formular/f/abc). */
+  path(choiceId: string): string;
+}
+export interface ActionChoice { id: string; label: string; attrs: string[]; }
+
+/** The call side of an action, for a module's routes. */
+export interface CallPort {
+  /** Exchange the token from the panel's address — once — for the guest's identity: only
+   *  attributes the guest presented in this call AND the chosen action needs, and only while the
+   *  guest is still in the call. Null otherwise. */
+  redeem(token: string): CallIdentity | null;
+  /** The action is finished; the host sees `summary` (no personal data — an entry number). */
+  done(token: string, info?: { summary?: string }): boolean;
+}
+export interface CallIdentity {
+  claims: Record<string, unknown>;
+  attrs: string[];
+  /** When the guest was verified in the call. */
+  at: string;
+  action: string;
+  choice: string;
+}
+
 /** What a module's routes get from the core. */
 export interface ModuleContext {
   presentations: PresentationPort;
@@ -281,6 +321,11 @@ export interface ModuleContext {
   dataDir: string;
   /** The operator's brand name, or null on whosit itself — for page titles. */
   brandName: string | null;
+  /** Actions in a call (ModuleAction): exchange the panel's token, report done. */
+  calls: CallPort;
+  /** Origins that may frame this instance's pages besides itself — the native app's bundle
+   *  origin(s), whose call screen opens an action's page in a panel. For `frame-ancestors`. */
+  frameOrigins: string[];
 }
 
 /**
@@ -309,6 +354,8 @@ export interface Extensions {
   clientAssetsDir?: string;
   /** HTTP routes the module adds (see ModuleRoutes). Optional — an addition, not a change. */
   routes?: ModuleRoutes;
+  /** Actions in a call (see ModuleAction). Optional. */
+  actions?: ModuleAction[];
   /** The loaded modules — set by the loader, not by a module. */
   modules?: LoadedModule[];
 }

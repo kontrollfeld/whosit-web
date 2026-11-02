@@ -2000,3 +2000,23 @@ html.ai-reveal body > :not(.app-intro) { animation: ai-app-in 0.8s cubic-bezier(
 @keyframes ai-stage-out { to { opacity: 0; transform: scale(1.12) translateY(-8px); } }
 @keyframes ai-sky-out { to { transform: scale(1.1); } }
 @keyframes ai-app-in { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* Actions in a call (app.js "Actions in a call"): the module's page in a panel over the call —
+   a sheet on the right on wide screens, so the other person stays in view; full screen on a phone.
+   Audio and video keep running underneath. */
+.aktion-fenster {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); z-index: 70;
+  display: flex; flex-direction: column; background: var(--surface);
+  border-left: 1px solid var(--border); box-shadow: -24px 0 60px -30px rgba(15, 23, 42, 0.45);
+}
+.aktion-fenster[hidden] { display: none; }
+.aktion-kopf {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top)); border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.aktion-kopf strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--navy); }
+.aktion-laeuft { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ok-strong); font-weight: 600; flex-basis: 100%; }
+.aktion-punkt { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); animation: pulse 1.6s ease infinite; }
+.aktion-fenster iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+.aktion-gruppe { margin: 4px 4px 2px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+@media (min-width: 900px) { body.aktion-offen main { margin-right: min(560px, 100vw); } }
