@@ -849,6 +849,21 @@ EUDI_MODULES=@whosit/audit-trail,@whosit/qes-device   # or paths: ./instance/nod
   - `dataDir` — `<EUDI_DATA_DIR or /data>/modules/<id>`, created; `publicOrigin(req)`; `brandName`.
   Optional additions to the API, so `coreApi` stays `^1`. Tested in `test:module-presentations`
   with a throwaway module.
+- **Actions in a call** (`actions` in what `register()` returns, ports `ModuleAction`,
+  `src/call-actions.ts`): something a module does WITH a guest while the call goes on — a form,
+  later a signature or a delivery. One page serves both ways: without a call it asks the wallet
+  itself (`presentations`), in a call it takes the identity from the call. The host opens
+  "Aktionen" (shown when `/capabilities` says `actions: true`) and picks an action and a choice
+  for a guest; the guest sees who asks, for what and **which verified data** the module will
+  receive — what the choice needs AND the guest presented in this call — and agrees; the module's
+  page opens in a panel over the call (a sheet on the right, full screen on a phone; audio and
+  video keep running) with `?ruf=<token>`. `ctx.calls.redeem(token)` hands the module that
+  identity once, only after the guest agreed and only while they are still in the call;
+  `ctx.calls.done(token, { summary })` tells the host ("Erledigt: … — Eingang 42"). Declining,
+  withdrawing and leaving end it and tell the other side; an open action ends after 30 minutes.
+  The guest's consent is the core's own dialog, which names the data before the module sees any.
+  `ctx.frameOrigins` lists the app origins that may frame the module's page (for
+  `frame-ancestors`). Tested in `test:call-actions`.
 - **Several modules side by side** are fine; their verification sinks all receive every record.
 - **Failure:** in production a listed module that does not load stops the start. In development
   it is skipped with a warning.

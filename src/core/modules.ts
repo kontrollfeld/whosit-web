@@ -176,4 +176,6 @@ export interface LoadedModule extends ModuleManifest {
   clientAssetsDir?: string;
   /** HTTP routes the module adds (ports `ModuleRoutes`), mounted next to its browser files. */
   routes?: import('./ports').ModuleRoutes;
+  /** Actions in a call (ports `ModuleAction`). */
+  actions?: import('./ports').ModuleAction[];
 }

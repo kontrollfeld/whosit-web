@@ -53,6 +53,7 @@ async function refreshIce() {
 // capability can be absent because it is Pro, because its configuration is missing, or because
 // the operator switched it off via EUDI_FEATURES_OFF — to the client those are the same.
 let caps = new Set();
+let actionsOffered = false; // /capabilities `actions`: a module offers actions in a call (see below)
 /** EUDI_VERIFIER=none on the server: nobody is verified, both sides stay anonymous. */
 let verifierOff = false;
 /** A tenant instance with a host gate: setup is preceded by a sign-in. */
@@ -106,6 +107,7 @@ async function refreshCaps() {
       hostLoginRequired = j.hostLogin === true;
       verifierOff = j.verifier === 'none';
       if (j.relyingParty && typeof j.relyingParty === 'object') rpDisclosure = j.relyingParty;
+      actionsOffered = j.actions === true;
     }
   } catch { /* keep defaults (all off, local whitelist mirror) */ }
   applyCapabilities();
@@ -1318,6 +1320,22 @@ function handle(msg) {
       addChat('System', '🪪 ' + t('Nachweis angefordert:') + ' ' + msg.label + ' …');
       break;
     case 'credential-requested': showCredPrompt(msg); break;
+    // actions in a call — see "Actions in a call" further below
+    case 'actions': showActionPanel(msg.items || []); break;
+    case 'action-pending': addChat('System', '📋 ' + t('Gesendet an {name}:', { name: peerName(msg.to) }) + ' ' + msg.title + ' …'); break;
+    case 'action-accepted': addChat('System', '📋 ' + t('{name} hat geöffnet:', { name: peerName(msg.from) }) + ' ' + msg.title); break;
+    case 'action-declined': addChat('System', '📋 ' + t('{name} hat abgelehnt:', { name: peerName(msg.from) }) + ' ' + msg.title); break;
+    case 'action-aborted': addChat('System', '📋 ' + t('Nicht abgeschlossen:') + ' ' + msg.title); break;
+    case 'action-done':
+      if (isHost()) addChat('System', '📋 ' + t('Erledigt:') + ' ' + msg.title + (msg.summary ? ' — ' + msg.summary : '') + ' ✓');
+      // The guest's panel stays open: it shows the module's confirmation (an entry number, a
+      // receipt) — closing it is theirs, and the header says the call is still there.
+      else { actionDone(); addChat('System', '📋 ' + t('Erledigt:') + ' ' + msg.title + ' ✓'); }
+      break;
+    case 'action-requested': showActionPrompt(msg); break;
+    case 'action-open': openActionWindow(msg); break;
+    case 'action-cancelled': closeActionPrompt(); closeActionWindow(); addChat('System', '📋 ' + t('Zurückgezogen:') + ' ' + msg.title); break;
+    case 'action-error': addChat('System', '📋 ' + t('Aktion nicht möglich.')); break;
     case 'device-cert': settleDeviceCert(msg, true); break;
     case 'device-cert-error': settleDeviceCert(msg, false); break;
     case 'credential-auth': showCredAuth(msg); break;
@@ -2598,6 +2616,7 @@ function updateCredReqButton() {
   const on = isHost() && callStarted && !ended && capOn('in-call-credentials') && credCatalog.length > 0 && peers.size > 0;
   credreqBtn.hidden = !on;
   if (!on) credreqPanel.hidden = true;
+  updateActionButton();
 }
 
 // One row per credential × peer (1:1 hides the redundant name).
@@ -2628,6 +2647,110 @@ credreqBtn.addEventListener('click', () => {
 });
 document.addEventListener('click', (e) => {
   if (!credreqPanel.hidden && !credreqPanel.contains(e.target) && e.target !== credreqBtn && !credreqBtn.contains(e.target)) credreqPanel.hidden = true;
+});
+
+// ---- Actions in a call (src/call-actions.ts) ------------------------------------------------
+// A module's form or signature, run WITH a guest while the call goes on. The host picks it from
+// "Aktionen"; the guest sees who asks, for what and WHICH verified data from this call the
+// module will receive, and agrees; the module's page then opens in a panel over the call (audio
+// and video keep running) and closes by itself when the module reports it done.
+const aktionBtn = $('aktion-btn');
+const aktionPanel = $('aktion-panel');
+const aktionModal = $('aktion-modal');
+const aktionFenster = $('aktion-fenster');
+const aktionFrame = $('aktion-frame');
+let activeActionPrompt = null;
+let activeActionRun = null;
+const ACTION_ATTR_LABEL = { given_name: 'Vorname', family_name: 'Nachname', birth_date: 'Geburtsdatum', address: 'Anschrift', age_over_18: 'Über 18 Jahre', issuing_country: 'Ausstellungsstaat' };
+
+function updateActionButton() {
+  const on = isHost() && callStarted && !ended && actionsOffered && peers.size > 0;
+  aktionBtn.hidden = !on;
+  if (!on) aktionPanel.hidden = true;
+}
+aktionBtn.addEventListener('click', () => {
+  if (!aktionPanel.hidden) { aktionPanel.hidden = true; return; }
+  aktionPanel.innerHTML = '';
+  const wait = document.createElement('p'); wait.className = 'hint'; wait.textContent = t('Wird geladen …');
+  aktionPanel.appendChild(wait);
+  aktionPanel.hidden = false;
+  wsSend({ type: 'actions-list' });
+});
+document.addEventListener('click', (e) => {
+  if (!aktionPanel.hidden && !aktionPanel.contains(e.target) && e.target !== aktionBtn && !aktionBtn.contains(e.target)) aktionPanel.hidden = true;
+});
+// One row per action × choice × peer (1:1 hides the redundant name).
+function showActionPanel(items) {
+  if (aktionPanel.hidden) return;
+  aktionPanel.innerHTML = '';
+  const peerList = [...peers.entries()];
+  for (const it of items) {
+    const head = document.createElement('p'); head.className = 'aktion-gruppe'; head.textContent = it.label;
+    aktionPanel.appendChild(head);
+    for (const c of it.choices) {
+      for (const [peerId, p] of peerList) {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'credreq-item';
+        const who = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
+        btn.textContent = peerList.length > 1 ? t('{title} an {name}', { title: c.label, name: who }) : c.label;
+        btn.addEventListener('click', () => {
+          wsSend({ type: 'action-start', to: peerId, module: it.module, action: it.action, choice: c.id });
+          aktionPanel.hidden = true;
+        });
+        aktionPanel.appendChild(btn);
+      }
+    }
+  }
+  if (!items.length) {
+    const none = document.createElement('p'); none.className = 'hint';
+    none.textContent = t('Gerade keine Aktionen verfügbar (zum Beispiel noch kein Formular freigegeben).');
+    aktionPanel.appendChild(none);
+  }
+}
+// Guest side: who asks, for what, and exactly which verified data the module will receive.
+function showActionPrompt(msg) {
+  activeActionPrompt = msg;
+  $('aktion-titel').textContent = msg.title;
+  const who = msg.fromName ? titleCase(msg.fromName) : t('Gastgeber:in');
+  $('aktion-hint').textContent = t('{name} bittet dich: {label}', { name: who, label: msg.label });
+  const list = $('aktion-daten');
+  list.innerHTML = '';
+  if (msg.attrs && msg.attrs.length) {
+    $('aktion-daten-hint').textContent = t('Übernommen werden deine in diesem Gespräch geprüften Angaben:');
+    for (const a of msg.attrs) { const li = document.createElement('li'); li.textContent = t(ACTION_ATTR_LABEL[a] || a); list.appendChild(li); }
+  } else {
+    $('aktion-daten-hint').textContent = t('Aus diesem Gespräch werden keine Angaben übernommen.');
+  }
+  aktionModal.hidden = false;
+  $('aktion-ok').focus();
+}
+function closeActionPrompt() { aktionModal.hidden = true; activeActionPrompt = null; }
+$('aktion-ok').addEventListener('click', () => { if (activeActionPrompt) wsSend({ type: 'action-accept', runId: activeActionPrompt.runId }); closeActionPrompt(); });
+$('aktion-nein').addEventListener('click', () => { if (activeActionPrompt) wsSend({ type: 'action-decline', runId: activeActionPrompt.runId }); closeActionPrompt(); });
+function openActionWindow(msg) {
+  activeActionRun = msg.runId;
+  $('aktion-fenster-titel').textContent = msg.title;
+  // apiUrl: in the app the page lives on the instance, not in the local bundle.
+  aktionFrame.src = apiUrl(String(msg.path).replace(/^\/+/, ''));
+  aktionFenster.querySelector('.aktion-laeuft span:last-child').textContent = t('Das Gespräch läuft weiter');
+  aktionFenster.hidden = false;
+  document.body.classList.add('aktion-offen');
+}
+function actionDone() {
+  activeActionRun = null;
+  if (aktionFenster.hidden) return;
+  aktionFenster.querySelector('.aktion-laeuft span:last-child').textContent = t('Erledigt — du kannst das Fenster schließen. Das Gespräch läuft weiter.');
+}
+function closeActionWindow() {
+  if (aktionFenster.hidden) return;
+  aktionFenster.hidden = true;
+  aktionFrame.src = 'about:blank';
+  activeActionRun = null;
+  document.body.classList.remove('aktion-offen');
+}
+$('aktion-zu').addEventListener('click', () => {
+  if (activeActionRun) wsSend({ type: 'action-close', runId: activeActionRun });
+  closeActionWindow();
 });
 
 // Target side: consent prompt — requester, credential, EXACT field list; nothing goes

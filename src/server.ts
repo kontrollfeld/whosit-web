@@ -68,6 +68,7 @@ import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
 import { presentationPort, handlePresentationWebhook } from './presentations';
+import { createRun, runById, runsOf, endRun, panelPath, redeem as redeemRun, finish as finishRun, sweepRuns, type ActionRun } from './call-actions';
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
@@ -797,8 +798,41 @@ function moduleContext(id: string): ModuleContext {
     publicOrigin: publicOriginFrom,
     dataDir,
     brandName: BRANDING?.name ?? null,
+    calls: {
+      redeem: (token) => redeemRun(token, id, (r) => r.room.participants.includes(r.guest)),
+      done: (token, info) => {
+        const r = finishRun(token, id);
+        if (!r) return false;
+        const summary = String(info?.summary ?? '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 120);
+        console.log(`[aktion] ${r.module}/${r.action} done room=${auditHash('room', r.room.id)}`);
+        send(r.host.ws, { type: 'action-done', runId: r.id, from: r.guest.peerId, title: r.title, summary });
+        send(r.guest.ws, { type: 'action-done', runId: r.id, title: r.title });
+        return true;
+      },
+    },
+    frameOrigins: [...APP_ORIGINS],
   };
 }
+/** The actions of loaded modules whose feature is on — what a host's "Aktionen" menu offers. */
+function callActions(): Array<{ mod: NonNullable<Extensions['modules']>[number]; action: NonNullable<NonNullable<Extensions['modules']>[number]['actions']>[number] }> {
+  const on = enabledFeatures();
+  return (ext.modules ?? []).filter((m) => m.actions?.length && m.features.some((f) => on.has(f.id)))
+    .flatMap((m) => m.actions!.map((action) => ({ mod: m, action })));
+}
+/** A participant left: their open actions end, and the other side is told. */
+function endRunsOf(p: Participant): void {
+  for (const r of runsOf(p)) {
+    endRun(r);
+    const other = r.host === p ? r.guest : r.host;
+    send(other.ws, { type: r.host === p ? 'action-cancelled' : 'action-aborted', runId: r.id, from: r.guest.peerId, title: r.title });
+  }
+}
+setInterval(() => {
+  for (const r of sweepRuns()) {
+    send(r.host.ws, { type: 'action-aborted', runId: r.id, from: r.guest.peerId, title: r.title });
+    send(r.guest.ws, { type: 'action-cancelled', runId: r.id, title: r.title });
+  }
+}, 60_000).unref();
 function moduleRouter(mod: NonNullable<Extensions['modules']>[number]): express.Router {
   let r = moduleRouters.get(mod.id);
   if (!r) {
@@ -979,6 +1013,9 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // Which modules run here, and in which version — so `npm run check:instances` can compare a
     // running instance against what it is meant to run. Id and version only: no paths.
     modules: (ext.modules ?? []).map((m) => ({ id: m.id, version: m.version })),
+    // Whether a host can start actions in a call (./call-actions) — the client shows "Aktionen"
+    // only then. What they are is asked in the call (they depend on the module's state).
+    actions: callActions().length > 0,
     // 'none' = no wallet verification on this instance (EUDI_VERIFIER=none): the client fixes
     // both sides to anonymous and shows a permanent "test mode" banner. Enforced here, not there.
     verifier: VERIFIER_OFF ? 'none' : 'eudiplo',
@@ -1840,6 +1877,69 @@ wss.on('connection', (ws, request) => {
       return;
     }
 
+    // ---- Actions in a call (./call-actions): a module's form or signature with a guest ----
+    if (msg.type === 'actions-list') {
+      const hit = ext.roomStore.findByWs(ws);
+      if (!hit || hit.participant.role !== 'caller' || !hit.participant.verified) return;
+      const items = [];
+      for (const { mod, action } of callActions()) {
+        let choices: Array<{ id: string; label: string }> = [];
+        try { choices = (await action.choices()).map((c) => ({ id: String(c.id), label: String(c.label) })); }
+        catch (e: any) { console.warn(`[aktion] ${mod.id}/${action.id}: choices failed: ${e?.message || e}`); }
+        if (choices.length) items.push({ module: mod.id, action: action.id, label: action.label, choices });
+      }
+      send(ws, { type: 'actions', items });
+      return;
+    }
+    if (msg.type === 'action-start') {
+      const hit = ext.roomStore.findByWs(ws);
+      if (!hit || hit.participant.role !== 'caller') return;
+      const { room, participant: host } = hit;
+      const guest = typeof msg.to === 'string' ? ext.roomStore.findByPeerId(room, msg.to) : undefined;
+      // Mid-call only, like an in-call credential request: both have passed the gate and the review.
+      if (!guest || guest === host || !(host.verified && host.confirmed && guest.verified && guest.confirmed)) return;
+      const found = callActions().find((x) => x.mod.id === msg.module && x.action.id === msg.action);
+      if (!found) { send(ws, { type: 'action-error', message: 'unknown action' }); return; }
+      let choice;
+      try { choice = (await found.action.choices()).find((c) => String(c.id) === String(msg.choice)); } catch { /* below */ }
+      if (!choice) { send(ws, { type: 'action-error', message: 'unknown choice' }); return; }
+      // What the module may take from the call: what the choice needs AND the guest presented.
+      const presented = new Set(Object.keys(guest.claims ?? {}));
+      const attrs = (choice.attrs ?? []).map(String).filter((a) => presented.has(a) && a !== 'pseudonym_id');
+      const r = createRun({
+        module: found.mod.id, action: found.action.id, choice: String(choice.id), label: found.action.label,
+        title: String(choice.label).slice(0, 120), attrs, path: found.action.path(String(choice.id)), room, host, guest,
+      });
+      if (!r) { send(ws, { type: 'action-error', message: 'too many open actions' }); return; }
+      console.log(`[aktion] ${r.module}/${r.action} requested room=${auditHash('room', room.id)} attrs=[${attrs.join(',')}]`);
+      send(ws, { type: 'action-pending', runId: r.id, to: guest.peerId, title: r.title, label: r.label });
+      send(guest.ws, { type: 'action-requested', runId: r.id, from: host.peerId, fromName: fullName(host), label: r.label, title: r.title, attrs });
+      return;
+    }
+    if (msg.type === 'action-accept' || msg.type === 'action-decline' || msg.type === 'action-close') {
+      const r = runById(msg.runId);
+      const hit = ext.roomStore.findByWs(ws);
+      if (!r || !hit || hit.participant !== r.guest) return;
+      if (msg.type === 'action-accept') {
+        if (r.state !== 'requested') return;
+        r.state = 'open';
+        send(ws, { type: 'action-open', runId: r.id, title: r.title, path: panelPath(r) });
+        send(r.host.ws, { type: 'action-accepted', runId: r.id, from: r.guest.peerId, title: r.title });
+        return;
+      }
+      endRun(r);
+      send(r.host.ws, { type: msg.type === 'action-decline' ? 'action-declined' : 'action-aborted', runId: r.id, from: r.guest.peerId, title: r.title });
+      return;
+    }
+    if (msg.type === 'action-cancel') {
+      const r = runById(msg.runId);
+      const hit = ext.roomStore.findByWs(ws);
+      if (!r || !hit || hit.participant !== r.host) return;
+      endRun(r);
+      send(r.guest.ws, { type: 'action-cancelled', runId: r.id, title: r.title });
+      return;
+    }
+
     // Relay SDP/ICE to the ADDRESSED peer (`to` = peerId); the reply carries `from` so
     // the receiver knows which mesh link it belongs to. The server never inspects SDP.
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice') {
@@ -1891,6 +1991,7 @@ wss.on('connection', (ws, request) => {
       firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'hangup' }));
       if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
       purgeVerifierSession(participant.verifierSessionId, 'left');
+      endRunsOf(participant);
       ext.roomStore.remove(room, participant);
       participantLeft(room, room.participants.length);
     }
@@ -1925,6 +2026,7 @@ wss.on('connection', (ws, request) => {
       }
       const peers = ext.roomStore.peersOf(room, participant);
       purgeVerifierSession(participant.verifierSessionId, 'left');
+      endRunsOf(participant);
       ext.roomStore.remove(room, participant);
       participantLeft(room, room.participants.length, closedAt);
       for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
