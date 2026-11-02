@@ -10,11 +10,14 @@
  * source (display names) — the consent prompt, the wallet request and the result popover
  * all render from the same declaration, so they can never drift apart.
  *
- * The catalog is a JSON file whose path comes from EUDI_CREDENTIAL_CATALOG (see
- * credential-catalog.example.json). Without that variable the catalog is empty. It is
- * only ever read when the server-enforced `in-call-credentials` feature is active (Pro).
+ * Since 2026-11-02 the catalog comes from a MODULE (`credentialCatalog` in what its
+ * `register()` returns — @whosit/nachweise ships the curated list, the instance's order picks
+ * from it), no longer from a file named by EUDI_CREDENTIAL_CATALOG: requesting further
+ * credentials in a call is a Pro capability, and the `in-call-credentials` feature is the
+ * module's. What stays here, in the open core, is the verification engine: validating an entry,
+ * the DCQL query, extracting the claims from the verifier's answer.
  */
-import fs from 'fs';
+import { createHash } from 'crypto';
 import type { CredentialFormat, DcqlQuery } from './credential-profiles';
 import { claimQuery } from './credential-profiles';
 
@@ -45,9 +48,9 @@ export function credentialTypes(c: CatalogCredential): string[] {
 }
 
 const FORMATS: CredentialFormat[] = ['mso_mdoc', 'dc+sd-jwt', 'jwt_vc_json'];
-const CATALOG_PATH = process.env.EUDI_CREDENTIAL_CATALOG || '';
 
-function validEntry(e: any): e is CatalogCredential {
+/** Is this a usable catalog entry? Everything a module hands over is checked here. */
+export function validEntry(e: any): e is CatalogCredential {
   return e && typeof e === 'object'
     && typeof e.id === 'string' && /^[a-z0-9_-]{1,64}$/i.test(e.id)
     && typeof e.label === 'string' && e.label.length > 0
@@ -63,32 +66,24 @@ function validEntry(e: any): e is CatalogCredential {
       && c.path.every((s: any) => typeof s === 'string' || typeof s === 'number'));
 }
 
-let cached: CatalogCredential[] | null = null;
+let source: (() => unknown[]) | null = null;
+let warned = '';
 
-/** Load + validate the catalog once; invalid entries are skipped with a warning. */
+/** Set by the server once the modules are loaded: the module that provides the catalog. */
+export function setCatalogSource(fn: (() => unknown[]) | null): void { source = fn; }
+
+/** The catalog, validated on every read — a module's list can change with its configuration. */
 export function loadCatalog(): CatalogCredential[] {
-  if (cached) return cached;
-  cached = [];
-  if (!CATALOG_PATH) return cached; // not configured: feature off, nothing to report
-  let raw: string;
-  try {
-    raw = fs.readFileSync(CATALOG_PATH, 'utf8');
-  } catch {
-    console.warn(`[catalog] no credential catalog at ${CATALOG_PATH} — in-call requests disabled`);
-    return cached;
+  if (!source) return [];
+  let list: unknown[] = [];
+  try { list = source() ?? []; } catch (e: any) { console.warn('[catalog] the module\'s catalog failed:', e?.message || e); return []; }
+  const ok = list.filter(validEntry) as CatalogCredential[];
+  const report = `${ok.map((c) => c.id).join(',')}|${list.length - ok.length}`;
+  if (report !== warned) {
+    warned = report;
+    console.log(`[catalog] ${ok.length} credential(s): [${ok.map((c) => c.id).join(', ')}]${list.length > ok.length ? ` — ${list.length - ok.length} invalid entr(y/ies) skipped` : ''}`);
   }
-  let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch (e: any) {
-    console.warn(`[catalog] ${CATALOG_PATH} is not valid JSON:`, e?.message || e);
-    return cached;
-  }
-  const list = Array.isArray(parsed) ? parsed : [];
-  for (const entry of list) {
-    if (validEntry(entry)) cached.push(entry);
-    else console.warn(`[catalog] skipping invalid entry:`, JSON.stringify(entry)?.slice(0, 120));
-  }
-  console.log(`[catalog] loaded ${cached.length} credential(s): [${cached.map((c) => c.id).join(', ')}]`);
-  return cached;
+  return ok;
 }
 
 export function catalogEntry(id: string): CatalogCredential | undefined {
@@ -191,4 +186,12 @@ export function extractCatalogClaims(c: CatalogCredential, payload: any): Record
 /** All mandatory claims present? (A partial presentation must not count as success.) */
 export function hasMandatoryClaims(c: CatalogCredential, claims: Record<string, any>): boolean {
   return c.claims.filter((cl) => cl.mandatory !== false).every((cl) => claimKey(cl) in claims);
+}
+
+/** The EUDIPLO config id for a catalog credential — one per credential definition, shared by a
+ *  call's request and a module's presentation of the same credential. */
+export function catalogConfigId(c: CatalogCredential): string {
+  return 'cred_' + createHash('sha1')
+    .update([c.id, c.format, credentialTypes(c).join('+'), ...c.claims.map((cl) => cl.path.join('.'))].join('|'))
+    .digest('hex').slice(0, 12);
 }

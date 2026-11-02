@@ -26,6 +26,7 @@ import { createVerifierOffer, ensureVerifierConfig, isVerificationSuccess, failu
 import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, pidConfigId, type SemanticAttr } from './credential-profiles';
 import { partitionAttributes, policyDescriptor, isDerived, requiresWalletPresentation } from './wrp-policy';
 import { purgeVerifierSession } from './verifier-session';
+import { catalogEntry, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, catalogConfigId } from './credential-catalog';
 import type { PresentationPort, PresentationStart, PresentationState, VerificationEvent } from './core/ports';
 
 /** How long an unanswered or untaken presentation is kept. A wallet hand-over takes a minute or
@@ -44,6 +45,8 @@ interface Open {
   webhookToken: string;
   module: string;
   attrs: SemanticAttr[];
+  /** A catalog credential instead of PID attributes (startCredential). */
+  credential?: string;
   verifierSessionId?: string;
   state: 'pending' | 'ok' | 'failed';
   claims?: Record<string, unknown>;
@@ -107,6 +110,27 @@ export function presentationPort(module: string, deps: PresentationDeps): Presen
       return { id: p.id, secret: p.secret, uri: offer.uri, crossDeviceUri: offer.crossDeviceUri, expiresAt: new Date(p.expires).toISOString() };
     },
 
+    async startCredential({ credentialId, origin, returnUrl }): Promise<PresentationStart> {
+      sweep();
+      if (open.size >= MAX_OPEN) throw new PresentationRefused('too many open presentations');
+      // Only what the instance's catalog holds — the module that provides it decides that list,
+      // the core validates it (../credential-catalog).
+      const c = catalogEntry(String(credentialId || ''));
+      if (!c) throw new PresentationRefused(`unknown credential: ${String(credentialId).slice(0, 40)}`);
+      const dcql = buildCatalogDcql(c);
+      const requestId = catalogConfigId(c);
+      await ensureVerifierConfig(requestId, dcql, 'catalog');
+      const p: Open = {
+        id: randomUUID(), secret: randomUUID(), webhookToken: randomUUID(), module,
+        attrs: [], credential: c.id, state: 'pending', expires: Date.now() + TTL_MS,
+      };
+      const offer = await createVerifierOffer(`${origin}/webhook/${p.id}?t=${p.webhookToken}`, requestId, returnUrl);
+      p.verifierSessionId = offer.sessionId;
+      open.set(p.id, p);
+      console.log(`[presentation] ${module}: offer credential=${c.id}`);
+      return { id: p.id, secret: p.secret, uri: offer.uri, crossDeviceUri: offer.crossDeviceUri, expiresAt: new Date(p.expires).toISOString() };
+    },
+
     poll(id, secret): PresentationState {
       const p = open.get(id);
       if (!p || p.module !== module || !same(String(secret ?? ''), p.secret)) return { state: 'unknown' };
@@ -115,7 +139,7 @@ export function presentationPort(module: string, deps: PresentationDeps): Presen
       if (p.state === 'failed') { open.delete(id); return { state: 'failed' }; }
       // Handed over ONCE. From here on the core holds nothing of it.
       open.delete(id);
-      return { state: 'ok', attrs: [...p.attrs], claims: p.claims ?? {}, at: p.at!, format: p.format, profileId: p.profileId };
+      return { state: 'ok', attrs: [...p.attrs], claims: p.claims ?? {}, at: p.at!, format: p.format, profileId: p.profileId, credential: p.credential };
     },
 
     cancel(id, secret): void {
@@ -144,10 +168,19 @@ export function handlePresentationWebhook(req: Request, res: Response, deps: Pre
   if (typeof payload.session === 'string' && payload.session) p.verifierSessionId = payload.session;
   // Only what was asked for: normalizeClaims copies the policy's allowlist, this narrows it to the
   // presentation's own attributes.
-  const all = normalizeClaims(payload);
   const claims: Record<string, unknown> = {};
-  for (const a of p.attrs) if (a in all) claims[a] = all[a];
-  const ok = isVerificationSuccess(payload);
+  let ok: boolean;
+  const cred = p.credential ? catalogEntry(p.credential) : undefined;
+  if (p.credential) {
+    // A catalog credential: its own claims, by the catalog's paths — and every mandatory one, or
+    // a partial presentation would pass as a whole one.
+    Object.assign(claims, cred ? extractCatalogClaims(cred, payload) : {});
+    ok = !!cred && isVerificationSuccess(payload, Object.keys(claims).length) && hasMandatoryClaims(cred, claims);
+  } else {
+    const all = normalizeClaims(payload);
+    for (const a of p.attrs) if (a in all) claims[a] = all[a];
+    ok = isVerificationSuccess(payload);
+  }
   purgeVerifierSession(p.verifierSessionId, ok ? 'verified' : 'failed');
   p.verifierSessionId = undefined;
   p.webhookToken = randomUUID();
@@ -156,6 +189,7 @@ export function handlePresentationWebhook(req: Request, res: Response, deps: Pre
     // Rooms are hashed into the record; a module presentation is its own scope.
     roomId: `${p.module}:${p.id}`, role: 'callee', clientId: p.id,
     attrs: [...p.attrs], claimKeys: ok ? Object.keys(claims) : [],
+    ...(p.credential ? { credentialId: p.credential } : {}),
   };
   if (ok) {
     const presented = detectPresentedProfile(payload, selectedProfiles());

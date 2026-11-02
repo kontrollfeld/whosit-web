@@ -14,7 +14,6 @@ path = [
   "package.json",
   "package-lock.json",
   "tsconfig.json",
-  "credential-catalog.example.json",
   "signature-providers.json",
   "public/translations.json",
   "test/erica/eudiplo/whosit/info.json",
