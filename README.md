@@ -746,7 +746,10 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
 - A new data channel learns the current mute/camera state, so "join muted" and late joiners show
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
 - **The whosit sound mark** (`public/sounds/`): "whosit?" and the Morse answer ME (− − ·). The
-  answer alone is the arrival sound; the whole mark plays once for everyone when a call connects.
+  whole mark plays once for everyone when a call connects — and that is the only sound of a call
+  (since 2026-11-02: no arrival sound any more, and the mark is never replayed when a call ends;
+  a guest's arrival still shows in the tab title and as a system notification). The answer alone
+  is what the "Töne" switch plays when turned on.
   Instances with operator branding keep a neutral two-tone chime and never play the mark.
   "Branding" means an operator NAME (`EUDI_BRAND_NAME`), as for the `branded` class: a logo alone
   is not one (www.whosit.eu sets `EUDI_BRAND_LOGO` to our own mark — until 2026-10-29 that silenced
@@ -773,8 +776,7 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   so nothing of the app flashes first; `playAppIntro` takes it away on a branded instance. The
   launch address is kept in `LAUNCH_QUERY`, because boot adds `?room=` for a new call.
 - **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
-  "Töne" in the app's settings (moved there like the theme button). Off silences the arrival sound
-  and the sound mark — not the device check's test tone, not the tab title or the system
+  "Töne" in the app's settings (moved there like the theme button). Off silences the sound mark — not the device check's test tone, not the tab title or the system
   notification. Stored per browser as `eudi_sounds` = `0` (unset = on); switching it back on plays
   the arrival sound once, so you hear what you chose.
 - **Background: blur or replace** (`background-effects`). Tiles in the device check and behind the

@@ -3055,7 +3055,7 @@ function revealCall() {
   syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
-  if (!soundMarkPlayed && anyConnected()) { soundMarkPlayed = true; showLogoMoment({ sound: () => playSoundMark('connected', 0.45) }); }
+  if (!soundMarkPlayed && !ended && anyConnected()) { soundMarkPlayed = true; showLogoMoment({ sound: () => playSoundMark('connected', 0.45) }); }
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
   screenBtn.hidden = !screenShareSupported();
   handBtn.hidden = !capOn('hand-raise');
@@ -3112,7 +3112,9 @@ function onPeerGone(from) {
 // ---- hang up ----
 function teardownCall() {
   earlyIce.clear();
-  soundMarkPlayed = false; logoMomentShown = false;
+  // NOT reset here: the sound mark and the logo moment belong to the moment two people connect,
+  // once per call. A torn-down call that briefly reports "connected" again (the app on iOS did,
+  // 2026-11-02) must not play it a second time at the end; a new call is a new page.
   releaseWakeLock();
   stopMutedWatch();
   stopPreview();
@@ -4082,13 +4084,13 @@ function noticeArrivals(msg) {
   if (fresh.length) {
     const text = fresh.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in ist da')
       : before.size === 0 ? t('Dein Gast ist da') : t('Ein weiterer Gast ist da');
-    playChime();
+    // No sound: whosit sounds once per call, when the two connect (Jakob, 2026-11-02). The tab
+    // title and the system notification still say it.
     notifyAway(text, 'whosit-arrival');
   }
   if (nowVerified.length && !callStarted) {
     const text = nowVerified.some((x) => x.role === 'caller') && !isHost() ? t('Gastgeber:in hat sich ausgewiesen')
       : t('Dein Gast hat sich ausgewiesen');
-    if (!fresh.length) playChime(); // arriving already identified: one sound is enough
     notifyAway(text, 'whosit-verified');
   }
 }
