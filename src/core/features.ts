@@ -111,10 +111,9 @@ export const FEATURES: Feature[] = [
   // `EUDI_CREDENTIAL_PROFILES` (still defaulting to `pid_mdoc` only) — the edition permits,
   // the configuration decides.
   { id: 'multi-credential', title: 'Multi-wallet / multi-format verification (mdoc + SD-JWT VC)', edition: 'community', clientGated: false },
-  // The host requests further catalog credentials from a participant DURING the call. See
-  // src/credential-requests.ts. Community, because the catalogue and the issuer arrangements
-  // behind it belong to the operator.
-  { id: 'in-call-credentials', title: 'In-call credential requests (catalogue)', edition: 'community', clientGated: false },
+  // `in-call-credentials` (the host requests further credentials in a call) is no longer the
+  // core's since 2026-11-02: the module @whosit/nachweise declares it and brings the curated
+  // catalog. The engine stays in ../credential-catalog and ../credential-requests.
 ];
 
 export const COMMUNITY_FEATURE_IDS = FEATURES.filter((f) => f.edition === 'community').map((f) => f.id);

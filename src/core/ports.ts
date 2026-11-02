@@ -233,6 +233,10 @@ export interface PresentationPort {
    *  origin the verifier calls back (ModuleContext.publicOrigin); `returnUrl` where a wallet on
    *  the same device sends the browser afterwards. */
   start(req: { attrs: string[]; origin: string; returnUrl?: string }): Promise<PresentationStart>;
+  /** A further credential from the instance's catalog (../credential-catalog) instead of PID
+   *  attributes — e.g. a driving licence for a form. Refuses an id the catalog does not hold.
+   *  Optional, so a module checks for it (cores before 2026-11-02 do not have it). */
+  startCredential?(req: { credentialId: string; origin: string; returnUrl?: string }): Promise<PresentationStart>;
   /** Its state. `ok` carries the claims and is answered ONCE — afterwards `unknown`. */
   poll(id: string, secret: string): PresentationState;
   /** Give up on it (the person left); purges the verifier session. */
@@ -261,6 +265,8 @@ export type PresentationState =
       at: string;
       format?: string;
       profileId?: string;
+      /** For startCredential: the catalog credential; `claims` are keyed by its claim keys. */
+      credential?: string;
     };
 
 /** The instance's staff links (EUDI_STAFF_SECRET, ../staff-token) for a module's own staff
@@ -290,6 +296,9 @@ export interface ModuleAction {
   choices(): ActionChoice[] | Promise<ActionChoice[]>;
   /** The page the guest's panel opens, relative to the instance (e.g. /formular/f/abc). */
   path(choiceId: string): string;
+  /** A credential request instead of a page: the choices are catalog credential ids, and the
+   *  core runs its own in-call credential flow (consent, wallet, result for the host). */
+  credential?: boolean;
 }
 export interface ActionChoice { id: string; label: string; attrs: string[]; }
 
@@ -356,6 +365,9 @@ export interface Extensions {
   routes?: ModuleRoutes;
   /** Actions in a call (see ModuleAction). Optional. */
   actions?: ModuleAction[];
+  /** The catalog of further credentials a host may request (../credential-catalog) — only a
+   *  module provides one (@whosit/nachweise); entries are validated on every read. */
+  credentialCatalog?: () => unknown[];
   /** The loaded modules — set by the loader, not by a module. */
   modules?: LoadedModule[];
 }

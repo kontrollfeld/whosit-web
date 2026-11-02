@@ -372,7 +372,7 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
   - "Neuen Raum/Anruf starten" (`startFreshCall`) must drop every marker of the old room — `r`,
     `zurueck`, `app`, `inv`, the `/zurueck` path — not just `room`. Until 2026-10-28 it kept them,
     and the app, back from the wallet, landed in the old (full) room again.
-- The same modal serves the in-call credential request (Pro), without the loading state.
+- The same modal serves the in-call credential request (a module's, see Modules), without the loading state.
 - **Font:** the guide's modal uses Inter; until that is decided the modal keeps IBM Plex.
 
 ## Running without a verifier
@@ -866,6 +866,17 @@ EUDI_MODULES=@whosit/audit-trail,@whosit/qes-device   # or paths: ./instance/nod
   The guest's consent is the core's own dialog, which names the data before the module sees any.
   `ctx.frameOrigins` lists the app origins that may frame the module's page (for
   `frame-ancestors`). Tested in `test:call-actions`.
+- **Further credentials** (`credentialCatalog` in what `register()` returns, since 2026-11-02):
+  requesting a driving licence or a membership in a call is no longer the core's — the
+  `in-call-credentials` capability is declared by the module that brings the catalog
+  (@whosit/nachweise, its list curated by us, the instance's order picks from it). Without such a
+  module the capability does not exist; `EUDI_CREDENTIAL_CATALOG` is no longer read. The core
+  keeps the engine (`src/credential-catalog.ts`: every entry the module hands over is validated on
+  each read, the DCQL query, the claims from the verifier's answer; `src/credential-requests.ts`:
+  consent, wallet, result for the host). A host starts it from "Aktionen": a module action with
+  `credential: true` runs this flow instead of opening a panel. Outside a call a module asks with
+  `ctx.presentations.startCredential({ credentialId })` — only ids the catalog holds, the
+  mandatory claims or nothing. Tested in `test:credential-module`.
 - **Several modules side by side** are fine; their verification sinks all receive every record.
 - **Failure:** in production a listed module that does not load stops the start. In development
   it is skipped with a warning.

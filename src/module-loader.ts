@@ -211,7 +211,7 @@ export async function loadExtensions(): Promise<Extensions> {
       continue;
     }
 
-    const clash = (['roomStore', 'qualifiedSigner', 'certificateIssuer'] as const)
+    const clash = (['roomStore', 'qualifiedSigner', 'certificateIssuer', 'credentialCatalog'] as const)
       .filter((k) => ext?.[k] && singleOwner.has(k));
     if (clash.length) {
       problems.push(`"${m.id}" provides ${clash.join(', ')}, already provided by "${singleOwner.get(clash[0])}"`);
@@ -220,6 +220,7 @@ export async function loadExtensions(): Promise<Extensions> {
     if (ext?.roomStore) { merged.roomStore = ext.roomStore; singleOwner.set('roomStore', m.id); }
     if (ext?.qualifiedSigner) { merged.qualifiedSigner = ext.qualifiedSigner; singleOwner.set('qualifiedSigner', m.id); }
     if (ext?.certificateIssuer) { merged.certificateIssuer = ext.certificateIssuer; singleOwner.set('certificateIssuer', m.id); }
+    if (typeof ext?.credentialCatalog === 'function') { merged.credentialCatalog = ext.credentialCatalog; singleOwner.set('credentialCatalog', m.id); }
     if (ext?.verificationSink) sinks.push({ id: m.id, sink: ext.verificationSink });
     merged.plugins.push(...(ext?.plugins ?? []));
     merged.signatureProviders!.push(...(ext?.signatureProviders ?? []));

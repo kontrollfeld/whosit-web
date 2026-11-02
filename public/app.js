@@ -2613,7 +2613,9 @@ async function refreshCredCatalog() {
 }
 
 function updateCredReqButton() {
-  const on = isHost() && callStarted && !ended && capOn('in-call-credentials') && credCatalog.length > 0 && peers.size > 0;
+  // Since 2026-11-02 a host requests credentials through "Aktionen" (the module that brings
+  // them offers the action); the separate button only remains for a module that does not.
+  const on = isHost() && callStarted && !ended && capOn('in-call-credentials') && credCatalog.length > 0 && peers.size > 0 && !actionsOffered;
   credreqBtn.hidden = !on;
   if (!on) credreqPanel.hidden = true;
   updateActionButton();

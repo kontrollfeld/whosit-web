@@ -69,7 +69,7 @@ import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
 import { presentationPort, handlePresentationWebhook } from './presentations';
 import { createRun, runById, runsOf, endRun, panelPath, redeem as redeemRun, finish as finishRun, sweepRuns, type ActionRun } from './call-actions';
-import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes } from './credential-catalog';
+import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes, setCatalogSource, catalogConfigId } from './credential-catalog';
 import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
 import { createPairing, joinPairing, pairingOfOwner, pairingOfPhone, endPairing } from './device-pairing';
@@ -326,9 +326,7 @@ const CREDENTIAL_REQUEST_TTL_MS = Math.max(60, Number(process.env.EUDI_CREDENTIA
 // but the DCQL comes from the catalog entry and the session is the REQUEST's own.
 async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomId?: string): Promise<void> {
   const c = r.credential;
-  const requestId = 'cred_' + createHash('sha1')
-    .update([c.id, c.format, credentialTypes(c).join('+'), ...c.claims.map((cl) => cl.path.join('.'))].join('|'))
-    .digest('hex').slice(0, 12);
+  const requestId = catalogConfigId(c);
   // kind:'catalog' → a non-PID credential type with its own consent step; the PID
   // attribute whitelist does not apply (see VerifierConfigKind in eudiplo.ts).
   await ensureVerifierConfig(requestId, buildCatalogDcql(c), 'catalog');
@@ -1542,6 +1540,47 @@ function maybeConnectOpen(room: Room): void {
   }
 }
 
+/** The host asks a guest for a further catalog credential (./credential-requests) — from the
+ *  wire message and, since 2026-11-02, from the "Aktionen" menu (a module's credential action). */
+function requestCredential(ws: WebSocket, msg: any): void {
+    if (!enabledFeatures().has('in-call-credentials')) return; // hard edition gate
+    const hit = ext.roomStore.findByWs(ws);
+    if (!hit || hit.participant.role !== 'caller') return; // v1: host-only
+    const { room, participant: requester } = hit;
+    const target = typeof msg.to === 'string' ? ext.roomStore.findByPeerId(room, msg.to) : undefined;
+    if (!target || target === requester) return;
+    // Mid-call only: both ends of this pair have passed the gate + review.
+    if (!(requester.verified && requester.confirmed && target.verified && target.confirmed)) return;
+    const credential = catalogEntry(String(msg.credentialId || ''));
+    if (!credential) {
+      send(ws, { type: 'credential-error', message: 'unknown credential' });
+      return;
+    }
+    if (hasPending(target, credential.id)) {
+      send(ws, { type: 'credential-error', message: 'request already pending', credentialId: credential.id, to: target.peerId });
+      return;
+    }
+    const r = createRequest(room, requester, target, credential, CREDENTIAL_REQUEST_TTL_MS, (expired) => {
+      credentialAudit(expired, 'credential-expired', []);
+      send(expired.requester.ws, { type: 'credential-expired', requestId: expired.requestId, from: expired.target.peerId, label: expired.credential.label });
+      send(expired.target.ws, { type: 'credential-expired', requestId: expired.requestId, label: expired.credential.label });
+    });
+    console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${auditHash('room', room.id)}`);
+    credentialAudit(r, 'credential-requested', []);
+    send(requester.ws, { type: 'credential-pending', requestId: r.requestId, to: target.peerId, credentialId: credential.id, label: credential.label });
+    // The consent prompt: who asks, which credential, EXACTLY which fields — before
+    // anything goes near the wallet.
+    send(target.ws, {
+      type: 'credential-requested', requestId: r.requestId, from: requester.peerId,
+      fromName: fullName(requester),
+      credential: {
+        id: credential.id, label: credential.label, description: credential.description,
+        claims: credential.claims.map((cl) => ({ name: cl.name, mandatory: cl.mandatory !== false })),
+      },
+    });
+    return;
+}
+
 // ---- websocket signaling -------------------------------------------------
 
 wss.on('connection', (ws, request) => {
@@ -1798,44 +1837,7 @@ wss.on('connection', (ws, request) => {
     // ---- In-call credential requests (Pro, server-enforced) -------------------
     // Host asks a participant for a further catalog credential
     // DURING the call. See src/credential-requests.ts for the state machine.
-    if (msg.type === 'credential-request') {
-      if (!enabledFeatures().has('in-call-credentials')) return; // hard edition gate
-      const hit = ext.roomStore.findByWs(ws);
-      if (!hit || hit.participant.role !== 'caller') return; // v1: host-only
-      const { room, participant: requester } = hit;
-      const target = typeof msg.to === 'string' ? ext.roomStore.findByPeerId(room, msg.to) : undefined;
-      if (!target || target === requester) return;
-      // Mid-call only: both ends of this pair have passed the gate + review.
-      if (!(requester.verified && requester.confirmed && target.verified && target.confirmed)) return;
-      const credential = catalogEntry(String(msg.credentialId || ''));
-      if (!credential) {
-        send(ws, { type: 'credential-error', message: 'unknown credential' });
-        return;
-      }
-      if (hasPending(target, credential.id)) {
-        send(ws, { type: 'credential-error', message: 'request already pending', credentialId: credential.id, to: target.peerId });
-        return;
-      }
-      const r = createRequest(room, requester, target, credential, CREDENTIAL_REQUEST_TTL_MS, (expired) => {
-        credentialAudit(expired, 'credential-expired', []);
-        send(expired.requester.ws, { type: 'credential-expired', requestId: expired.requestId, from: expired.target.peerId, label: expired.credential.label });
-        send(expired.target.ws, { type: 'credential-expired', requestId: expired.requestId, label: expired.credential.label });
-      });
-      console.log(`[credential] host requests ${credential.id} from ${target.role} (${target.clientId.slice(0, 8)}) room=${auditHash('room', room.id)}`);
-      credentialAudit(r, 'credential-requested', []);
-      send(requester.ws, { type: 'credential-pending', requestId: r.requestId, to: target.peerId, credentialId: credential.id, label: credential.label });
-      // The consent prompt: who asks, which credential, EXACTLY which fields — before
-      // anything goes near the wallet.
-      send(target.ws, {
-        type: 'credential-requested', requestId: r.requestId, from: requester.peerId,
-        fromName: fullName(requester),
-        credential: {
-          id: credential.id, label: credential.label, description: credential.description,
-          claims: credential.claims.map((cl) => ({ name: cl.name, mandatory: cl.mandatory !== false })),
-        },
-      });
-      return;
-    }
+    if (msg.type === 'credential-request') { requestCredential(ws, msg); return; }
 
     // Target consents → create the EUDIPLO offer and hand back the wallet link/QR.
     if (msg.type === 'credential-accept') {
@@ -1900,6 +1902,9 @@ wss.on('connection', (ws, request) => {
       if (!guest || guest === host || !(host.verified && host.confirmed && guest.verified && guest.confirmed)) return;
       const found = callActions().find((x) => x.mod.id === msg.module && x.action.id === msg.action);
       if (!found) { send(ws, { type: 'action-error', message: 'unknown action' }); return; }
+      // A credential action is the in-call credential request: the core's own consent, wallet
+      // request and result for the host — the choice is a catalog credential id.
+      if (found.action.credential) { requestCredential(ws, { to: msg.to, credentialId: msg.choice }); return; }
       let choice;
       try { choice = (await found.action.choices()).find((c) => String(c.id) === String(msg.choice)); } catch { /* below */ }
       if (!choice) { send(ws, { type: 'action-error', message: 'unknown choice' }); return; }
@@ -2202,6 +2207,8 @@ loadExtensions().then((resolved) => {
   });
   // Load (and log) the in-call credential catalog up front, so a broken/missing file
   // is visible at startup — not first when a host opens the request menu.
+  // The catalog comes from the module that provides it (@whosit/nachweise), not from a file.
+  setCatalogSource(ext.credentialCatalog ?? null);
   if (enabledFeatures().has('in-call-credentials')) loadCatalog();
   // Call minutes, from the file of earlier runs (./usage).
   initUsage();

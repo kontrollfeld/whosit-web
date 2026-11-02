@@ -37,7 +37,7 @@ const PRO_IDS = ['qes-csc', 'qes-device'];
 const MOVED_TO_COMMUNITY = [
   'meeting-controls', 'screen-share', 'spotlight', 'hand-raise',
   'file-transfer', 'emoji', 'calendar-invite', 'native-share',
-  'embed', 'in-call-credentials', 'multi-party',
+  'embed', 'multi-party',
 ];
 
 // A fixture module in a throwaway directory: what this test is about is how the CORE treats a
