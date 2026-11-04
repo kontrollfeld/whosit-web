@@ -11,7 +11,7 @@ Please report security issues **privately** — do not open a public GitHub issu
 - **GitHub private vulnerability reporting** (preferred): the *Security* tab of this repository
   → *Report a vulnerability*. It keeps the report, the fix and the advisory together — and the fix
   is developed in a private fork, so it only becomes visible with the advisory.
-- Email: **<administration@kontrollfeld.de>**
+- Email: **<info@kontrollfeld.de>**
 - Response within **72 hours**, then coordinated disclosure.
 
 > Where this repository sits: development happens in a private GitLab project; this GitHub
