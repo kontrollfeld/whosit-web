@@ -25,6 +25,10 @@ const SOURCE_LOCALE = 'de';
 
 let i18nDict = {};          // translations.json content
 let i18nLocale = SOURCE_LOCALE;
+// The operator's own wording (/capabilities `ui.texte`, see src/operator-ui.ts): German source →
+// replacement, per locale. Checked before the dictionary. Plain text only — the server refuses a
+// file whose values contain < > &, and the markup path below still inserts them as text.
+let i18nOverrides = {};
 
 /** Normalize whitespace so pretty-printed HTML and JSON keys compare equal. */
 function i18nNorm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
@@ -35,8 +39,10 @@ function i18nNorm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
  * hasn't loaded yet, or the entry is missing.
  */
 function t(source, vars) {
+  const key = i18nNorm(source);
+  const own = i18nOverrides[i18nLocale];
   const table = i18nDict[i18nLocale];
-  let out = (table && table[i18nNorm(source)]) || source;
+  let out = (own && own[key]) || (table && table[key]) || source;
   if (vars) for (const k of Object.keys(vars)) out = out.split(`{${k}}`).join(vars[k]);
   return out;
 }
@@ -69,6 +75,9 @@ function applyI18n(root) {
   }
   for (const el of scope.querySelectorAll('[data-i18n-html]')) {
     if (!el.dataset.i18nKey) el.dataset.i18nKey = i18nNorm(el.innerHTML);
+    // An operator's wording is text, never markup — whatever it contains.
+    const own = i18nOverrides[i18nLocale] && i18nOverrides[i18nLocale][el.dataset.i18nKey];
+    if (own) { el.textContent = own; continue; }
     // Dictionary values may contain markup (<strong>, <em>); the dictionary ships with
     // the app and is trusted — never feed user input through this path.
     el.innerHTML = t(el.dataset.i18nKey);
@@ -81,6 +90,51 @@ function applyI18n(root) {
       if (el.dataset[store]) el.setAttribute(a, t(el.dataset[store]));
     }
   }
+}
+
+/**
+ * Take the operator's wording and re-translate what it touches. Only plain-string values are
+ * kept; anything else in the object is ignored rather than trusted.
+ */
+function setI18nOverrides(texte) {
+  const next = {};
+  if (texte && typeof texte === 'object') {
+    for (const [locale, table] of Object.entries(texte)) {
+      if (!table || typeof table !== 'object') continue;
+      next[locale] = {};
+      for (const [k, v] of Object.entries(table)) if (typeof v === 'string' && !/[<>&]/.test(v)) next[locale][i18nNorm(k)] = v;
+    }
+  }
+  if (JSON.stringify(next) === JSON.stringify(i18nOverrides)) return false;
+  // Only the elements whose text an override touches (now or before) are re-translated. A full
+  // applyI18n() would also reset elements app.js has filled since (previews, labels, status) to
+  // their static source text.
+  const keys = new Set([...Object.values(i18nOverrides), ...Object.values(next)].flatMap((tab) => Object.keys(tab)));
+  i18nOverrides = next;
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const key = el.dataset.i18nKey || i18nNorm(el.textContent);
+    if (!keys.has(key)) continue;
+    el.dataset.i18nKey = key;
+    el.textContent = t(key);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-html]')) {
+    const key = el.dataset.i18nKey || i18nNorm(el.innerHTML);
+    if (!keys.has(key)) continue;
+    el.dataset.i18nKey = key;
+    const own = i18nOverrides[i18nLocale] && i18nOverrides[i18nLocale][key];
+    if (own) el.textContent = own; else el.innerHTML = t(key);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-attr]')) {
+    for (const attr of el.dataset.i18nAttr.split(',')) {
+      const a = attr.trim();
+      const store = 'i18nAttr' + a.replace(/[^a-z]/gi, '');
+      const raw = el.dataset[store] || el.getAttribute(a) || '';
+      if (!keys.has(i18nNorm(raw))) continue;
+      el.dataset[store] = raw;
+      el.setAttribute(a, t(raw));
+    }
+  }
+  return true;
 }
 
 /**

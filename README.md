@@ -213,6 +213,16 @@ manifest; a loaded module without one is named on the page as having declared no
 startup log warns. A `datenschutz.html` always wins. Fields and an example: `.env.example`. This is
 a well-informed starting point, not legal advice — the operator remains responsible for the text.
 
+**The call setup in your words.** `oberflaeche.json` in the same directory sets what is ticked
+when the setup opens (`vorauswahl`), replaces the quick picks above the attribute list
+(`schnellwahl`, up to four, each with a name per language) and swaps interface strings for your own
+wording (`texte`, keyed by the German source string as in `public/translations.json`, per language)
+— "Mietinteressent" instead of "Gast" on a letting agent's instance, for example. It never widens
+anything: attributes outside the instance's WRP policy are dropped before the browser sees them,
+and a value containing `<`, `>` or `&` makes the whole file invalid, so a text can never become
+markup. Read per request; an invalid file is ignored and the reason logged. Format and an example:
+`src/operator-ui.ts`.
+
 **Your own site beside the application.** The same directory can hold a whole website without
 any change to this code. Pages are served under short paths, `faq.html` at `/faq` and
 `artikel/eins.html` (or `artikel/eins/index.html`) at `/artikel/eins`. `robots.txt`, `sitemap.xml`,

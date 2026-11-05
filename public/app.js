@@ -87,11 +87,13 @@ function applyCapabilities() {
 // Narrowing only — the client can never widen its own request scope, and the server would
 // narrow or refuse it anyway.
 let wrpPolicy = null;
+// The operator's choices for the setup (src/operator-ui.ts): preselection, quick picks, wording.
+let operatorUi = null;
 function allowedAttrKeys() {
   if (wrpPolicy && Array.isArray(wrpPolicy.allowedAttributes)) {
     return ATTRIBUTES.map((a) => a.key).filter((k) => wrpPolicy.allowedAttributes.includes(k));
   }
-  return ATTRIBUTES.map((a) => a.key);
+  return ATTRIBUTES.filter((a) => !a.policyOnly).map((a) => a.key);
 }
 // Attributes the server derives itself instead of asking the wallet for (pseudonym_id).
 function derivedKeys() {
@@ -104,6 +106,7 @@ async function refreshCaps() {
       const j = await r.json();
       if (Array.isArray(j.enabled)) caps = new Set(j.enabled);
       if (j.policy && typeof j.policy === 'object') wrpPolicy = j.policy;
+      operatorUi = j.ui && typeof j.ui === 'object' ? j.ui : null;
       hostLoginRequired = j.hostLogin === true;
       verifierOff = j.verifier === 'none';
       if (j.relyingParty && typeof j.relyingParty === 'object') rpDisclosure = j.relyingParty;
@@ -115,7 +118,22 @@ async function refreshCaps() {
   applyVerifierMode();
   applyPolicyTexts();
   applyRelyingPartyDisclosure();
+  applyOperatorUi();
   refreshCredCatalog(); // credential catalog — no-op when none is configured
+}
+/**
+ * The operator's wording, quick picks and preselection, once /capabilities has answered. A setup
+ * already on screen is rebuilt from it — unless someone has touched it, or its content is fixed by
+ * an invitation or an embedder.
+ */
+function applyOperatorUi() {
+  i18nReady.then(() => {
+    setI18nOverrides(operatorUi && operatorUi.texte);
+    renderPresets();
+    if (!setupBuilt) return;
+    if (!setupLocked && !setupTouched && !inviteCfg && !embedCfg) rebuildChecklists();
+    else { const c = currentAttrs(); updatePreview(c.requestedAttrs, c.disclosedAttrs); }
+  });
 }
 /**
  * State who is actually asking, before the wallet opens.
@@ -279,16 +297,25 @@ function setLocalLabel(name) { localNameTag.textContent = name ? name + ' · ' +
 const ATTRIBUTES = [
   { key: 'family_name', label: 'Nachname' },
   { key: 'given_name', label: 'Vorname' },
+  // Only where the instance's policy lists them (a purpose such as tenant screening): never part of
+  // the local default before /capabilities has answered, so an instance on the narrow standard
+  // policy does not offer them for a moment and then take them back.
+  { key: 'birth_date', label: 'Geburtsdatum', policyOnly: true },
+  { key: 'address', label: 'Anschrift', policyOnly: true },
   { key: 'age_over_18', label: 'Über 18 Jahre', note: 'ohne Geburtsdatum' },
   // Derived server-side (HMAC, per room, gone with the process) — not a wallet claim.
   // Only meaningful IN ADDITION to a real attribute; on its own it is not verification.
   { key: 'pseudonym_id', label: 'Pseudonym', note: 'einmalige Kennung statt Name' },
 ];
-const PRESETS = {
-  age: ['age_over_18'],
-  name: ['family_name', 'given_name'],
-  full: ['family_name', 'given_name', 'age_over_18'],
-};
+// The quick picks above the list. Built in, these three — shown only when the policy allows every
+// attribute in them. An operator can put their own in their place (/capabilities `ui.schnellwahl`,
+// src/operator-ui.ts). See renderPresets().
+const BUILTIN_PRESETS = [
+  { id: 'age', label: 'Altersnachweis 18+', keys: ['age_over_18'] },
+  { id: 'name', label: 'Name', keys: ['family_name', 'given_name'] },
+  { id: 'full', label: 'Voll', keys: ['family_name', 'given_name', 'age_over_18'] },
+];
+let presets = BUILTIN_PRESETS.map((p) => ({ ...p, label: p.label }));
 const labelFor = (k) => (ATTRIBUTES.find((a) => a.key === k) || {}).label || k;
 const modeLabel = (m) => (m === 'audio' ? 'Audio' : m === 'chat' ? 'Chat' : 'Video');
 
@@ -298,6 +325,8 @@ const ATTR_ICONS = {
   given_name: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   age_over_18: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/>',
   pseudonym_id: '<path d="M2 12h4l3-9 4 18 3-9h6"/>',
+  birth_date: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  address: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
 };
 function attrIconEl(key) {
   const inner = ATTR_ICONS[key];
@@ -316,10 +345,27 @@ function attrResult(key, claims) {
     case 'family_name': return claims.family_name != null ? { label: 'Nachname', value: titleCase(claims.family_name) } : null;
     case 'given_name': return claims.given_name != null ? { label: 'Vorname', value: titleCase(claims.given_name) } : null;
     case 'age_over_18': return claims.age_over_18 != null ? { label: 'Über 18 Jahre', badge: (claims.age_over_18 === true || claims.age_over_18 === 'true') ? 'Ja' : 'Nein' } : null;
+    case 'birth_date': return claims.birth_date != null ? { label: 'Geburtsdatum', value: formatBirthDate(claims.birth_date) } : null;
+    case 'address': { const a = formatAddress(claims.address); return a ? { label: 'Anschrift', value: a } : null; }
     // Not a wallet claim: derived by the server per room, gone when the process restarts.
     case 'pseudonym_id': return claims.pseudonym_id != null ? { label: 'Pseudonym', value: String(claims.pseudonym_id) } : null;
     default: return null;
   }
+}
+// ISO date from the wallet (YYYY-MM-DD) in the reader's own format; anything else as it came.
+function formatBirthDate(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+  if (!m) return String(v);
+  try { return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString(i18nLocale, { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }); } catch { return String(v); }
+}
+// The address in the shape the server delivers for both formats (src/credential-profiles.ts,
+// RECONSTRUCT.address): street, postcode and town, country — one line, as text.
+function formatAddress(v) {
+  if (v == null) return '';
+  if (typeof v !== 'object') return String(v);
+  if (typeof v.formatted === 'string' && v.formatted.trim()) return v.formatted.trim();
+  const ort = [v.postal_code, v.locality].filter((x) => x != null && x !== '').join(' ');
+  return [v.street_address, ort, v.country].filter((x) => x != null && x !== '').map(String).join(', ');
 }
 function renderResultInto(container, claims, attrs, emptyMsg) {
   container.innerHTML = '';
@@ -390,6 +436,23 @@ function buildChecklist(container, prefix, defaultKeys) {
     container.appendChild(row);
   }
 }
+// Ticked when the setup opens: the operator's preselection, else the family name.
+function ownDefault(side) {
+  const v = operatorUi && operatorUi.vorauswahl;
+  return sanitizeKeys(v && v[side], ['family_name']);
+}
+let setupTouched = false;
+/**
+ * The two lists again, from the policy and the operator's preselection that /capabilities has
+ * brought since the setup was first drawn — and the result sent, so the room holds what is shown.
+ */
+function rebuildChecklists() {
+  requestListEl.innerHTML = '';
+  discloseListEl.innerHTML = '';
+  buildChecklist(requestListEl, 'request', ownDefault('anfragen'));
+  buildChecklist(discloseListEl, 'disclose', ownDefault('teilen'));
+  onConfigChange();
+}
 function sanitizeKeys(arr, fallback) {
   const allowed = allowedAttrKeys();
   const list = Array.isArray(arr) ? arr.filter((k) => allowed.includes(k)) : null;
@@ -405,12 +468,19 @@ function buildSetup() {
   // Scheduled call: the agreed scope comes from the invitation. Without this, setup would show the
   // local defaults, i.e. something other than what the server actually holds.
   const reqDefault = inviteCfg ? sanitizeKeys(inviteCfg.request, [])
-    : embedCfg ? sanitizeKeys(embedCfg.request, requestMode === 'anon' ? [] : ['family_name']) : ['family_name'];
+    : embedCfg ? sanitizeKeys(embedCfg.request, requestMode === 'anon' ? [] : ['family_name']) : ownDefault('anfragen');
   const discDefault = inviteCfg ? sanitizeKeys(inviteCfg.disclose, [])
-    : embedCfg ? sanitizeKeys(embedCfg.disclose, []) : ['family_name'];
+    : embedCfg ? sanitizeKeys(embedCfg.disclose, []) : ownDefault('teilen');
   buildChecklist(requestListEl, 'request', reqDefault);
   buildChecklist(discloseListEl, 'disclose', discDefault);
-  presetsEl.querySelectorAll('[data-preset]').forEach((btn) => btn.addEventListener('click', () => applyPreset(btn.dataset.preset)));
+  // Delegated: renderPresets() replaces the buttons when the policy or the operator's picks arrive.
+  presetsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-preset]');
+    if (btn && !btn.disabled) applyPreset(btn.dataset.preset);
+  });
+  // Someone choosing is what stops a late /capabilities from rebuilding the lists under them.
+  setupBox.addEventListener('change', (e) => { if (e.isTrusted) setupTouched = true; }, true);
+  setupBox.addEventListener('click', (e) => { if (e.isTrusted && e.target.closest('button')) setupTouched = true; }, true);
   modeSeg.querySelectorAll('[data-mode]').forEach((btn) => btn.addEventListener('click', () => {
     mode = btn.dataset.mode;
     modeSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
@@ -433,6 +503,8 @@ function buildSetup() {
   if (embedCfg) {
     onConfigChange(); // push the embed-seeded config to the server
     if (embedCfg.lock) lockSetup(); // embedder pinned the config → read-only
+  } else if (!inviteCfg && operatorUi && operatorUi.vorauswahl) {
+    onConfigChange(); // the operator's preselection differs from the room's default → send it
   }
   // Scheduled call: pinned. No set-config — the server refuses it for this room anyway (the
   // agreed scope is in the invitation, which the guest consented to).
@@ -488,9 +560,30 @@ function setRequestMode(m) {
   onConfigChange();
 }
 function attrsChecked(prefix) { return ATTRIBUTES.map((a) => a.key).filter((k) => { const cb = document.getElementById(prefix + '-' + k); return cb && cb.checked; }); }
+/**
+ * The quick-pick buttons: the operator's (`ui.schnellwahl`) if there are any, else the built-in
+ * ones the policy fully allows. A pick reduced to nothing by the policy is not shown.
+ */
+function renderPresets() {
+  const allowed = allowedAttrKeys();
+  const own = operatorUi && Array.isArray(operatorUi.schnellwahl) && operatorUi.schnellwahl.length ? operatorUi.schnellwahl : null;
+  presets = own
+    ? own.map((p, i) => ({ id: 'own-' + i, label: (p.name && (p.name[i18nLocale] || p.name.de)) || '', keys: (p.angaben || []).filter((k) => allowed.includes(k)) }))
+      .filter((p) => p.label && p.keys.length)
+    : BUILTIN_PRESETS.filter((p) => p.keys.every((k) => allowed.includes(k))).map((p) => ({ ...p, label: t(p.label) }));
+  presetsEl.querySelectorAll('[data-preset]').forEach((b) => b.remove());
+  for (const p of presets) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip-btn'; b.dataset.preset = p.id; b.textContent = p.label;
+    b.disabled = verifierOff || setupLocked;
+    presetsEl.appendChild(b);
+  }
+  presetsEl.hidden = presets.length === 0;
+  syncPresetChips();
+}
 function applyPreset(name) {
   if (verifierOff) return;
-  const keys = PRESETS[name] || [];
+  const keys = (presets.find((p) => p.id === name) || {}).keys || [];
   for (const a of ATTRIBUTES) { const cb = document.getElementById('request-' + a.key); if (cb) cb.checked = keys.includes(a.key); }
   requestMode = 'data';
   requestSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.request === 'data'));
@@ -550,7 +643,7 @@ function updatePreview(req, disc) {
 function syncPresetChips() {
   const key = (requestMode === 'anon' ? [] : attrsChecked('request')).sort().join(',');
   presetsEl.querySelectorAll('[data-preset]').forEach((btn) => {
-    const set = [...(PRESETS[btn.dataset.preset] || [])].sort().join(',');
+    const set = [...((presets.find((p) => p.id === btn.dataset.preset) || {}).keys || [])].sort().join(',');
     btn.classList.toggle('active', !!key && key === set);
   });
 }

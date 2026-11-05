@@ -22,6 +22,7 @@ import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
 import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableMedia, OPERATOR_PAGES,
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
+import { readOperatorUi } from './operator-ui';
 import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
 import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
 import { refreshVerifierStatus, type StatusSources } from './verifier-status';
@@ -1110,8 +1111,21 @@ app.get('/capabilities', publicCors, (_req, res) => {
     // same reason as the pages: so a client can tell without probing.
     operatorHome: OPERATOR ? resolveOperatorHome(OPERATOR) !== null : false,
     policy: policyDescriptor(),
+    // The operator's choices for the setup (./operator-ui): preselection, quick picks, wording.
+    // Already reduced to this instance's attributes; null without a file or with an invalid one.
+    ui: operatorUi(),
   });
 });
+
+/** ./operator-ui, read per request; an invalid file is logged once per distinct reason. */
+let operatorUiFehler: string | null = null;
+function operatorUi() {
+  const r = readOperatorUi(OPERATOR ? OPERATOR.dir : null, policyDescriptor().allowedAttributes);
+  const fehler = r && 'fehler' in r ? r.fehler : null;
+  if (fehler && fehler !== operatorUiFehler) console.warn(`oberflaeche.json wird nicht verwendet: ${fehler}`);
+  operatorUiFehler = fehler;
+  return r && 'ui' in r ? r.ui : null;
+}
 
 /**
  * The WRP policy on its own endpoint — a stable, cacheable reference an auditor or
