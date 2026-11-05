@@ -16,7 +16,7 @@ import path from 'path';
 import http from 'http';
 import { randomUUID, createHash, timingSafeEqual, createHmac } from 'crypto';
 import express from 'express';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket, type RawData } from 'ws';
 
 import fs from 'fs';
 import { readBranding, brandHtml } from './branding';
@@ -1604,7 +1604,7 @@ wss.on('connection', (ws, request) => {
   const refill = setInterval(() => { tokens = Math.min(40, tokens + 20); }, 1000);
   ws.on('close', () => clearInterval(refill));
 
-  ws.on('message', async (raw) => {
+  const onMessage = async (raw: RawData) => {
     if (tokens <= 0) return; // over budget → silently drop
     tokens--;
     let msg: any;
@@ -1613,6 +1613,8 @@ wss.on('connection', (ws, request) => {
     } catch {
       return;
     }
+    // Only an object with a string `type` is a message — `null`, numbers, strings and arrays are not.
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.type !== 'string') return;
 
     if (msg.type === 'join') {
       await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv);
@@ -2007,6 +2009,12 @@ wss.on('connection', (ws, request) => {
       ext.roomStore.remove(room, participant);
       participantLeft(room, room.participants.length);
     }
+  };
+  // Never let one message take the process down: an async handler that throws is an unhandled
+  // rejection, and Node ends the process on it — every call on the instance with it. Until
+  // 2026-11-05 a single frame `null` did exactly that (msg.type on null).
+  ws.on('message', (raw) => {
+    onMessage(raw).catch((e) => console.error('[ws] message handler failed:', e instanceof Error ? e.message : e));
   });
 
   ws.on('close', () => {
@@ -2224,6 +2232,11 @@ loadExtensions().then((resolved) => {
   // from EUDIPLO and nobody knows which value was missing. Names variables only, never values
   // (see ./core/startup-checks).
   assertProductionConfig({ embedEnabled: enabledFeatures().has('embed') });
+  // The net under every promise nobody awaits: log it, keep running. Without it Node ends the
+  // process on the first one — and with it every call on this instance (all state is in memory).
+  process.on('unhandledRejection', (e) => {
+    console.error('[process] unhandled rejection:', e instanceof Error ? e.stack || e.message : e);
+  });
   server.listen(PORT, () => {
     console.log(`whosit-web listening on :${PORT}`);
     console.log(`Edition: ${CONFIGURED_EDITION}${PROMO_ALL_PRO ? ' + PROMO (effective: pro)' : ''}`);
