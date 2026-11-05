@@ -59,6 +59,10 @@ export interface Participant {
   /** Set when the participant is removed from the room for good. An offer created for them while
    *  an `await` was pending is then purged at once instead of being stored on someone gone. */
   left?: boolean;
+  /** Counts the offers asked for this participant. Only the latest one asked for is kept: an
+   *  older one that comes back later would replace it with a request for an outdated set of
+   *  attributes. See ensureAuthOffer in ./server. */
+  offerSeq?: number;
   /** In-call catalog credentials this participant presented DURING the call (Pro).
    *  Values are relayed ONLY to the requester (`forPeerId`) — never room-broadcast.
    *  Kept on the participant so a reconnect/resume re-renders the requester's badges. */

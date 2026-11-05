@@ -260,9 +260,15 @@ function walletReturnUrl(origin: string, roomId: string, ws?: WebSocket): string
   return `${origin}/zurueck?r=${room}`;
 }
 
-/** Returns false when the offer is no longer wanted once it exists (the participant left while it
- *  was being created) — it is then already purged at the verifier and nothing is to be sent. */
+/** Returns false when the offer is no longer wanted once it exists (the participant left, or a
+ *  newer offer was asked for, while it was being created) — it is then already purged at the
+ *  verifier and nothing is to be sent. */
 async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<boolean> {
+  // Taken before the first await. A join and a set-config right after it ask for two offers at
+  // once (found by the ERICA run, 2026-11-05); whichever came back last used to win, even when it
+  // was the join's offer for the attributes the host had just changed.
+  const seq = (participant.offerSeq ?? 0) + 1;
+  participant.offerSeq = seq;
   // Last line of defence before a wallet request is built. `attrs` normally arrived via
   // applyPolicy() and is already in scope — but a Pro RoomStore may hand back a room
   // PERSISTED before the WRP scoping. Refusing would strand that room, so degrade to the
@@ -293,6 +299,10 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   // verifier until its TTL.
   if (participant.left) {
     purgeVerifierSession(offer.sessionId, 'left');
+    return false;
+  }
+  if (participant.offerSeq !== seq) {
+    purgeVerifierSession(offer.sessionId, 'reissued');
     return false;
   }
   purgeVerifierSession(participant.verifierSessionId, 'reissued');
