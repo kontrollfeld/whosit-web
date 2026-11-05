@@ -988,6 +988,12 @@ Contributions are welcome — [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.m
 process (DCO sign-off plus a one-time CLA agreement, [`CLA.md`](CLA.md)). Code of conduct:
 [`.github/CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md).
 
+For the maintainers: commit messages, branch names and merge request titles are in English, and
+our own commits carry the team identity `Team Kontrollfeld <gitlab@kontrollfeld.de>`, never a
+person's — set it per clone with `git config user.name/user.email`. Merges are fast-forward, so no
+merge commit with the merging person's name reaches the public mirror; the `identity` job refuses
+a merge request with a personal kontrollfeld.de identity (`scripts/check-commit-identity.mjs`).
+
 ```bash
 npm test        # typecheck, licence boundary and all integration tests
 ```

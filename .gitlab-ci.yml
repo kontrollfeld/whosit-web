@@ -128,6 +128,20 @@ secrets:
       | tar -xz gitleaks
     - ./gitleaks git --config .gitleaks.toml --redact --verbose --exit-code 1
 
+# Our commits carry the team identity, never a person's (see scripts/check-commit-identity.mjs).
+# Merge requests only: with fast-forward merges, what passes here is exactly what lands on main.
+identity:
+  stage: test
+  before_script: []
+  cache: []
+  variables:
+    GIT_DEPTH: 0
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - git fetch -q origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - node scripts/check-commit-identity.mjs "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+
 # REUSE/SPDX: every file carries a copyright line and a licence ID, and every ID in use has its
 # text in LICENSES/. That makes the licensing situation machine-readable — exactly what public
 # bodies check during procurement — and it proves file by file that this repository is AGPL only,
