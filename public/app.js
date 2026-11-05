@@ -4490,17 +4490,22 @@ function playAppIntro() {
     box.appendChild(svg);
     clock = await startIntroSound().catch(() => null);
     if (done) return;
-    // The sky follows the sound's clock like the logo does (whositLogoAnimation.play).
+    // Logo visible (ai-run) and animation started (la-play, set inside play()) in the SAME task:
+    // until 2026-11-05 a frame passed between the two, and in it the finished logo flashed up
+    // before the animation began (Jakob: "am Anfang flackert es kurz").
     root.classList.add('ai-run');
+    const logo = whositLogoAnimation.play(box, { clock: typeof clock === 'function' ? clock : null });
+    // The sky follows the sound's clock like the logo does.
     await new Promise((r) => requestAnimationFrame(r));
-    const sky = root.getAnimations ? root.getAnimations({ subtree: true }) : [];
+    const sky = root.querySelector('.ai-sky');
+    const skyAnims = sky && sky.getAnimations ? sky.getAnimations({ subtree: true }) : [];
     const sync = () => {
       const t = typeof clock === 'function' ? clock() : NaN;
-      if (isFinite(t)) sky.forEach((a) => { try { a.currentTime = t * 1000; } catch { /* finished */ } });
+      if (isFinite(t)) skyAnims.forEach((a) => { try { a.currentTime = t * 1000; } catch { /* finished */ } });
     };
     sync();
     setTimeout(sync, 300);
-    await whositLogoAnimation.play(box, { clock: typeof clock === 'function' ? clock : null });
+    await logo;
     if (!done) setTimeout(finish, 350); // the logo rests as the file for a moment, then the app
   })();
 }

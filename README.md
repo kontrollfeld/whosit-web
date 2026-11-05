@@ -767,9 +767,12 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   2026-10-31): the same logo animation with the sound mark 12 dB quieter
   (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file)
   on a sky whose colours move with the sound — blue with the bubble, turquoise with the two long
-  tones, gold and a wave from the call ring with the star — then the app fades in underneath
+  tones, gold with the star; nothing moves over the logo itself (the waves and the glow were
+  removed on 2026-11-05, so only the Morse signal reads) — then the app fades in underneath
   (about 3.5 s; a tap skips it, 8 s at most whatever happens). The sky and the logo both follow
   the sound's clock. The colour logo needs light ground, so in dark mode it sits in a light halo.
+  The logo is made visible and its animation started in the same task — with a frame between
+  the two, the finished logo flashed up first (fixed 2026-11-05).
   Not when the app opens on an invitation or a wallet return, not with "reduce motion", silent
   when "Töne" is off. A head script in `index.html` shows the page from the first paint
   (`html.ai-on`, not `app-intro`: that class would also match the page's own `display: none`),
