@@ -128,6 +128,18 @@ secrets:
       | tar -xz gitleaks
     - ./gitleaks git --config .gitleaks.toml --redact --verbose --exit-code 1
 
+# Known vulnerabilities in what ships (production dependencies). body-parser and node-forge carried
+# high advisories for weeks in 2026 without anyone noticing, because nothing asked. Fails loudly
+# but does not block a release: a fresh advisory must not stop a security fix of our own from going
+# out — it shows up as a warning on every pipeline until it is dealt with.
+audit:
+  stage: test
+  before_script: []
+  cache: []
+  allow_failure: true
+  script:
+    - npm audit --omit=dev --audit-level=high
+
 # Our commits carry the team identity, never a person's (see scripts/check-commit-identity.mjs).
 # Merge requests only: with fast-forward merges, what passes here is exactly what lands on main.
 identity:

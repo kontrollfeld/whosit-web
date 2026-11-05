@@ -52,6 +52,10 @@ EXPOSE 3000
 # back a deployment that was fine.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Runs as `node`, not root — see scripts/docker-entrypoint.sh (it hands earlier root-owned data
+# volumes over first). Instance images built FROM this one inherit it.
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 # Modules are NOT part of this image. An instance image adds them and lists them in EUDI_MODULES;
 # if a listed module is missing, does not fit or conflicts, startup aborts in production rather
 # than quietly carrying on without it (see src/module-loader.ts).

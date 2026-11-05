@@ -460,6 +460,15 @@ function verifyEmbedToken(tok: string): EmbedPayload | null {
 }
 
 app.use((_req, res, next) => {
+  // Baseline headers on every answer (2026-11-05). HSTS: a browser that was here once never
+  // speaks plain HTTP to this host again (ignored on http://localhost). nosniff: a file is what
+  // its Content-Type says. Referrer: room links carry the room id — other sites get the origin
+  // at most. Permissions: features this app never uses are off, so an injected script could not
+  // use them either; camera and microphone are untouched.
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()');
   if (enabledFeatures().has('embed') && !EMBED_SECRET && EMBED_ANCESTORS) {
     res.setHeader('Content-Security-Policy', `frame-ancestors ${EMBED_ANCESTORS}`);
   } else {
@@ -550,8 +559,10 @@ const inviteCors: express.RequestHandler = (req, res, next) => {
 app.options('/invite', inviteCors);
 // Optional per-IP brake on the unauthenticated mint/sign endpoints (see ./rate-limit).
 // Off unless configured; 0 = off.
-const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 0);
-const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 0);
+// On by default since 2026-11-05 (were 0 = off): both endpoints answer anyone, and /wallet-pass
+// signs with the operator's pass certificate. 0 still switches a limit off.
+const RATE_LIMIT_INVITE = rateLimitFromEnv('EUDI_RATE_LIMIT_INVITE', 100);
+const RATE_LIMIT_WALLET_PASS = rateLimitFromEnv('EUDI_RATE_LIMIT_WALLET_PASS', 30);
 app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
   if (!enabledFeatures().has('planned-invites')) {
     res.status(501).json({ error: 'planned invites not configured' }); return;
@@ -650,6 +661,10 @@ app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
   if (!/^[A-Za-z0-9-]{8,64}$/.test(room) || isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
     res.status(400).json({ error: 'invalid room/start/end' }); return;
   }
+  // Without an invitation, only for a room that is open right now — the host is in it when they
+  // press the button. Otherwise anyone could have passes signed with the operator's certificate,
+  // with a title of their choosing, in bulk (audit #11, 2026-11-05).
+  if (!ext.roomStore.has?.(room)) { res.status(400).json({ error: 'unknown room' }); return; }
   try {
     const roomUrl = `${publicOriginFrom(req)}/?room=${encodeURIComponent(room)}`;
     const pkpass = buildTerminPass({ roomUrl, roomId: room, title, start, end, locale: lang });

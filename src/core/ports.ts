@@ -70,6 +70,9 @@ export interface RoomStore {
    * safe to restart precisely when it cannot know.
    */
   activeCount?(): number;
+  /** Whether a room with this id is open right now. OPTIONAL like activeCount; without it the
+   *  callers that need it (the ad-hoc wallet pass) refuse rather than assume. */
+  has?(roomId: string): boolean;
 }
 
 /**

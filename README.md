@@ -711,6 +711,17 @@ works with no further effort.
     well (`SESSION_TTL`, `SESSION_TIDY_UP_INTERVAL`, or `sessionConfig.ttlSeconds` per tenant),
     so an instance that is unreachable for a moment does not quietly become an archive.
 - **No framing** without explicit configuration (no wildcard default).
+- **Baseline headers** on every answer: HSTS, `nosniff`, `Referrer-Policy:
+  strict-origin-when-cross-origin` (room links carry the room id), a `Permissions-Policy` that
+  switches off what the app never uses.
+- **Limits on by default** (since 2026-11-05): `POST /invite` 100 and `GET /wallet-pass` 30 per
+  client IP per 10 minutes (`EUDI_RATE_LIMIT_*`, `0` = off). A pass without an invitation is only
+  signed for a room that is open right now — otherwise anyone could have passes signed with the
+  operator's certificate under a title of their choosing.
+- **Not root:** the container starts as root only to hand data volumes from earlier versions to
+  the user `node`, then runs as `node` (`scripts/docker-entrypoint.sh`).
+- **Dependencies checked:** the `audit` job runs `npm audit --omit=dev --audit-level=high` on every
+  pipeline — a warning, not a blocker, so a fix of our own is never held up by a new advisory.
 - **Startup check:** in production the server refuses to start when required values are missing or
   recognised placeholders are present — naming only variables, never values.
 - Found a vulnerability? → [`.github/SECURITY.md`](.github/SECURITY.md), please **not** as a

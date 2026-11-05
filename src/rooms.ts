@@ -286,6 +286,9 @@ export function findByWs(ws: WebSocket): { room: Room; participant: Participant 
  * A room is removed from the map as soon as its last participant leaves (see below), so this
  * needs no sweep of its own.
  */
+export function hasRoom(roomId: string): boolean {
+  return rooms.has(roomId);
+}
 export function activeRoomCount(): number {
   return rooms.size;
 }
