@@ -23,6 +23,8 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      # Traefik reads the container list through the socket proxy below, never the socket itself.
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       # force HTTPS
@@ -36,13 +38,25 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # SECURITY: read access to the Docker socket is effectively root on the host (the API can
-      # start privileged containers; ":ro" only protects the socket file, not the API). For a
-      # hardened setup put a socket proxy in front, e.g. tecnativa/docker-socket-proxy
-      # (CONTAINERS=1 only), and point --providers.docker.endpoint at it.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-acme:/acme
-    networks: [web]
+    networks: [web, docker-api]
+    depends_on: [socket-proxy]
+
+  # Access to the Docker socket is effectively root on the host: the API can start privileged
+  # containers, and ":ro" only protects the socket FILE, not the API. Traefik needs nothing but the
+  # list of containers and their labels, so it gets exactly that through this proxy (since
+  # 2026-11-05; before, the socket was mounted into Traefik directly). The proxy answers GET on
+  # /containers and nothing else — no POST, no exec, no images — and sits on a network of its own
+  # that has no route out.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-api]
 
   app:
     build: .                      # reuses the existing multi-stage ./Dockerfile
@@ -142,3 +156,5 @@ volumes:
 networks:
   web:
     driver: bridge
+  docker-api:
+    internal: true

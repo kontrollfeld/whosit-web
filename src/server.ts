@@ -55,6 +55,7 @@ import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
 import { rateLimit, rateLimitFromEnv, clientIp } from './rate-limit';
+import { appPagePolicy } from './csp';
 
 // A configured host gate must also be ABLE to work. If this instance's policy permits no
 // name, there would be nothing to compare and nobody would ever get through — an unusable
@@ -677,12 +678,22 @@ app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
   }
 });
 
+/** The app page, with its Content-Security-Policy (./csp). Every route that shows the app goes
+ *  through here; the policy is an ADDITIONAL header next to the frame-ancestors one, and browsers
+ *  enforce both. */
+const INDEX_FILE = path.join(__dirname, '..', 'public', 'index.html');
+let indexPolicyHtml: string | null = null;
+function serveApp(req: express.Request, res: express.Response): void {
+  if (BRANDING) return sendBranded(res, 'index.html');
+  indexPolicyHtml ??= fs.readFileSync(INDEX_FILE, 'utf8');
+  res.append('Content-Security-Policy', appPagePolicy(indexPolicyHtml, req.headers.host));
+  res.set('Cache-Control', 'no-cache').sendFile(INDEX_FILE);
+}
+app.get('/index.html', serveApp);
+
 // The wallet's way back (walletReturnUrl): the app itself, which decides on the client whether this
 // browser rejoins the room or just says "done". Never an operator's start page.
-app.get('/zurueck', (_req, res) => {
-  if (BRANDING) return sendBranded(res, 'index.html');
-  res.set('Cache-Control', 'no-cache').sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
+app.get('/zurueck', serveApp);
 
 // Must be registered BEFORE express.static: the query fork below decides what "/" means, and
 // the static handler would answer with index.html before it ever runs.
@@ -699,21 +710,21 @@ app.get('/', (req, res, next) => {
     }
     const origins = payload.o && payload.o.length ? payload.o.join(' ') : "'self'";
     res.setHeader('Content-Security-Policy', `frame-ancestors ${origins}`);
-    return next(); // serve the app (index.html)
+    return serveApp(req, res);
   }
   // `inv` marks a scheduled call: the room id sits inside the signed invitation, not in the
   // URL — so this parameter must open the app, not an operator's start page. `pair` is the
   // phone-signature QR code (./device-pairing): without it, a phone whose link is not taken
   // by the app would land on the operator's start page and never see the pairing page.
   if ('room' in req.query || 'inv' in req.query || 'pair' in req.query || 'new' in req.query || 'solo' in req.query || isEmbed) {
-    return BRANDING ? sendBranded(res, 'index.html') : next();
+    return serveApp(req, res);
   }
   // Where the operator supplies a start page, it owns "/" — see ./operator-pages. Without one
   // the bare URL opens the tool itself: this is a calling application, not a website, and an
   // instance someone else runs should not greet visitors with the project's marketing.
   const home = OPERATOR ? resolveOperatorHome(OPERATOR) : null;
   if (home) { res.set('Cache-Control', 'no-cache').sendFile(home); return; }
-  return BRANDING ? sendBranded(res, 'index.html') : next();
+  return serveApp(req, res);
 });
 
 /**
@@ -727,7 +738,9 @@ function sendBranded(res: express.Response, file: string): void {
   if (!BRANDING) { res.sendFile(full); return; }
   fs.readFile(full, 'utf8', (err, html) => {
     if (err) { res.status(404).end(); return; }
-    res.type('html').set('Cache-Control', 'no-cache').send(brandHtml(html, BRANDING));
+    const out = brandHtml(html, BRANDING);
+    if (file === 'index.html') res.append('Content-Security-Policy', appPagePolicy(out, res.req.headers.host));
+    res.type('html').set('Cache-Control', 'no-cache').send(out);
   });
 }
 // MUST be registered BEFORE the branding interceptor below. Express takes the first matching

@@ -47,7 +47,7 @@
     "test:relyingparty": "node scripts/test-relying-party.mjs",
     "check:instances": "node scripts/check-instances.mjs",
     "test:editions": "node scripts/test-editions.mjs",
-    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run check:no-external-scripts && npm run test:wrp && npm run test:wrprc && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:modules && npm run test:module-presentations && npm run test:call-actions && npm run test:credential-module && npm run test:webhook && npm run test:purge && npm run test:usage && npm run test:openroom && npm run test:operatorpages && npm run test:invite && npm run test:hostlogin && npm run test:relyingparty && npm run test:qes && npm run test:qes-device && npm run test:qes-pairing && npm run test:verifier-none && npm run test:verifierstatus && npm run test:ratelimit && npm run test:ws-robustness && npm run test:signaling-gate && npm run test:consent-binding && npm run test:abuse-limits",
+    "test": "npm run typecheck && npm run check:licence-boundary && npm run check:env-features && npm run check:no-external-scripts && npm run test:wrp && npm run test:wrprc && npm run test:hostgate && npm run test:netcheck && npm run test:startup && npm run test:editions && npm run test:modules && npm run test:module-presentations && npm run test:call-actions && npm run test:credential-module && npm run test:webhook && npm run test:purge && npm run test:usage && npm run test:openroom && npm run test:operatorpages && npm run test:invite && npm run test:hostlogin && npm run test:relyingparty && npm run test:qes && npm run test:qes-device && npm run test:qes-pairing && npm run test:verifier-none && npm run test:verifierstatus && npm run test:ratelimit && npm run test:ws-robustness && npm run test:signaling-gate && npm run test:consent-binding && npm run test:abuse-limits && npm run test:csp",
     "test:startup": "node scripts/test-startup-guard.mjs",
     "test:webhook": "node scripts/test-webhook.mjs",
     "test:purge": "node scripts/test-session-purge.mjs",
@@ -68,7 +68,8 @@
     "test:ws-robustness": "node scripts/test-ws-robustness.mjs",
     "test:signaling-gate": "node scripts/test-signaling-gate.mjs",
     "test:consent-binding": "node scripts/test-consent-binding.mjs",
-    "test:abuse-limits": "node scripts/test-abuse-limits.mjs"
+    "test:abuse-limits": "node scripts/test-abuse-limits.mjs",
+    "test:csp": "node scripts/test-csp.mjs"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {

@@ -154,6 +154,7 @@ Then open `https://<DOMAIN>` in a browser. A badge at the bottom shows the versi
 | Service | Role | Network |
 |---|---|---|
 | `traefik` | HTTP→HTTPS redirect, Let's Encrypt certificates (TLS-ALPN-01), WSS routing to the app | `web` (bridge), ports 80/443 |
+| `socket-proxy` | gives Traefik the container list it needs — read-only, nothing else of the Docker API | `docker-api` (internal, no route out) |
 | `app` | Node backend (from `./Dockerfile`): frontend + `/webhook` + WebSocket signalling + verify gate | `web`, internally `:3000` |
 | `coturn` | TURN relay for NAT traversal | **host** (needs the real IP + port range) |
 | `mock-eudiplo` | *(profile `mock`)* local EUDIPLO stand-in, no wallet | `web`, `/mock` |
@@ -685,6 +686,10 @@ works with no further effort.
   A short trip to the wallet app and back is not such a change: the seat and the agreement stay.
 - **coturn** as a relay only, private IP ranges blocked (SSRF protection), secret never
   committed.
+- **Webhook token never logged:** the token in the callback URL authenticates the wallet's
+  result; the application never writes it anywhere (`npm run test:purge` checks the log). The
+  compose file keeps Traefik's access log off. If you switch it on, drop the request path, which
+  carries the token: `--accesslog.fields.names.RequestPath=drop`.
 - **No replay:** the webhook token is consumed after a successful check — an intercepted callback
   cannot be replayed. Otherwise the verification record would be forgeable, and a record showing
   more events than actually happened is worthless as evidence.
@@ -711,6 +716,16 @@ works with no further effort.
     well (`SESSION_TTL`, `SESSION_TIDY_UP_INTERVAL`, or `sessionConfig.ttlSeconds` per tenant),
     so an instance that is unreachable for a moment does not quietly become an archive.
 - **No framing** without explicit configuration (no wildcard default).
+- **Content-Security-Policy on the app page:** scripts only from this origin, plus the page's own
+  inline scripts by the hash of their exact text — computed from the HTML actually sent, so a
+  branded page is covered too; an injected script has another hash and does not run
+  ([`src/csp.ts`](src/csp.ts), `npm run test:csp`). Module pages are not covered: they bring their
+  own markup. A whole call under the policy (QR, PDF viewer, background blur, WebRTC) was run in a
+  browser without a single violation.
+- **No Docker socket in Traefik:** it reads the container list through a read-only socket proxy
+  on an internal network; the API's write side (create, exec, …) is refused.
+- **Registration certificate:** an expired one is refused at startup, and one that runs out while
+  the instance runs is no longer sent — EUDIPLO issues one via its registrar until a new one is set.
 - **Baseline headers** on every answer: HSTS, `nosniff`, `Referrer-Policy:
   strict-origin-when-cross-origin` (room links carry the room id), a `Permissions-Policy` that
   switches off what the app never uses.

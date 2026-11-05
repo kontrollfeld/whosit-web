@@ -144,5 +144,19 @@ console.log('5. startup');
   check('status mode invalid → fatal', runMode({ EUDI_STATUS_CHECK_MODE: 'lenient' }) === '[true]', runMode({ EUDI_STATUS_CHECK_MODE: 'lenient' }));
 }
 
+console.log('6. running past the expiry (2026-11-05)');
+{
+  const now = Math.floor(Date.now() / 1000);
+  const r = tsx(`
+    import { registrationCert } from './src/registration-cert';
+    const before = registrationCert(Date.now()) !== null;
+    const after = registrationCert(Date.now() + 2 * 3600_000);
+    console.log(JSON.stringify({ before, after: after !== null }));`, { EUDI_REGISTRATION_CERT: jwtFor({ exp: now + 3600 }) });
+  let o = {}; try { o = JSON.parse(r.out.split('\n').pop()); } catch {}
+  check('valid now: sent', o.before === true, r.out || r.err);
+  check('an hour after it ran out: no longer sent', o.after === false, r.out || r.err);
+  check('and the log says so', /expired .* no longer sent/.test(r.err), r.err.slice(0, 200));
+}
+
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log('\nall registration-certificate checks passed');

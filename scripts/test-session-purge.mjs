@@ -316,6 +316,9 @@ try {
     check('no session id in clear text', !new RegExp([...offers.keys()].join('|')).test(joined),
       'a verifier session id is half an access credential');
     check('no identity data', !/Mustermann|Erika/.test(joined), 'a PID value in the log');
+    const tokens = [...offers.values()].map((u) => new URL(u).searchParams.get('t')).filter(Boolean);
+    check('no webhook token', tokens.length > 0 && !tokens.some((t) => joined.includes(t)),
+      'the token authenticates the wallet\'s callback — in a log it is a way to forge one');
   }
 } catch (e) {
   console.error(`\n✗ Test setup failed: ${e.message}`);

@@ -78,9 +78,24 @@ export function loadRegistrationCert(env: Env = process.env): RegistrationCert |
 }
 
 let cached: RegistrationCert | null | undefined;
-/** The process-wide certificate, read once. */
-export function registrationCert(): RegistrationCert | null {
+let warnedExpired = false;
+/**
+ * The process-wide certificate, read once — and dropped from use the moment it runs out
+ * (2026-11-05). Startup refuses an expired one already (./core/startup-checks), but an instance
+ * that runs for weeks would otherwise keep sending a certificate that expired yesterday, and the
+ * failure would show first on someone's phone. Without it EUDIPLO issues one itself through its
+ * registrar, as on an instance that never had one; the log says so, once.
+ */
+export function registrationCert(now = Date.now()): RegistrationCert | null {
   if (cached === undefined) cached = loadRegistrationCert();
+  const exp = Number(cached?.payload?.exp);
+  if (cached && Number.isFinite(exp) && exp * 1000 <= now) {
+    if (!warnedExpired) {
+      warnedExpired = true;
+      console.error(`[wrprc] ${cached.source} expired ${new Date(exp * 1000).toISOString()} — no longer sent; EUDIPLO issues one via its registrar until a new one is configured.`);
+    }
+    return null;
+  }
   return cached;
 }
 
