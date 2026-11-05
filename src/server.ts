@@ -54,7 +54,7 @@ import { initUsage, callStarted, participantLeft } from './usage';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
-import { rateLimit, rateLimitFromEnv } from './rate-limit';
+import { rateLimit, rateLimitFromEnv, clientIp } from './rate-limit';
 
 // A configured host gate must also be ABLE to work. If this instance's policy permits no
 // name, there would be nothing to compare and nobody would ever get through — an unusable
@@ -948,7 +948,10 @@ const TURN_URL = (process.env.TURN_URL || '').trim();       // e.g. turn:call.ex
  */
 const TURN_TLS_URL = (process.env.TURN_TLS_URL || '').trim();
 const TURN_SECRET = (process.env.TURN_SECRET || '').trim();
-const TURN_TTL = Number(process.env.TURN_TTL || 86400);     // credential lifetime, seconds
+// Credential lifetime, seconds. 6 h since 2026-11-05 (was 24 h): /ice answers anyone, so whatever it
+// hands out is a day's free relay for whoever asks. 6 h still outlasts any call — coturn checks the
+// timestamp on every refresh, so a call longer than this would lose its relay.
+const TURN_TTL = Number(process.env.TURN_TTL || 21600);
 // STUN_URLS (comma-separated) replaces the defaults; `none` advertises no STUN server at all.
 const STUN_DEFAULT = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'];
 const STUN_RAW = (process.env.STUN_URLS || '').trim();
@@ -962,7 +965,11 @@ const FALLBACK_TURN = [
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
-app.get('/ice', publicCors, (_req, res) => {
+// Limited per client IP (default 120 per 10 minutes, EUDI_RATE_LIMIT_ICE; 0 = off). Credentials are
+// not bound to a room yet: the page and every app build already in use fetch /ice before joining
+// (network check, camera test, phone pairing). Binding them would cut those apps off TURN.
+const RATE_LIMIT_ICE = rateLimitFromEnv('EUDI_RATE_LIMIT_ICE', 120);
+app.get('/ice', publicCors, rateLimit(RATE_LIMIT_ICE), (_req, res) => {
   const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = (STUN_URLS.length ? [{ urls: STUN_URLS }] : []);
   if (TURN_URL && TURN_SECRET) {
     // TURN REST: username = "<unix-expiry>:<name>", credential = base64(HMAC-SHA1(secret, username)).
@@ -1663,7 +1670,36 @@ function requestCredential(ws: WebSocket, msg: any): void {
 
 // ---- websocket signaling -------------------------------------------------
 
+// Abuse limits per client IP (2026-11-05, audit #3). Every new room creates a session at the
+// verifier — without a brake, one script could fill EUDIPLO with them. Generous enough for an
+// office behind one address; each is an env variable, 0 = off.
+const WS_PER_IP = rateLimitFromEnv('EUDI_WS_PER_IP', 30);
+const NEW_ROOMS_PER_IP = rateLimitFromEnv('EUDI_NEW_ROOMS_PER_IP', 60); // per 10 minutes
+const RENEW_AUTH_MS = 10_000;
+const wsPerIp = new Map<string, number>();
+const newRooms = new Map<string, number[]>();
+function newRoomAllowed(ip: string, now = Date.now()): boolean {
+  if (!NEW_ROOMS_PER_IP) return true;
+  const recent = (newRooms.get(ip) ?? []).filter((t) => now - t < 10 * 60_000);
+  if (recent.length >= NEW_ROOMS_PER_IP) { newRooms.set(ip, recent); return false; }
+  recent.push(now);
+  newRooms.set(ip, recent);
+  if (newRooms.size > 10_000) newRooms.delete(newRooms.keys().next().value as string);
+  return true;
+}
+
 wss.on('connection', (ws, request) => {
+  const ip = clientIp(request as any);
+  const open = (wsPerIp.get(ip) ?? 0) + 1;
+  if (WS_PER_IP && open > WS_PER_IP) {
+    ws.close(1013, 'too many connections');
+    return;
+  }
+  wsPerIp.set(ip, open);
+  ws.on('close', () => {
+    const n = (wsPerIp.get(ip) ?? 1) - 1;
+    if (n > 0) wsPerIp.set(ip, n); else wsPerIp.delete(ip);
+  });
   const origin = publicOriginFrom(request);
   if (request.headers.origin && APP_ORIGINS.includes(request.headers.origin)) appSockets.add(ws);
 
@@ -1690,6 +1726,11 @@ wss.on('connection', (ws, request) => {
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.type !== 'string') return;
 
     if (msg.type === 'join') {
+      const roomId = String(msg.roomId || '');
+      if (roomId && ext.roomStore.has && !ext.roomStore.has(roomId) && !newRoomAllowed(ip)) {
+        send(ws, { type: 'error', message: 'too many new rooms from this address — try again in a few minutes' });
+        return;
+      }
       await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv);
       return;
     }
@@ -1789,6 +1830,16 @@ wss.on('connection', (ws, request) => {
     if (msg.type === 'renew-auth') {
       const hit = ext.roomStore.findByWs(ws);
       if (!hit || hit.participant.verified) return;
+      // One new wallet offer per 10 s at most — each is a session at the verifier.
+      const now = Date.now();
+      if (hit.participant.renewedAt && now - hit.participant.renewedAt < RENEW_AUTH_MS) {
+        // Answer with the offer made moments ago rather than nothing: the page disables its
+        // button until an 'auth' arrives, and silence would leave it stuck.
+        const o = hit.participant.offer;
+        if (o) send(ws, { type: 'auth', uri: o.uri, crossDeviceUri: o.crossDeviceUri });
+        return;
+      }
+      hit.participant.renewedAt = now;
       void reissueAuthOffer(hit.participant, hit.room, origin);
       return;
     }

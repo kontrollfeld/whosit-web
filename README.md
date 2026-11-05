@@ -718,6 +718,11 @@ works with no further effort.
   client IP per 10 minutes (`EUDI_RATE_LIMIT_*`, `0` = off). A pass without an invitation is only
   signed for a room that is open right now — otherwise anyone could have passes signed with the
   operator's certificate under a title of their choosing.
+- **Brakes per address** (on by default): at most 30 open connections, 60 new rooms per
+  10 minutes (each creates a verifier session) and 120 `/ice` requests per 10 minutes per client
+  IP; a fresh wallet offer at most every 10 s per person. TURN credentials last 6 h (was 24 h).
+  They are not bound to a room yet: the page and every app build in use fetch `/ice` before
+  joining (network check, camera test, phone pairing). `npm run test:abuse-limits`.
 - **Not root:** the container starts as root only to hand data volumes from earlier versions to
   the user `node`, then runs as `node` (`scripts/docker-entrypoint.sh`).
 - **Dependencies checked:** the `audit` job runs `npm audit --omit=dev --audit-level=high` on every

@@ -288,6 +288,28 @@ try {
   }
 
   // ---------------------------------------------------------------------------
+  console.log('\nA fresh wallet offer at most every 10 s (audit #3)');
+  {
+    const { guest } = await newGuest();
+    clients.push(guest);
+    const n = created.length;
+    const authsNow = () => guest.seen.filter((m) => m.type === 'auth').length;
+    // As the page does it: click, wait for the answer (the button is disabled until then), click again.
+    let before = authsNow();
+    guest.send({ type: 'renew-auth' });
+    for (let t0 = Date.now(); authsNow() === before && Date.now() - t0 < 3000; ) await new Promise((r) => setTimeout(r, 50));
+    const renewed = guest.seen.filter((m) => m.type === 'auth').pop();
+    before = authsNow();
+    guest.send({ type: 'renew-auth' });
+    for (let t0 = Date.now(); authsNow() === before && Date.now() - t0 < 3000; ) await new Promise((r) => setTimeout(r, 50));
+    const second = guest.seen.filter((m) => m.type === 'auth').pop();
+    await new Promise((r) => setTimeout(r, 300));
+    check('the first ask makes a new session', created.length === n + 1, `${created.length - n} new`);
+    check('the second, seconds later, makes none', created.length === n + 1, `${created.length - n} new`);
+    check('but is answered with the offer just made (the page\'s button must not hang)', authsNow() === before + 1 && second?.uri === renewed?.uri, `${second?.uri} vs ${renewed?.uri}`);
+  }
+
+  // ---------------------------------------------------------------------------
   console.log('\nThe log discloses nothing');
   {
     const joined = appLog.join('');

@@ -59,6 +59,8 @@ export interface Participant {
   /** Set when the participant is removed from the room for good. An offer created for them while
    *  an `await` was pending is then purged at once instead of being stored on someone gone. */
   left?: boolean;
+  /** When this participant last asked for a fresh wallet offer (renew-auth is throttled). */
+  renewedAt?: number;
   /** Counts the offers asked for this participant. Only the latest one asked for is kept: an
    *  older one that comes back later would replace it with a request for an outdated set of
    *  attributes. See ensureAuthOffer in ./server. */
