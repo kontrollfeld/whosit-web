@@ -47,6 +47,18 @@ const LOCAL_ONLY = {
   'url.request_jwt.x5c_trust_anchor': 'local EUDIPLO uses a self-signed access certificate',
 };
 
+/** ERICA findings that say nothing about the request, in both modes. Locally they never show:
+ *  a LOCAL_ONLY error ends ERICA's validation before its PID profile runs. */
+const ERICA_DEFECTS = {
+  // PIDPresentationProfile reads request.verifierInfo after normalizeRequest renamed it to
+  // verifier_info, so it fails on every request. runLive checks verifier_info itself.
+  'profile.verifier_info.presence': 'ERICA bug: fails on every request (checked by this script instead)',
+};
+/** ERICA errors that are recommendations elsewhere: shown, not enforced. */
+const ERICA_STRICTER = {
+  'profile.iss.presence': 'OpenID4VP 1.0 does not require iss in the request object, RFC 9101 recommends it; EUDIPLO sets the request object, not the app',
+};
+
 // ------------------------------------------------------------------ Report ----
 const results = [];          // { suite, name, status: pass|fail|skip|info, detail }
 const sessions = [];
@@ -114,6 +126,8 @@ function reportRequestChecks(checks) {
   for (const c of failed) {
     const label = `${c.checkId}: ${c.issue || c.checkName}`;
     if (!LIVE && LOCAL_ONLY[c.checkId]) skip(label, LOCAL_ONLY[c.checkId]);
+    else if (ERICA_DEFECTS[c.checkId]) skip(label, ERICA_DEFECTS[c.checkId]);
+    else if (ERICA_STRICTER[c.checkId]) warn(label, ERICA_STRICTER[c.checkId]);
     else if (c.severity === 'ERROR') check(label, false, c.suggestedFix || c.details || '');
     else warn(label, c.suggestedFix || c.details || '');
   }
@@ -358,6 +372,12 @@ async function runLive() {
     sessions.push({ suite, requestId, session: debug?.data, parsed });
     check('ERICA fetched and parsed the live request', !!parsed?.request, JSON.stringify(parsed?.errors ?? parsed).slice(0, 300));
     reportRequestChecks(requestChecks(parsed, debug?.data));
+    // What ERICA's verifier_info check should have looked at (parsed.request is the JWT payload).
+    // EUDIPLO drops the registration certificate without a word when the tenant has no registrar.
+    const info = parsed?.request?.verifier_info;
+    check('the request relays the registration certificate (verifier_info)',
+      Array.isArray(info) ? info.length > 0 : !!info,
+      'no verifier_info; is a registrar configured for the tenant? See README, "Registration certificate"');
   } finally {
     if (sessionId) {
       const r = await fetch(`${base}/api/session/${encodeURIComponent(sessionId)}`, { method: 'DELETE', headers: auth });

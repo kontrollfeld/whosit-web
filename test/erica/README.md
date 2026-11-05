@@ -62,8 +62,18 @@ These are reported as skipped, not failed:
 - `MODIFIED_CLAIMS`, `FORMAT_MISMATCH`, `MALFORMED_SD_JWT`, `WRONG_ISSUER` and
   `WRONG_CREDENTIAL_TYPE` are announced but not implemented.
 
+- `profile.verifier_info.presence` fails on every request: the PID profile reads
+  `request.verifierInfo` after ERICA itself renamed it to `verifier_info`. Skipped; live mode
+  checks `verifier_info` itself.
+
+`profile.iss.presence` is shown, not enforced: ERICA demands `iss` in the request object,
+OpenID4VP 1.0 does not (RFC 9101 recommends it). EUDIPLO 9.1 builds the request object without it,
+and the app has no say in that.
+
 Local-only findings are skipped too: `response_uri` over plain HTTP, and the self-signed access
-certificate that no registrar has signed. In live mode they count.
+certificate that no registrar has signed. In live mode they count. Locally ERICA never gets as
+far as its PID profile checks (55 in live mode, 29 locally): a local-only error ends the
+validation first.
 
 ## Findings so far
 
@@ -75,6 +85,10 @@ certificate that no registrar has signed. In live mode they count.
 - EUDIPLO pins the **signer** certificate from a trust list ("Pinned mode: leaf"), not the CA. The
   trust list therefore holds ERICA's two signer certificates, not its root.
 - On a failed presentation, EUDIPLO 9.1 puts the reason in `outcome.result` and `outcome.message`.
+- A join and a `set-config` right after it ask for two offers at once. Since offers that are
+  replaced get deleted at the verifier, the one the client saw first could be gone by the time a
+  wallet answered; before that, the older offer could win. Only the latest offer asked for is kept
+  now (`offerSeq`, 2026-11-05).
 
 ## Bumping ERICA
 
