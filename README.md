@@ -696,6 +696,13 @@ works with no further effort.
   its time-based sweep (`SESSION_TTL`, 24 h by default) removed them. See
   [`src/verifier-session.ts`](src/verifier-session.ts) and `npm run test:purge`.
 
+  Since 2026-11-05 also in the corners: a wallet that answers after the person left (the
+  callback for an unknown session deletes the verifier's copy, at most 30 a minute); a module's
+  presentation that ran out before anyone asked for it; an offer finished while the person was
+  already leaving. A delete that fails for a reason that may pass (no answer, 5xx, 429) is tried
+  again after 30 s, 2 min and 8 min (`EUDI_PURGE_RETRY_MS` sets the first wait); a refusal
+  (401/403) is not, the log says what to fix. Every call to the verifier gives up after 10 s.
+
   Two things to know when operating this:
   - the tenant client needs the role **`presentation:request`** — the same one that creates the
     offer. Without it EUDIPLO answers the delete with 403; the call still works, the log then

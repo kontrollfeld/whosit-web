@@ -118,10 +118,16 @@ let cachedToken: string | null = null;
 let tokenExpiry = 0;
 let cachedTenantSecret: string | null = null;
 
+
+/** Every call to the verifier gives up after 10 s (audit #14, 2026-11-05). Without it a verifier
+ *  that hangs holds each offer, config and purge open indefinitely — and a join waits with it. */
+const VERIFIER_TIMEOUT_MS = 10_000;
+const verifierTimeout = (): AbortSignal => AbortSignal.timeout(VERIFIER_TIMEOUT_MS);
+
 async function postJson(path: string, body: unknown, token?: string): Promise<any> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body ?? {}) });
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body ?? {}), signal: verifierTimeout() });
   const text = await res.text();
   let json: any;
   try { json = JSON.parse(text); } catch { json = text; }
@@ -323,7 +329,7 @@ async function warnIfRegistrarMissing(token: string): Promise<void> {
   if (registrarChecked) return;
   registrarChecked = true;
   try {
-    const res = await fetch(`${BASE}/api/registrar/config`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${BASE}/api/registrar/config`, { headers: { Authorization: `Bearer ${token}` }, signal: verifierTimeout() });
     const text = res.ok ? await res.text() : '';
     if (res.status === 404 || (res.ok && (!text || text === 'null'))) {
       console.error(
@@ -388,7 +394,7 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
 export async function verifierGet(path: string): Promise<any> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(attempt === 1);
-    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}` }, signal: verifierTimeout() });
     if (res.status === 401 && attempt === 0) { cachedToken = null; continue; }
     const text = await res.text();
     if (!res.ok) {
@@ -495,6 +501,7 @@ export async function deleteVerifierSession(sessionId: string): Promise<void> {
     const res = await fetch(`${BASE}/api/session/${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
+      signal: verifierTimeout(),
     });
     if (res.ok || res.status === 404) return; // 204 expected; 404 = already gone, same outcome
     if (res.status === 401 && attempt === 0) {

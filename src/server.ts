@@ -230,7 +230,7 @@ async function reissueAuthOffer(participant: Participant, room: Room, origin: st
   const attrs = attrsFor(room, participant);
   if (!requiresWalletPresentation(attrs)) return;
   try {
-    await ensureAuthOffer(participant, attrs, origin, room.id);
+    if (!(await ensureAuthOffer(participant, attrs, origin, room.id))) return;
     send(participant.ws, { type: 'auth', uri: participant.offer!.uri, crossDeviceUri: participant.offer!.crossDeviceUri });
   } catch (e: any) {
     console.error('[eudiplo] Erneuerung des Angebots fehlgeschlagen:', e?.body || e?.message || e);
@@ -260,7 +260,9 @@ function walletReturnUrl(origin: string, roomId: string, ws?: WebSocket): string
   return `${origin}/zurueck?r=${room}`;
 }
 
-async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<void> {
+/** Returns false when the offer is no longer wanted once it exists (the participant left while it
+ *  was being created) — it is then already purged at the verifier and nothing is to be sent. */
+async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], origin: string, roomId?: string): Promise<boolean> {
   // Last line of defence before a wallet request is built. `attrs` normally arrived via
   // applyPolicy() and is already in scope — but a Pro RoomStore may hand back a room
   // PERSISTED before the WRP scoping. Refusing would strand that room, so degrade to the
@@ -284,9 +286,20 @@ async function ensureAuthOffer(participant: Participant, attrs: SemanticAttr[], 
   // without deleting it would strand the claims at the verifier until its TTL sweep.
   purgeVerifierSession(participant.verifierSessionId, 'reissued');
   participant.verifierSessionId = undefined;
-  participant.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri, txData);
-  participant.verifierSessionId = participant.offer.sessionId;
+  const offer = await createVerifierOffer(webhookUrl, requestId, redirectUri, txData);
+  // The await above is a window (audit #9, 2026-11-05): the participant may have left, or a
+  // second offer may have been made for them meanwhile. A session stored on someone gone is never
+  // purged; one overwritten here would be stranded — either way its claims would stay at the
+  // verifier until its TTL.
+  if (participant.left) {
+    purgeVerifierSession(offer.sessionId, 'left');
+    return false;
+  }
+  purgeVerifierSession(participant.verifierSessionId, 'reissued');
+  participant.offer = offer;
+  participant.verifierSessionId = offer.sessionId;
   participant.pendingBinding = txData.length > 0;
+  return true;
 }
 
 /** A single, unmistakable warning: the client wants binding, the configuration cannot deliver
@@ -325,7 +338,9 @@ const CREDENTIAL_REQUEST_TTL_MS = Math.max(60, Number(process.env.EUDI_CREDENTIA
 
 // EUDIPLO offer for an in-call credential request — same transport as the PID gate,
 // but the DCQL comes from the catalog entry and the session is the REQUEST's own.
-async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomId?: string): Promise<void> {
+/** Returns false when the request ended while the offer was being created (cancelled, expired,
+ *  a party left) — the new session is then purged at once and nothing is to be sent. */
+async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomId?: string): Promise<boolean> {
   const c = r.credential;
   const requestId = catalogConfigId(c);
   // kind:'catalog' → a non-PID credential type with its own consent step; the PID
@@ -334,8 +349,14 @@ async function ensureCredentialOffer(r: CredentialRequest, origin: string, roomI
   console.log(`[eudiplo] in-call offer ${c.id} for ${r.target.role} (${r.target.clientId.slice(0, 8)})`);
   const webhookUrl = `${origin}/webhook/${r.sessionId}?t=${r.webhookToken}`;
   const redirectUri = roomId ? walletReturnUrl(origin, roomId, r.target.ws) : undefined;
-  r.offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
-  r.verifierSessionId = r.offer.sessionId;
+  const offer = await createVerifierOffer(webhookUrl, requestId, redirectUri);
+  if (r.status !== 'accepted') {
+    purgeVerifierSession(offer.sessionId, 'credential-request');
+    return false;
+  }
+  r.offer = offer;
+  r.verifierSessionId = offer.sessionId;
+  return true;
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -1158,6 +1179,16 @@ function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res
 }
 
 // EUDIPLO posts the verification result here once the wallet has responded.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** At most 30 purges for late, unknown callbacks per minute. */
+const lateWebhooks: number[] = [];
+function lateWebhookBudget(now = Date.now()): boolean {
+  while (lateWebhooks.length && now - lateWebhooks[0] > 60_000) lateWebhooks.shift();
+  if (lateWebhooks.length >= 30) return false;
+  lateWebhooks.push(now);
+  return true;
+}
+
 app.post('/webhook/:sessionId', (req, res) => {
   // A module's presentation outside a call (./presentations) — its own registry, random UUIDs.
   if (handlePresentationWebhook(req, res, { record: recordVerification })) return;
@@ -1170,6 +1201,13 @@ app.post('/webhook/:sessionId', (req, res) => {
   const hit = ext.roomStore.findBySession(req.params.sessionId);
   if (!hit) {
     console.warn(`[webhook] no participant for session (left the room?)`);
+    // A wallet that answers after the person left: the result now sits at the verifier, and
+    // nobody here will ever ask for it. Delete it rather than leave it to the verifier's TTL
+    // (audit #7). Only a UUID-shaped id, and at most a few per minute: the delete is scoped to
+    // our own tenant and the id unguessable, so a forged callback can at worst make us delete
+    // nothing — but it must not turn this endpoint into a way to make us call the verifier.
+    const late = String((req.body || {}).session || '');
+    if (UUID_RE.test(late) && lateWebhookBudget()) purgeVerifierSession(late, 'left');
     res.status(404).send('unknown session');
     return;
   }
@@ -1695,7 +1733,7 @@ wss.on('connection', (ws, request) => {
         host.confirmed = false;
         if (requiresWalletPresentation(newDisclose)) {
           try {
-            await ensureAuthOffer(host, newDisclose, origin, room.id);
+            if (!(await ensureAuthOffer(host, newDisclose, origin, room.id))) return;
             send(host.ws, { type: 'auth', uri: host.offer!.uri, crossDeviceUri: host.offer!.crossDeviceUri });
           } catch (e: any) {
             console.error('[eudiplo] host disclosure offer failed:', e?.body || e?.message || e);
@@ -1868,7 +1906,7 @@ wss.on('connection', (ws, request) => {
       if (!r || !hit || hit.participant !== r.target || r.status !== 'pending') return;
       r.status = 'accepted';
       try {
-        if (!r.offer) await ensureCredentialOffer(r, origin, hit.room.id);
+        if (!r.offer && !(await ensureCredentialOffer(r, origin, hit.room.id))) return;
         send(r.target.ws, { type: 'credential-auth', requestId: r.requestId, label: r.credential.label, uri: r.offer!.uri, crossDeviceUri: r.offer!.crossDeviceUri });
       } catch (e: any) {
         console.error('[eudiplo] in-call credential offer failed:', e?.body || e?.message || e);
@@ -2221,7 +2259,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   if (participant.verified) return; // nothing to present (or resumed-verified)
 
   try {
-    if (!participant.offer) await ensureAuthOffer(participant, requiredAttrs, origin, roomId);
+    if (!participant.offer && !(await ensureAuthOffer(participant, requiredAttrs, origin, roomId))) return;
     send(ws, { type: 'auth', uri: participant.offer!.uri, crossDeviceUri: participant.offer!.crossDeviceUri });
   } catch (e: any) {
     console.error('[eudiplo] offer failed:', e?.body || e?.message || e);

@@ -47,6 +47,12 @@ const deleted = [];
 const deleteAuth = [];
 /** Flipped mid-test: the verifier starts refusing DELETE, as an under-privileged token would. */
 let refuseDelete = false;
+/** How many DELETEs to answer with 503 first — a verifier that is briefly away. */
+let unavailableDeletes = 0;
+/** Delay for the next offer, in ms — the window in which a participant can leave. */
+let slowOffer = 0;
+/** Session ids of every offer created, in order. */
+const created = [];
 
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b)); });
 const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
@@ -58,7 +64,9 @@ const verifier = http.createServer(async (req, res) => {
   if (req.method === 'POST' && p === '/api/verifier/offer') {
     const body = JSON.parse((await readBody(req)) || '{}');
     if (!body?.webhook?.url) return json(res, 400, { error: 'missing webhook.url' });
+    if (slowOffer) { const ms = slowOffer; slowOffer = 0; await new Promise((r) => setTimeout(r, ms)); }
     const id = randomUUID();
+    created.push(id);
     offers.set(id, body.webhook.url);
     const uri = `http://127.0.0.1:${VERIFIER_PORT}/simulate/${id}`;
     // `session` is what EUDIPLO 8 returns alongside the offer — the handle for the delete.
@@ -67,6 +75,7 @@ const verifier = http.createServer(async (req, res) => {
   const sess = p.match(/^\/api\/session\/([0-9a-f-]+)$/i);
   if (sess && req.method === 'DELETE') {
     if (refuseDelete) return json(res, 403, { error: 'insufficient role' });
+    if (unavailableDeletes > 0) { unavailableDeletes--; return json(res, 503, { error: 'briefly away' }); }
     deleted.push(sess[1]);
     deleteAuth.push(req.headers.authorization || '');
     res.writeHead(204);
@@ -156,6 +165,7 @@ function startApp() {
       EUDIPLO_CLIENT_ID: 'test-tenant',
       EUDIPLO_CLIENT_SECRET: 'test-tenant-secret',
       EUDI_PROMO_ALL_PRO: '',
+      EUDI_PURGE_RETRY_MS: '100',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -225,6 +235,54 @@ try {
     check('the failure is loud in the log', await waitForLog(/PURGE FAILED/),
       'a silently failed purge is worse than none — nobody would ever look');
     refuseDelete = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log('\nA verifier that is briefly away gets the delete later (audit #8)');
+  {
+    unavailableDeletes = 2;
+    const { guest, sessionId } = await newGuest();
+    clients.push(guest);
+    check('callback accepted', (await callback(sessionId, presentation())) === 200);
+    check('deleted after two failed tries', await waitForDelete(sessionId, 8000),
+      'a single failure used to leave the claims at the verifier until its TTL');
+    check('and the retry is in the log', /purged \S+ \(verified\) on retry 2/.test(appLog.join('')), appLog.join('').slice(-400));
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log('\nA wallet that answers after the person left: deleted all the same (audit #7)');
+  {
+    const late = randomUUID();
+    const r = await fetch(`http://127.0.0.1:${APP_PORT}/webhook/${randomUUID()}?t=x`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session: late, status: 'completed' }),
+    });
+    check('unknown session answered 404', r.status === 404, String(r.status));
+    check('its verifier session is deleted', await waitForDelete(late),
+      'the late result would stay at the verifier until its TTL');
+    const before = deleted.length;
+    await fetch(`http://127.0.0.1:${APP_PORT}/webhook/${randomUUID()}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session: 'not-a-uuid' }),
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    check('nothing that is not a session id is passed on', deleted.length === before);
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log('\nLeaving while the offer is being made: that session is deleted too (audit #9)');
+  {
+    slowOffer = 800;
+    const n = created.length;
+    const guest = participant(APP_PORT, { roomId: randomUUID(), clientId: randomUUID(), wantAuth: true });
+    clients.push(guest);
+    await new Promise((r) => guest.ws.once('open', r));
+    await new Promise((r) => setTimeout(r, 200)); // the offer is under way now
+    guest.send({ type: 'hangup' });
+    for (let t0 = Date.now(); created.length === n && Date.now() - t0 < 5000; ) await new Promise((r) => setTimeout(r, 50));
+    const orphan = created[n];
+    check('an offer was made', !!orphan);
+    check('and deleted once it existed', !!orphan && await waitForDelete(orphan),
+      'stored on someone gone, it would never have been deleted');
   }
 
   // ---------------------------------------------------------------------------

@@ -56,6 +56,9 @@ export interface Participant {
    *  proof. See ./channel-binding. */
   channelBound?: boolean;
   graceTimer?: ReturnType<typeof setTimeout>;
+  /** Set when the participant is removed from the room for good. An offer created for them while
+   *  an `await` was pending is then purged at once instead of being stored on someone gone. */
+  left?: boolean;
   /** In-call catalog credentials this participant presented DURING the call (Pro).
    *  Values are relayed ONLY to the requester (`forPeerId`) — never room-broadcast.
    *  Kept on the participant so a reconnect/resume re-renders the requester's badges. */
@@ -215,6 +218,7 @@ export function joinRoom(
     const ghost = room.participants.find((p) => !p.ws || p.ws.readyState !== 1);
     if (ghost) {
       if (ghost.graceTimer) clearTimeout(ghost.graceTimer);
+      ghost.left = true;
       room.participants.splice(room.participants.indexOf(ghost), 1);
     } else {
       return { error: 'full' };
@@ -284,6 +288,7 @@ export function activeRoomCount(): number {
 
 export function removeParticipant(room: Room, participant: Participant): void {
   const i = room.participants.indexOf(participant);
+  participant.left = true;
   if (i >= 0) {
     room.participants.splice(i, 1);
     withdrawConsents(room);

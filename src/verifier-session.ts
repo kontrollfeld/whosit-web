@@ -73,22 +73,50 @@ const recentlyPurged = new Set<string>();
 export function purgeVerifierSession(sessionId: string | undefined, reason: PurgeReason): void {
   if (!sessionId) return;
   if (recentlyPurged.has(sessionId)) return;
+  remember(sessionId);
+  attempt(sessionId, reason, 0);
+}
+
+function remember(sessionId: string): void {
   recentlyPurged.add(sessionId);
   if (recentlyPurged.size > RECENT_LIMIT) {
     const oldest = recentlyPurged.values().next().value;
     if (oldest !== undefined) recentlyPurged.delete(oldest);
   }
+}
+
+/**
+ * Retries after a failure that may pass: no answer, 5xx, 429. Until 2026-11-05 a failed purge was
+ * logged and marked done, so the claims stayed at the verifier until its TTL even when the verifier
+ * was only briefly away (audit #8). Three more tries — after 30 s, 2 min and 8 min by default
+ * (EUDI_PURGE_RETRY_MS sets the first; tests make it short) — and at most RETRY_LIMIT waiting at
+ * once, so a verifier that is down for good does not grow a queue here. A refusal (401/403/400)
+ * is not retried: the same request would be refused again, and the log says what to fix.
+ */
+const RETRY_BASE_MS = Math.max(50, Number(process.env.EUDI_PURGE_RETRY_MS || 30_000));
+const RETRIES = 3;
+const RETRY_LIMIT = 200;
+let waiting = 0;
+const transient = (e: any): boolean => !e?.status || e.status >= 500 || e.status === 429;
+
+function attempt(sessionId: string, reason: PurgeReason, n: number): void {
   const tag = auditHash('session', sessionId);
   void deleteVerifierSession(sessionId).then(
-    () => console.log(`[eudiplo] verifier session purged ${tag} (${reason})`),
+    () => console.log(`[eudiplo] verifier session purged ${tag} (${reason})${n ? ` on retry ${n}` : ''}`),
     (e: any) => {
+      const retry = transient(e) && n < RETRIES && waiting < RETRY_LIMIT;
       // Loud, because the promise of this architecture is on the line: the claims are then
-      // still at the verifier until its TTL sweep removes them.
+      // still at the verifier until its TTL sweep removes them — unless a retry succeeds.
       console.warn(
         `[eudiplo] PURGE FAILED for verifier session ${tag} (${reason}): ` +
-        `${e?.status ? `HTTP ${e.status} ` : ''}${e?.message || e}. The presented claims stay ` +
-        `at the verifier until its own SESSION_TTL sweep removes them.`,
+        `${e?.status ? `HTTP ${e.status} ` : ''}${e?.message || e}. ` +
+        (retry
+          ? `Trying again in ${Math.round((RETRY_BASE_MS * 4 ** n) / 1000)} s.`
+          : 'The presented claims stay at the verifier until its own SESSION_TTL sweep removes them.'),
       );
+      if (!retry) return;
+      waiting++;
+      setTimeout(() => { waiting--; attempt(sessionId, reason, n + 1); }, RETRY_BASE_MS * 4 ** n).unref();
     },
   );
 }

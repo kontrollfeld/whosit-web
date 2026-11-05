@@ -31,7 +31,8 @@ import type { PresentationPort, PresentationStart, PresentationState, Verificati
 
 /** How long an unanswered or untaken presentation is kept. A wallet hand-over takes a minute or
  *  two; ten is generous and still bounds what sits in memory. */
-const TTL_MS = 10 * 60_000;
+// EUDI_PRESENTATION_TTL_MS only shortens it, for the test of what happens on expiry.
+const TTL_MS = Math.min(10 * 60_000, Number(process.env.EUDI_PRESENTATION_TTL_MS) || 10 * 60_000);
 /** A bound on concurrent open presentations, so a flood of starts cannot grow memory without end
  *  (the module's own route is rate limited too). */
 const MAX_OPEN = 2000;
@@ -134,7 +135,9 @@ export function presentationPort(module: string, deps: PresentationDeps): Presen
     poll(id, secret): PresentationState {
       const p = open.get(id);
       if (!p || p.module !== module || !same(String(secret ?? ''), p.secret)) return { state: 'unknown' };
-      if (p.expires <= Date.now()) { open.delete(id); return { state: 'expired' }; }
+      // Expired: gone at the verifier too, not only here (audit #7) — a wallet that answers late
+      // would otherwise leave its claims there until the verifier's own TTL.
+      if (p.expires <= Date.now()) { purgeVerifierSession(p.verifierSessionId, 'left'); open.delete(id); return { state: 'expired' }; }
       if (p.state === 'pending') return { state: 'pending' };
       if (p.state === 'failed') { open.delete(id); return { state: 'failed' }; }
       // Handed over ONCE. From here on the core holds nothing of it.

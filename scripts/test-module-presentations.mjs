@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 const VERIFIER_PORT = 3994;
 const APP_PORT = 3995;
 const OFF_PORT = 3996;
+const SHORT_PORT = 3985;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const work = mkdtempSync(join(tmpdir(), 'whosit-module-pres-'));
 
@@ -169,6 +170,17 @@ try {
   const audit = appLog.join('').split('\n').filter((l) => l.startsWith('[audit] ')).join('\n');
   check('a verified line with attribute names', /"event":"verified"/.test(audit) && /"claimKeys":\["given_name","family_name"\]/.test(audit), audit.slice(-400));
   check('never a value', !/Erika|Mustermann|Mallory/.test(audit) && !appLog.join('').includes('Mustermann'), 'a value leaked');
+
+  console.log('\nRun out before anyone asked: gone at the verifier too (audit #7)');
+  procs.push(startApp(SHORT_PORT, { EUDI_PRESENTATION_TTL_MS: '1000' }));
+  await up(SHORT_PORT);
+  const S = `http://127.0.0.1:${SHORT_PORT}`;
+  const s3 = await (await post(`${S}/modules/demo-modul/start`, { attrs: ['given_name'] })).json();
+  const sess3 = String(s3.uri).split('session=')[1];
+  await new Promise((r) => setTimeout(r, 1300));
+  check('expired', (await (await fetch(`${S}/modules/demo-modul/stand/${s3.id}`)).json()).state === 'expired');
+  for (let t0 = Date.now(); !deleted.includes(sess3) && Date.now() - t0 < 3000; ) await new Promise((r) => setTimeout(r, 50));
+  check('and its verifier session deleted', deleted.includes(sess3), 'a late wallet answer would stay at the verifier until its TTL');
 
   console.log('\nSwitched off, its pages are gone');
   procs.push(startApp(OFF_PORT, { EUDI_FEATURES_OFF: 'demo-formular' }));
