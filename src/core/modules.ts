@@ -71,7 +71,7 @@ const ID = /^[a-z][a-z0-9-]{1,47}$/;
  *  (src/server.ts, public/). Extend when the core gains a top-level path. */
 const RESERVED_PREFIXES = new Set([
   'modules', 'qes', 'vendor', 'fonts', 'operator', 'webhook', 'capabilities', 'health', 'ice',
-  'invite', 'wallet-pass', 'signature-providers', 'credential-catalog', 'wrp-policy',
+  'invite', 'wallet-pass', 'signature-providers', 'credential-catalog', 'wrp-policy', 'wrp-policies',
   'impressum', 'datenschutz', 'presse',
 ]);
 

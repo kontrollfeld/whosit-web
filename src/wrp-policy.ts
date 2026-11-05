@@ -74,6 +74,20 @@ export interface WrpPolicy {
   complianceNote: string;
   /** What this registration permits. A SUBSET of KNOWN_PID_ATTRIBUTES, by construction. */
   attributes: readonly AllowedPidAttribute[];
+  /**
+   * What stands behind the entry — published, so nobody has to take a name for a registration:
+   *
+   *   'registered'    a WRP registration covers exactly this purpose and these attributes.
+   *   'sandbox-only'  no registration covers it yet. Usable against a sandbox verifier, to show a
+   *                   prospective relying party its own flow; the server says so at startup and in
+   *                   the descriptor. Before production it needs that party's own registration —
+   *                   and then becomes 'registered', or goes.
+   *   'template'      to copy, not to run (see 'kommune-buergerservice').
+   *
+   * A label, not a gate: what a wallet may be asked stays bounded by `attributes` alone. What
+   * the label prevents is the quiet drift of a sandbox entry into production use.
+   */
+  status: 'registered' | 'sandbox-only' | 'template';
 }
 
 /**
@@ -91,6 +105,30 @@ export const WRP_POLICIES: Record<string, WrpPolicy> = {
     purposeText: 'Identitätsverifikation für sichere P2P-Kommunikation',
     complianceNote: 'Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.',
     attributes: ['given_name', 'family_name', 'age_over_18', 'pseudonym_id'],
+    status: 'registered',
+  },
+
+  /**
+   * Letting a flat: identify a prospective tenant before a contract — name, date of birth and
+   * the registered address, as a landlord's self-disclosure asks for them.
+   *
+   * SANDBOX ONLY. No registration covers this purpose today; the entry exists so a letting
+   * company can see and test its own flow against the sandbox verifier. For production that
+   * company needs its OWN WRP registration for exactly this purpose and these attributes, and its
+   * instance its OWN EUDIPLO tenant — at which point this entry is re-labelled 'registered' with
+   * the wording of that registration, or replaced by one that carries it.
+   *
+   * The date of birth is what makes a name unique; the address is the contract address. Both are
+   * materially more than a call needs, which is why they live in a policy of their own and never
+   * in 'p2p-call'.
+   */
+  'immobilien-mieterpruefung': {
+    purposeId: 'tenant-identity-verification',
+    purposeText: 'Identitätsprüfung von Mietinteressenten vor Abschluss eines Mietvertrags (Sandbox)',
+    complianceNote:
+      'Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.',
+    attributes: ['given_name', 'family_name', 'birth_date', 'address', 'pseudonym_id'],
+    status: 'sandbox-only',
   },
 
   /**
@@ -119,6 +157,7 @@ export const WRP_POLICIES: Record<string, WrpPolicy> = {
     complianceNote:
       'VORLAGE — durch die tatsächliche WRP-Zulassung der Behörde ersetzen. Abfrage beschränkt auf die für den Vorgang erforderlichen Angaben.',
     attributes: ['given_name', 'family_name', 'birth_date', 'address', 'pseudonym_id'],
+    status: 'template',
   },
 };
 
@@ -178,7 +217,17 @@ export function wrpNarrowed(): boolean {
  * would say so. Called from the server's startup path.
  */
 export function assertPolicyOrExit(log: (m: string) => void = console.error): void {
-  if (WRP_POLICIES[POLICY_NAME]) return;
+  const p = WRP_POLICIES[POLICY_NAME];
+  if (p?.status === 'sandbox-only') {
+    // Not fatal: running it against a sandbox verifier is what the entry is for. Said at every
+    // start, so it cannot slide into production unnoticed.
+    log(
+      `⚠️  EUDI_WRP_POLICY="${POLICY_NAME}" is SANDBOX ONLY: no WRP registration covers this purpose ` +
+        `and these attributes [${p.attributes.join(', ')}]. Run it against a sandbox verifier only; ` +
+        `production needs the relying party's own registration and its own EUDIPLO tenant.`,
+    );
+  }
+  if (p) return;
   log(
     `FATAL: EUDI_WRP_POLICY="${POLICY_NAME}" is not a known WRP policy. ` +
       `Known: [${Object.keys(WRP_POLICIES).join(', ')}]. ` +
@@ -474,10 +523,38 @@ export function resolveAttributes(attrs: unknown): {
   return partitionAttributes(attrs);
 }
 
+/**
+ * Every policy this build knows, for whoever sets instances up (served at /wrp-policies): which
+ * purposes exist, what each may ask a wallet, and what stands behind it (`status`). Read by the
+ * hosted control plane, which may then select one per instance with EUDI_WRP_POLICY — the same
+ * fixed menu, published instead of copied, so an order form cannot offer what no build knows.
+ *
+ * Says nothing about THIS instance; that is `policyDescriptor()`.
+ */
+export function policyCatalog() {
+  return Object.entries(WRP_POLICIES)
+    // The old name of the template points at the same object — listed once.
+    .filter(([name, p]) => !(name === 'lhd-buergerservice' && p === WRP_POLICIES['kommune-buergerservice']))
+    .map(([name, p]) => {
+      const attributes = KNOWN_PID_ATTRIBUTES.filter((a) => p.attributes.includes(a));
+      return {
+        policyId: name,
+        purposeId: p.purposeId,
+        purposeText: p.purposeText,
+        complianceNote: p.complianceNote,
+        status: p.status,
+        attributes,
+        walletRequestable: attributes.filter((a) => !(DERIVED_ATTRIBUTES as readonly string[]).includes(a)),
+        derivedAttributes: attributes.filter((a) => (DERIVED_ATTRIBUTES as readonly string[]).includes(a)),
+      };
+    });
+}
+
 /** Public, cacheable description of this WRP's policy (served at /capabilities). */
 export function policyDescriptor() {
   return {
     policyId: activePolicyName(),
+    status: ACTIVE.status,
     purposeId: WRP_PURPOSE_ID,
     purposeText: WRP_PURPOSE_TEXT,
     complianceNote: WRP_COMPLIANCE_NOTE,

@@ -39,7 +39,7 @@ import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFinger
 import {
   resolveAttributes, partitionAttributes, PolicyViolationError, policyDescriptor,
   isDerived, requiresWalletPresentation, wrpStrict, WRP_PURPOSE_ID,
-  activePolicyName, assertPolicyOrExit, assertNarrowOrExit, ALLOWED_PID_ATTRIBUTES,
+  activePolicyName, assertPolicyOrExit, assertNarrowOrExit, ALLOWED_PID_ATTRIBUTES, policyCatalog,
 } from './wrp-policy';
 
 // Very early, before any server is built: an unknown policy name must not end in a silent
@@ -1053,6 +1053,13 @@ app.get('/capabilities', publicCors, (_req, res) => {
 app.get('/wrp-policy', publicCors, (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.json(policyDescriptor());
+});
+
+// Every policy this build knows (src/wrp-policy.ts policyCatalog) — the menu an operator selects
+// EUDI_WRP_POLICY from. Public like /wrp-policy: it is source code, published.
+app.get('/wrp-policies', publicCors, (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({ policies: policyCatalog() });
 });
 
 // The in-call credential catalog (display data only — labels + field names, no DCQL

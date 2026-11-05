@@ -134,6 +134,35 @@ check('Exit-Code 1', bad.status === 1, `status=${bad.status}`);
 check('the message names the wrong name', /does-not-exist/.test(bad.stderr || ''), (bad.stderr || '').slice(0, 120));
 check('the message names the known names', /p2p-call/.test(bad.stderr || ''), (bad.stderr || '').slice(0, 120));
 
+console.log('\nThe tenant-screening policy: sandbox only, and says so');
+{
+  const m = describe({ EUDI_WRP_POLICY: 'immobilien-mieterpruefung' });
+  check('asks for name, date of birth and address', JSON.stringify(m.walletRequestable) === JSON.stringify(['given_name', 'family_name', 'birth_date', 'address']), JSON.stringify(m.walletRequestable));
+  check('labelled sandbox-only in the descriptor', m.status === 'sandbox-only', m.status);
+  check('and in the purpose the wallet is shown', /Sandbox/.test(m.purposeText), m.purposeText);
+  check('the default policy is labelled registered', std.status === 'registered', std.status);
+  const n = describe({ EUDI_WRP_POLICY: 'immobilien-mieterpruefung', EUDI_WRP_NARROW: 'given_name,family_name,birth_date' });
+  check('narrowable like any other', JSON.stringify(n.walletRequestable) === JSON.stringify(['given_name', 'family_name', 'birth_date']) && n.narrowed === true, JSON.stringify(n));
+  const start = spawnSync('npx', ['tsx', '-e', `import { assertPolicyOrExit } from './src/wrp-policy'; assertPolicyOrExit(); console.log('weiter');`],
+    { env: { ...process.env, EUDI_WRP_POLICY: 'immobilien-mieterpruefung' }, encoding: 'utf8' });
+  check('starts, with a warning at every start', start.status === 0 && /weiter/.test(start.stdout) && /SANDBOX ONLY/.test(start.stderr), `${start.status} ${start.stderr.slice(0, 160)}`);
+}
+
+console.log('\nThe catalogue lists every policy once, with what stands behind it');
+{
+  const r = spawnSync('npx', ['tsx', '-e', `import { policyCatalog } from './src/wrp-policy'; console.log(JSON.stringify(policyCatalog()));`], { encoding: 'utf8' });
+  let k = [];
+  try { k = JSON.parse((r.stdout || '').trim().split('\n').pop()); } catch { /* shown below */ }
+  const ids = k.map((p) => p.policyId);
+  check('every named policy, the old alias not twice', JSON.stringify(ids) === JSON.stringify(['p2p-call', 'immobilien-mieterpruefung', 'kommune-buergerservice']), JSON.stringify(ids));
+  check('each with its status', k.map((p) => p.status).join() === 'registered,sandbox-only,template', k.map((p) => p.status).join());
+  check('derived attributes are not offered as requestable', k.every((p) => !p.walletRequestable.includes('pseudonym_id')), JSON.stringify(k.map((p) => p.walletRequestable)));
+  check('independent of the active policy', (() => {
+    const r2 = spawnSync('npx', ['tsx', '-e', `import { policyCatalog } from './src/wrp-policy'; console.log(JSON.stringify(policyCatalog()));`], { env: { ...process.env, EUDI_WRP_POLICY: 'immobilien-mieterpruefung', EUDI_WRP_NARROW: 'given_name,family_name' }, encoding: 'utf8' });
+    return (r2.stdout || '').trim().split('\n').pop() === (r.stdout || '').trim().split('\n').pop();
+  })(), 'differs');
+}
+
 console.log('\nNormalisation: mdoc and SD-JWT yield the same result');
 const norm = spawnSync('npx', ['tsx', '-e', `
   import { normalizeClaims } from './src/credential-profiles';
