@@ -246,7 +246,9 @@ try {
     check('callback accepted', (await callback(sessionId, presentation())) === 200);
     check('deleted after two failed tries', await waitForDelete(sessionId, 8000),
       'a single failure used to leave the claims at the verifier until its TTL');
-    check('and the retry is in the log', /purged \S+ \(verified\) on retry 2/.test(appLog.join('')), appLog.join('').slice(-400));
+    // Wait for the line rather than read the log at once: the delete is seen by the stand-in
+    // verifier a moment before the server's log line about it arrives here.
+    check('and the retry is in the log', await waitForLog(/purged \S+ \(verified\) on retry 2/), appLog.join('').slice(-400));
   }
 
   // ---------------------------------------------------------------------------
