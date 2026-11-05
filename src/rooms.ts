@@ -88,6 +88,28 @@ export interface Room {
    *  never lock, allow late-join up to maxParticipants. Every guest shares the SAME
    *  attributes, so a late-joiner introduces no new consent surface. */
   openRoom: boolean;
+  /** Pairs the server itself told to connect ('ready'), as "peerIdA|peerIdB" (sorted). Signaling
+   *  (offer/answer/ice) is relayed only within these — the gate is the server's, not only the
+   *  page's. See linkPair / isLinked. */
+  links?: Set<string>;
+}
+
+/** Before the call starts, an agreement is to the people who were in the room when it was given.
+ *  When that changes — someone leaves, someone new takes a seat — every agreement so far is taken
+ *  back and each has to agree again, having seen who is there now (audit #10, 2026-11-05). Not in
+ *  an open room: there every guest shares the same attributes and late-join is the point; and not
+ *  once the call runs (locked): no new person gets in then. */
+export function withdrawConsents(room: Room): void {
+  if (room.locked || room.openRoom) return;
+  for (const p of room.participants) p.confirmed = false;
+}
+
+const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+export function linkPair(room: Room, a: Participant, b: Participant): void {
+  (room.links ??= new Set()).add(pairKey(a.peerId, b.peerId));
+}
+export function isLinked(room: Room, a: Participant, b: Participant): boolean {
+  return room.links?.has(pairKey(a.peerId, b.peerId)) === true;
 }
 
 const rooms = new Map<string, Room>();
@@ -171,12 +193,14 @@ export function joinRoom(
       holder.clientId = clientId;
       holder.ws = ws;
       resetIdentity(holder);
+      withdrawConsents(room);
       return { room, participant: holder, resumed: false, reclaimed: true, replaced };
     }
     // No placeholder left (grace period elapsed): creating a new one is correct — and
     // `locked` must not prevent it, because this very person WAS invited.
     if (room.participants.length < maxParticipants) {
       const p = newParticipant(clientId, ws, opts.reclaimRole);
+      withdrawConsents(room);
       room.participants.push(p);
       return { room, participant: p, resumed: false, reclaimed: true };
     }
@@ -200,6 +224,7 @@ export function joinRoom(
   // First/only caller-less slot becomes the caller (host), everyone else a guest.
   const role: Role = room.participants.some((p) => p.role === 'caller') ? 'callee' : 'caller';
   const participant = newParticipant(clientId, ws, role);
+  withdrawConsents(room);
   room.participants.push(participant);
   return { room, participant, resumed: false };
 }
@@ -261,6 +286,7 @@ export function removeParticipant(room: Room, participant: Participant): void {
   const i = room.participants.indexOf(participant);
   if (i >= 0) {
     room.participants.splice(i, 1);
+    withdrawConsents(room);
     if (room.participants.length === 0) rooms.delete(room.id);
   }
 }

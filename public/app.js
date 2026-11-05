@@ -2339,7 +2339,8 @@ async function startCall(msg) {
 }
 
 async function onRemoteOffer(from, offer) {
-  if (ended || !from) return;
+  // Second line behind the server's gate: no answer (and so no addresses) before 'ready'.
+  if (ended || !from || !callStarted) return;
   await ensureMedia();
   await refreshIce();
   const p = getPeer(from); // pc.ondatachannel (label-routed) is set in getPeer

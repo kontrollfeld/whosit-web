@@ -672,7 +672,17 @@ works with no further effort.
 
 - **WSS everywhere**, HTTP→HTTPS redirect enforced (Traefik).
 - **Authenticated webhook** (per-session token in the URL, `timingSafeEqual` server-side).
-- **Hardened WebSocket**: origin check, `maxPayload`, rate limit, room ID validation.
+- **Hardened WebSocket**: origin check, `maxPayload`, rate limit, room ID validation; a message
+  that is not an object with a string `type` is dropped, and no message can take the process
+  down (`npm run test:ws-robustness`).
+- **The call gate is the server's:** offer, answer and ICE candidates are relayed only between a
+  pair the server itself told to connect (`ready`), and only while both are verified and have
+  agreed. A client of someone's own making gets nothing through before that — not even a
+  network address (`npm run test:signaling-gate`). The page refuses an offer before `ready` too.
+- **Agreement is to the people reviewed:** it is accepted only while the review is open, and
+  before the call starts any change of who is in the room takes every agreement back — a person
+  who takes a free seat never inherits the other side's agreement (`npm run test:consent-binding`).
+  A short trip to the wallet app and back is not such a change: the seat and the agreement stay.
 - **coturn** as a relay only, private IP ranges blocked (SSRF protection), secret never
   committed.
 - **No replay:** the webhook token is consumed after a successful check — an intercepted callback

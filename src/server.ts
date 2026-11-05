@@ -64,6 +64,7 @@ assertHostGateOrExit(
   policyDescriptor().walletRequestable.includes('family_name'),
 );
 import type { Room, Participant, Role, Mode } from './rooms';
+import { linkPair, isLinked } from './rooms';
 import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
@@ -1424,6 +1425,14 @@ function attrsFor(room: Room, p: Participant): SemanticAttr[] {
 // Tell each participant about the room config + everyone's state. Actual values
 // (names + claims) are withheld until ALL present have confirmed the review — before
 // that each side only learns WHICH fields will be shared, never the contents.
+/** Whether the review is open in this room — the one place it is decided (status and `confirm`). */
+function reviewIsOpen(room: Room): boolean {
+  const multiParty = isMultiParty();
+  if (multiParty && room.openRoom) return true;
+  const gatheredMultiParty = multiParty && room.participants.length > 2;
+  return gatheredMultiParty ? room.starting : room.participants.length >= 2;
+}
+
 function broadcastStatus(room: Room): void {
   const multiParty = isMultiParty();
   const openRoom = multiParty && room.openRoom;
@@ -1436,8 +1445,7 @@ function broadcastStatus(room: Room): void {
   // Gathered multi-party (>2 present): once the host started. Otherwise (1:1, or a
   // multi-party-capable room that so far only has host+1 guest): once 2 are present —
   // waiting for an explicit "start" would just be friction for the common 1:1 case.
-  const gatheredMultiParty = multiParty && room.participants.length > 2;
-  const reviewOpen = openRoom ? true : (gatheredMultiParty ? room.starting : room.participants.length >= 2);
+  const reviewOpen = reviewIsOpen(room);
   // Values flow only between people who have BOTH verified and confirmed. Checking the
   // SUBJECT alone is not enough: in an open room, anyone who had merely joined would receive the
   // names and claims of everyone already confirmed — reciprocity, the one thing the review screen
@@ -1509,6 +1517,7 @@ function maybeConnect(room: Room): void {
   if (!room.participants.every((p) => p.verified && p.confirmed)) return;
   room.locked = true;
   for (const p of room.participants) {
+    for (const peer of ext.roomStore.peersOf(room, p)) linkPair(room, p, peer);
     const peers = ext.roomStore.peersOf(room, p).map((peer) => ({
       peerId: peer.peerId,
       name: fullName(peer),
@@ -1532,6 +1541,7 @@ function maybeConnectOpen(room: Room): void {
   const active = room.participants.filter((p) => p.verified && p.confirmed);
   if (active.length < 2) return;
   for (const p of active) {
+    for (const peer of active) if (peer !== p) linkPair(room, p, peer);
     const peers = active.filter((x) => x !== p).map((peer) => ({
       peerId: peer.peerId,
       name: fullName(peer),
@@ -1722,6 +1732,9 @@ wss.on('connection', (ws, request) => {
     if (msg.type === 'confirm') {
       const hit = ext.roomStore.findByWs(ws);
       if (!hit) return;
+      // An agreement is to the people on the review screen: only once verified, and only while
+      // the review is open — not in advance, alone in the room (audit #10, 2026-11-05).
+      if (!hit.participant.verified || !reviewIsOpen(hit.room)) return;
       hit.participant.confirmed = true;
       recordAudit({
         event: 'consent-granted', status: 'success',
@@ -1981,7 +1994,14 @@ wss.on('connection', (ws, request) => {
       const target = typeof msg.to === 'string'
         ? ext.roomStore.findByPeerId(hit.room, msg.to)
         : ext.roomStore.peerOf(hit.room, hit.participant); // 1:1 fallback (no `to`)
-      if (target && target !== hit.participant) send(target.ws, { type: msg.type, from: hit.participant.peerId, data: msg.data });
+      if (!target || target === hit.participant) return;
+      // The gate, server side (2026-11-05, audit #6): only between a pair this server told to
+      // connect, and only while both still stand behind it. Our page never signals before
+      // 'ready'; a client of someone's own making that does gets nothing through — not even an
+      // ICE candidate, which would hand over network addresses before anyone agreed.
+      const a = hit.participant;
+      if (!isLinked(hit.room, a, target) || !(a.verified && a.confirmed && target.verified && target.confirmed)) return;
+      send(target.ws, { type: msg.type, from: a.peerId, data: msg.data });
       return;
     }
 
