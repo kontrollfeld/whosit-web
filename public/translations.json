@@ -618,7 +618,10 @@
     "Ausstellungsstaat": "Issuing country",
     "Erledigt — du kannst das Fenster schließen. Das Gespräch läuft weiter.": "Done — you can close this panel. The call continues.",
     "Identitätsprüfung von Mietinteressenten vor Abschluss eines Mietvertrags (Sandbox)": "Identity check of prospective tenants before a tenancy agreement is signed (sandbox)",
-    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.": "Sandbox only: there is no WRP registration for this purpose yet. Before going into production, the landlord needs a registration of their own for exactly these details."
+    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.": "Sandbox only: there is no WRP registration for this purpose yet. Before going into production, the landlord needs a registration of their own for exactly these details.",
+    "Staatsangehörigkeit": "Nationality",
+    "Anmeldung von Gästen in Beherbergungsstätten nach §§ 29, 30 Bundesmeldegesetz (Sandbox)": "Registration of guests in accommodation under §§ 29, 30 of the Federal Registration Act (sandbox)",
+    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Beherbergungsbetrieb eine eigene Registrierung für genau diese Angaben.": "Sandbox only: there is no WRP registration for this purpose yet. Before going into production, the accommodation provider needs a registration of their own for exactly these details."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1239,6 +1242,9 @@
     "Ausstellungsstaat": "Pays de délivrance",
     "Erledigt — du kannst das Fenster schließen. Das Gespräch läuft weiter.": "Terminé — vous pouvez fermer ce panneau. L’appel continue.",
     "Identitätsprüfung von Mietinteressenten vor Abschluss eines Mietvertrags (Sandbox)": "Vérification de l’identité des candidats locataires avant la signature d’un bail (sandbox)",
-    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.": "Uniquement en mode sandbox : aucun enregistrement WRP n’existe encore pour cette finalité. Avant la mise en production, le bailleur a besoin de son propre enregistrement pour exactement ces données."
+    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.": "Uniquement en mode sandbox : aucun enregistrement WRP n’existe encore pour cette finalité. Avant la mise en production, le bailleur a besoin de son propre enregistrement pour exactement ces données.",
+    "Staatsangehörigkeit": "Nationalité",
+    "Anmeldung von Gästen in Beherbergungsstätten nach §§ 29, 30 Bundesmeldegesetz (Sandbox)": "Enregistrement des clients des établissements d’hébergement selon les §§ 29 et 30 de la loi fédérale sur la déclaration de résidence (sandbox)",
+    "Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Beherbergungsbetrieb eine eigene Registrierung für genau diese Angaben.": "Sandbox uniquement : il n’existe pas encore d’enregistrement WRP pour cette finalité. Avant la mise en production, l’établissement d’hébergement a besoin de son propre enregistrement pour exactement ces informations."
   }
 }

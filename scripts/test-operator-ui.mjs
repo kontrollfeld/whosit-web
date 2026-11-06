@@ -72,7 +72,7 @@ console.log('\nThe browser knows every attribute a policy may ask for');
     const fehlt = p.attributes.filter((a) => !bekannt.has(a));
     check(`${p.policyId}: every attribute has a label in public/app.js`, fehlt.length === 0, `missing: ${fehlt.join(', ')}`);
   }
-  for (const a of ['birth_date', 'address']) {
+  for (const a of ['birth_date', 'address', 'nationality']) {
     check(`${a} has a result renderer`, new RegExp(`case '${a}':`).test(app), 'no case in attrResult');
   }
 }

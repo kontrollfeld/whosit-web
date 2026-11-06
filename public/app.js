@@ -301,6 +301,7 @@ const ATTRIBUTES = [
   // the local default before /capabilities has answered, so an instance on the narrow standard
   // policy does not offer them for a moment and then take them back.
   { key: 'birth_date', label: 'Geburtsdatum', policyOnly: true },
+  { key: 'nationality', label: 'Staatsangehörigkeit', policyOnly: true },
   { key: 'address', label: 'Anschrift', policyOnly: true },
   { key: 'age_over_18', label: 'Über 18 Jahre', note: 'ohne Geburtsdatum' },
   // Derived server-side (HMAC, per room, gone with the process) — not a wallet claim.
@@ -326,6 +327,7 @@ const ATTR_ICONS = {
   age_over_18: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/>',
   pseudonym_id: '<path d="M2 12h4l3-9 4 18 3-9h6"/>',
   birth_date: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  nationality: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   address: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
 };
 function attrIconEl(key) {
@@ -346,6 +348,7 @@ function attrResult(key, claims) {
     case 'given_name': return claims.given_name != null ? { label: 'Vorname', value: titleCase(claims.given_name) } : null;
     case 'age_over_18': return claims.age_over_18 != null ? { label: 'Über 18 Jahre', badge: (claims.age_over_18 === true || claims.age_over_18 === 'true') ? 'Ja' : 'Nein' } : null;
     case 'birth_date': return claims.birth_date != null ? { label: 'Geburtsdatum', value: formatBirthDate(claims.birth_date) } : null;
+    case 'nationality': return claims.nationality != null ? { label: 'Staatsangehörigkeit', value: [].concat(claims.nationality).join(', ') } : null;
     case 'address': { const a = formatAddress(claims.address); return a ? { label: 'Anschrift', value: a } : null; }
     // Not a wallet claim: derived by the server per room, gone when the process restarts.
     case 'pseudonym_id': return claims.pseudonym_id != null ? { label: 'Pseudonym', value: String(claims.pseudonym_id) } : null;
@@ -2757,7 +2760,7 @@ const aktionFenster = $('aktion-fenster');
 const aktionFrame = $('aktion-frame');
 let activeActionPrompt = null;
 let activeActionRun = null;
-const ACTION_ATTR_LABEL = { given_name: 'Vorname', family_name: 'Nachname', birth_date: 'Geburtsdatum', address: 'Anschrift', age_over_18: 'Über 18 Jahre', issuing_country: 'Ausstellungsstaat' };
+const ACTION_ATTR_LABEL = { given_name: 'Vorname', family_name: 'Nachname', birth_date: 'Geburtsdatum', address: 'Anschrift', nationality: 'Staatsangehörigkeit', age_over_18: 'Über 18 Jahre', issuing_country: 'Ausstellungsstaat' };
 
 function updateActionButton() {
   const on = isHost() && callStarted && !ended && actionsOffered && peers.size > 0;

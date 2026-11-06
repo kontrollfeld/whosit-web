@@ -182,6 +182,8 @@ const MDOC_KEYS: Record<SemanticAttr, string[]> = {
   issuing_country: ['issuing_country'],
   // mdoc carries the address flat in separate fields, SD-JWT as a nested object.
   address: ['resident_street', 'resident_postal_code', 'resident_city', 'resident_country'],
+  // ISO 3166-1 alpha-2 codes; the PID rulebook allows more than one.
+  nationality: ['nationality'],
 };
 
 // Semantic attribute → SD-JWT-VC PID claim path(s) (best-effort; see file header note).
@@ -193,6 +195,7 @@ const SDJWT_PATHS: Record<SemanticAttr, (string | number)[][]> = {
   birth_date: [['birthdate']], // SD-JWT VC uses `birthdate`, mdoc `birth_date`
   issuing_country: [['issuing_country']],
   address: [['address']],      // whole object: street_address, locality, postal_code, country
+  nationality: [['nationalities']], // SD-JWT VC: plural, an array; mdoc: `nationality`
 };
 
 /**
@@ -224,6 +227,8 @@ const RECONSTRUCT: Partial<Record<SemanticAttr, Reconstruction>> = {
   },
   // mdoc: birth_date · SD-JWT VC: birthdate
   birth_date: { from: ['birthdate'], build: (r) => r.birthdate },
+  // mdoc: nationality · SD-JWT VC: nationalities. Kept as it comes — a code or a list of codes.
+  nationality: { from: ['nationalities'], build: (r) => r.nationalities },
   // mdoc carries the address flat; brought here into the SAME object shape SD-JWT delivers,
   // otherwise the rendering would depend on the far side's format.
   address: {

@@ -115,6 +115,7 @@ const ATTR_LABEL: Record<string, string> = {
   pseudonym_id: 'ein Pseudonym, das nur für diese Instanz gilt',
   birth_date: 'Geburtsdatum',
   issuing_country: 'ausstellender Staat',
+  nationality: 'Staatsangehörigkeit',
   address: 'Anschrift',
 };
 

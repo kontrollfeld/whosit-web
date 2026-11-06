@@ -63,6 +63,7 @@ export const KNOWN_PID_ATTRIBUTES = [
   'birth_date',
   'issuing_country',
   'address',
+  'nationality',
 ] as const;
 
 export type AllowedPidAttribute = (typeof KNOWN_PID_ATTRIBUTES)[number];
@@ -128,6 +129,28 @@ export const WRP_POLICIES: Record<string, WrpPolicy> = {
     complianceNote:
       'Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Vermieter eine eigene Registrierung für genau diese Angaben.',
     attributes: ['given_name', 'family_name', 'birth_date', 'address', 'pseudonym_id'],
+    status: 'sandbox-only',
+  },
+
+  /**
+   * Registering guests of a hotel, an apartment or a holiday flat (§§ 29, 30 Bundesmeldegesetz):
+   * the registration form asks for name, date of birth, address and nationality — of the person
+   * checking in and of everyone staying with them.
+   *
+   * SANDBOX ONLY, like 'immobilien-mieterpruefung' and for the same reason: no registration covers
+   * this purpose today. It exists so an accommodation provider (Suite.030, 2026-11-06) can see its
+   * own check-in against the sandbox verifier; production needs that provider's own registration
+   * for exactly these attributes and its own EUDIPLO tenant.
+   *
+   * Nationality is the attribute that sets it apart: since 2025 the registration form is required
+   * for guests of foreign nationality only, so it is what the form exists to establish.
+   */
+  'beherbergung-meldeschein': {
+    purposeId: 'accommodation-guest-registration',
+    purposeText: 'Anmeldung von Gästen in Beherbergungsstätten nach §§ 29, 30 Bundesmeldegesetz (Sandbox)',
+    complianceNote:
+      'Nur im Sandbox-Betrieb: Für diesen Zweck besteht noch keine WRP-Registrierung. Vor dem Produktivbetrieb braucht der Beherbergungsbetrieb eine eigene Registrierung für genau diese Angaben.',
+    attributes: ['given_name', 'family_name', 'birth_date', 'address', 'nationality', 'pseudonym_id'],
     status: 'sandbox-only',
   },
 

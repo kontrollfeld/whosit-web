@@ -46,7 +46,7 @@ check('permits exactly the four base attributes',
   JSON.stringify(std.allowedAttributes) === JSON.stringify(['given_name', 'family_name', 'age_over_18', 'pseudonym_id']),
   JSON.stringify(std.allowedAttributes));
 check('reports date of birth, country and address as waived',
-  JSON.stringify(std.retiredAttributes) === JSON.stringify(['birth_date', 'issuing_country', 'address']),
+  JSON.stringify(std.retiredAttributes) === JSON.stringify(['birth_date', 'issuing_country', 'address', 'nationality']),
   JSON.stringify(std.retiredAttributes));
 check('does NOT ask the wallet for pseudonym_id',
   !std.walletRequestable.includes('pseudonym_id'), JSON.stringify(std.walletRequestable));
@@ -154,8 +154,9 @@ console.log('\nThe catalogue lists every policy once, with what stands behind it
   let k = [];
   try { k = JSON.parse((r.stdout || '').trim().split('\n').pop()); } catch { /* shown below */ }
   const ids = k.map((p) => p.policyId);
-  check('every named policy, the old alias not twice', JSON.stringify(ids) === JSON.stringify(['p2p-call', 'immobilien-mieterpruefung', 'kommune-buergerservice']), JSON.stringify(ids));
-  check('each with its status', k.map((p) => p.status).join() === 'registered,sandbox-only,template', k.map((p) => p.status).join());
+  check('every named policy, the old alias not twice', JSON.stringify(ids) === JSON.stringify(['p2p-call', 'immobilien-mieterpruefung', 'beherbergung-meldeschein', 'kommune-buergerservice']), JSON.stringify(ids));
+  check('each with its status', k.map((p) => p.status).join() === 'registered,sandbox-only,sandbox-only,template', k.map((p) => p.status).join());
+  check('the guest registration asks for nationality, nothing else beyond the tenant check', JSON.stringify(k.find((p) => p.policyId === 'beherbergung-meldeschein')?.walletRequestable) === JSON.stringify(['given_name', 'family_name', 'birth_date', 'address', 'nationality']), JSON.stringify(k.find((p) => p.policyId === 'beherbergung-meldeschein')));
   check('derived attributes are not offered as requestable', k.every((p) => !p.walletRequestable.includes('pseudonym_id')), JSON.stringify(k.map((p) => p.walletRequestable)));
   check('independent of the active policy', (() => {
     const r2 = spawnSync('npx', ['tsx', '-e', `import { policyCatalog } from './src/wrp-policy'; console.log(JSON.stringify(policyCatalog()));`], { env: { ...process.env, EUDI_WRP_POLICY: 'immobilien-mieterpruefung', EUDI_WRP_NARROW: 'given_name,family_name' }, encoding: 'utf8' });
@@ -167,12 +168,12 @@ console.log('\nNormalisation: mdoc and SD-JWT yield the same result');
 const norm = spawnSync('npx', ['tsx', '-e', `
   import { normalizeClaims } from './src/credential-profiles';
   const wrap = (v) => ({ status: 'completed', credentials: [{ values: [v] }] });
-  const mdoc = wrap({ given_name:'Erika', family_name:'M', birth_date:'1984-01-26', age_over_18:true,
+  const mdoc = wrap({ given_name:'Erika', family_name:'M', birth_date:'1984-01-26', age_over_18:true, nationality:['DE'],
     resident_street:'Musterstr. 1', resident_postal_code:'10115', resident_city:'Berlin', resident_country:'DE' });
-  const sdjwt = wrap({ given_name:'Erika', family_name:'M', birthdate:'1984-01-26', age_equal_or_over:{'18':true},
+  const sdjwt = wrap({ given_name:'Erika', family_name:'M', birthdate:'1984-01-26', age_equal_or_over:{'18':true}, nationalities:['DE'],
     address:{ street_address:'Musterstr. 1', locality:'Berlin', postal_code:'10115', country:'DE' } });
   console.log(JSON.stringify({ mdoc: normalizeClaims(mdoc), sdjwt: normalizeClaims(sdjwt) }));
-`], { env: { ...process.env, EUDI_WRP_POLICY: 'kommune-buergerservice' }, encoding: 'utf8' });
+`], { env: { ...process.env, EUDI_WRP_POLICY: 'beherbergung-meldeschein' }, encoding: 'utf8' });
 let n = {};
 try { n = JSON.parse((norm.stdout || '').trim().split('\n').pop()); } catch { /* unten sichtbar */ }
 check('beide Formate liefern dieselben Schlüssel',
@@ -181,9 +182,22 @@ check('beide Formate liefern dieselben Schlüssel',
 check('Geburtsdatum kommt aus BEIDEN durch',
   n.mdoc?.birth_date === '1984-01-26' && n.sdjwt?.birth_date === '1984-01-26',
   `${n.mdoc?.birth_date} / ${n.sdjwt?.birth_date}`);
+check('Staatsangehörigkeit kommt aus BEIDEN durch (mdoc nationality, SD-JWT nationalities)',
+  JSON.stringify(n.mdoc?.nationality) === '["DE"]' && JSON.stringify(n.sdjwt?.nationality) === '["DE"]',
+  `${JSON.stringify(n.mdoc?.nationality)} / ${JSON.stringify(n.sdjwt?.nationality)}`);
 check('Anschrift kommt aus BEIDEN durch, in gleicher Form',
   JSON.stringify(n.mdoc?.address) === JSON.stringify(n.sdjwt?.address) && !!n.mdoc?.address,
   `${JSON.stringify(n.mdoc?.address)} vs ${JSON.stringify(n.sdjwt?.address)}`);
+
+console.log('\nThe wallet is asked for nationality under its name in each format');
+{
+  const r = spawnSync('npx', ['tsx', '-e', `
+    import { buildDcql, selectedProfiles } from './src/credential-profiles';
+    console.log(JSON.stringify(buildDcql(selectedProfiles(), ['given_name', 'nationality'])));
+  `], { env: { ...process.env, EUDI_WRP_POLICY: 'beherbergung-meldeschein', EUDI_CREDENTIAL_PROFILES: 'pid_mdoc,pid_sdjwt' }, encoding: 'utf8' });
+  const q = (r.stdout || '').trim().split('\n').pop();
+  check('mdoc: [doctype, "nationality"] · SD-JWT: ["nationalities"]', q.includes('["eu.europa.ec.eudi.pid.1","nationality"]') && q.includes('["nationalities"]'), q.slice(0, 400));
+}
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
