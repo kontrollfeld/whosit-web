@@ -374,7 +374,7 @@ input[type="text"]:focus-visible {
 input::placeholder { color: var(--text-faint); }
 /* iOS zooms into a text field set below 16px as soon as it gets focus — in a call that shifts the
    whole layout while typing a chat message. Touch only; a mouse keeps the compact size. */
-@media (pointer: coarse) { input[type="text"] { font-size: 16px; } }
+@media (pointer: coarse) { input[type="text"] { font-size: max(16px, 1rem); } }
 
 /* ---- buttons ---- */
 button {
@@ -1433,8 +1433,10 @@ body.in-call .trust-bar {
 }
 body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; background: var(--surface); }
 .trust-bar .t-ic { width: 18px; height: 18px; flex: none; color: var(--ok); }
-.trust-bar .trust-names { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trust-bar .trust-sas { flex: none; font-size: 0.95rem; letter-spacing: 2px; }
+.trust-bar .trust-names { flex: 1 1 0; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trust-bar .trust-sas { flex: none; margin-left: auto; font-size: 0.95rem; letter-spacing: 2px; }
+/* Large text (Dynamic Type): the code moves to a second row rather than squeezing the name to "E…". */
+body.in-call .trust-bar { flex-wrap: wrap; }
 /* --text-muted, not --text-faint: a control's icon needs 3:1 against its surface (WCAG 1.4.11). */
 .trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-muted); transition: transform var(--t); }
 /* Read by screen readers, not shown: "Sicherheitscode" before the symbols in the bar. */
@@ -1471,6 +1473,9 @@ body.wizard #wiz-nav button { min-width: 108px; }
 .wiz-dots { display: inline-flex; gap: 7px; }
 /* "Schritt 2 von 5" in words instead of five dots — the dots did not say what the step is. */
 .wiz-dots.wiz-step { display: block; flex: 1 1 auto; text-align: center; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+/* Large text (Dynamic Type): "Schritt 2 von 5" gets its own row above the buttons, which no longer fit beside it. */
+html.dt-large body.wizard #wiz-nav { flex-wrap: wrap; }
+html.dt-large .wiz-dots.wiz-step { order: -1; flex-basis: 100%; }
 .wiz-dots .dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--border-strong); transition: background var(--t), transform var(--t);
@@ -1621,6 +1626,9 @@ body.pre-start.wizard[data-wkind="mode"] .app-strengths { display: block; }
 }
 .offline-bar svg { width: 18px; height: 18px; flex: none; }
 .offline-bar span { flex: 1; }
+/* Large text (Dynamic Type): the button wraps under the text rather than leaving the screen. */
+html.dt-large .offline-bar { flex-wrap: wrap; }
+html.dt-large .offline-bar span { flex: 1 1 9em; min-width: 0; }
 .offline-bar button { flex: none; }
 /* While disconnected: the rest of the UI is a still image and must not look current.
    Dimmed rather than locked — reading stays possible. Deliberately a list instead of
@@ -1857,6 +1865,12 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
   padding: 8px 8px 8px 16px; box-shadow: var(--shadow); font-size: 0.9rem;
 }
 .muted-hint[hidden] { display: none; }
+/* Large text (Dynamic Type, html.dt-large — see applyDynamicType): the button may wrap too, rather
+   than push past the screen edge. max-content, because with left: 50% the shrink-to-fit width
+   would stop at half the screen. */
+html.dt-large .muted-hint { width: max-content; }
+html.dt-large .muted-hint > span { min-width: 0; -webkit-hyphens: auto; hyphens: auto; }
+html.dt-large .muted-hint button { white-space: normal; }
 
 /* Background effects: the same tile picker in the device check and above the call controls. */
 .bg-row { display: grid; gap: 6px; }

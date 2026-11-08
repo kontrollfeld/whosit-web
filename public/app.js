@@ -28,6 +28,18 @@ function wsUrl() {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 }
 function isNativeApp() { return !!(APP_CONFIG && APP_CONFIG.native) || !!window.Capacitor; }
+// Haptics, app only: the native plugin rather than navigator.vibrate — iOS WebKit has none, and a
+// web page buzzing the phone would surprise more than help. An app build without the plugin gets
+// nothing. iOS honours the system's "System Haptics" switch on its own.
+function haptic(kind) {
+  const h = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+  if (!h) return;
+  try {
+    const p = kind === 'success' || kind === 'error' ? h.notification({ type: kind.toUpperCase() })
+      : h.impact({ style: kind === 'medium' ? 'MEDIUM' : 'LIGHT' });
+    Promise.resolve(p).catch(() => {});
+  } catch { /* not there after all */ }
+}
 window.apiUrl = apiUrl; // shared with lazy-loaded modules (public/qes/*)
 
 // ICE servers come from the server's /ice endpoint (STUN + short-lived TURN-REST
@@ -1408,6 +1420,7 @@ function handle(msg) {
     case 'auth': showAuth(msg); break;
     case 'auth-failed':
       setStatus('Bestätigung fehlgeschlagen – bitte erneut scannen.');
+      haptic('error');
       if (walletModalCtx === 'auth') setWalletModalState('error');
       break;
     case 'auth-progress': if (walletModalCtx === 'auth' && msg.state === 'fetched') setWalletModalState('loading'); break;
@@ -1897,11 +1910,12 @@ function renderPeerBlocks(container, peers, renderInto, withNames) {
 }
 
 function renderStatus(msg) {
+  const hadStatus = !!lastStatusMsg; // a resumed seat arrives verified — nothing happened just now
   lastStatusMsg = msg;
   syncBanderoleTriggers();
   const wasVerified = selfVerified;
   selfVerified = msg.self.verified;
-  if (selfVerified && !wasVerified) walletModalSucceeded('auth');
+  if (selfVerified && !wasVerified) { walletModalSucceeded('auth'); if (hadStatus) haptic('success'); }
   if (msg.self.name) myName = msg.self.name;
   myRole = msg.self.role || myRole;
   mode = msg.mode || mode;
@@ -3310,7 +3324,7 @@ function showWalletDone() {
     setTimeout(() => { location.href = appUrl; }, 400);
   }
 }
-function hangUp() { if (ended) return; ended = true; wsSend({ type: 'hangup' }); teardownCall(); showEnded('Du hast aufgelegt.'); }
+function hangUp() { if (ended) return; ended = true; haptic('medium'); wsSend({ type: 'hangup' }); teardownCall(); showEnded('Du hast aufgelegt.'); }
 
 /**
  * An invitation to a scheduled call was refused (or was already unreadable here).
@@ -3554,6 +3568,7 @@ function toggleAudio() {
   const on = !tr[0].enabled; tr.forEach((t) => (t.enabled = on));
   setToggle(micBtn, micLabel, on, t('Mikrofon'), t('Stumm'));
   micMuted = !on;
+  haptic('light');
   enforceLocalMuteState(); // the sender is authoritative, not the source
   broadcast({ k: 'mic', on });
   syncMutedWatch();
@@ -3566,6 +3581,7 @@ function toggleVideo() {
   setToggle(camBtn, camLabel, on, t('Kamera'), t('Kamera aus'));
   localVideo.style.opacity = on ? '' : '0.35';
   camOff = !on;
+  haptic('light');
   enforceLocalMuteState();
   broadcast({ k: 'cam', on });
   refreshAllBadges();
@@ -4213,6 +4229,8 @@ function noticeArrivals(msg) {
   const fresh = [...now.values()].filter((x) => !before.has(x.peerId));
   // Identified since the last status — the host's cue to identify too (or that the call can start).
   const nowVerified = [...now.values()].filter((x) => x.verified && !verifiedBefore.has(x.peerId));
+  // Felt rather than heard: the moment the other side is who they claim to be.
+  if (nowVerified.length && !callStarted) haptic('success');
   // In the call, a newcomer already shows up in chat and tiles — only worth a sound when away.
   if (callStarted && !awayFromCall()) return;
   if (fresh.length) {
@@ -4657,11 +4675,37 @@ async function startIntroSound() {
   return clock;
 }
 
+// ---- Dynamic Type (iOS app): the text follows the system text size ----------------------
+// WebKit resolves `-apple-system-body` to the size set under Settings → Display → Text Size
+// (17px at the default). The root size scales by that ratio, so the default stays at 16px and every
+// rem-sized text follows. Capped: from the accessibility sizes on, the call screen would no longer
+// fit — the system still enlarges further with its own zoom. Android does the same natively
+// (textZoom, see the app's MainActivity).
+function applyDynamicType() {
+  // A touch screen only: the iPhone app run on a Mac would read the Mac's 13px and shrink.
+  if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return;
+  const probe = document.createElement('span');
+  probe.style.font = '-apple-system-body';
+  if (!probe.style.font) return; // not WebKit on Apple
+  probe.style.position = 'absolute'; probe.style.visibility = 'hidden';
+  document.body.appendChild(probe);
+  const px = parseFloat(getComputedStyle(probe).fontSize);
+  probe.remove();
+  if (!px) return;
+  const scale = Math.min(Math.max(px / 17, 0.82), 1.35);
+  document.documentElement.style.fontSize = Math.abs(scale - 1) < 0.01 ? '' : `${(16 * scale).toFixed(2)}px`;
+  // From "XL" on: the few places that need more room to wrap (style.css, .dt-large).
+  document.documentElement.classList.toggle('dt-large', scale > 1.1);
+}
+
 // ---- native app shell: bottom tab bar (call / settings) --------------
 // Only in the Capacitor app (isNativeApp()); the website keeps its footer pills.
 (function initAppShell() {
   if (!isNativeApp()) return;
   document.documentElement.classList.add('native-app'); // safety net for the head script
+  // The setting is changed in the Settings app, so it is read again whenever the app is back.
+  applyDynamicType();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) applyDynamicType(); });
   const tabbar = $('app-tabbar'), settingsBox = $('app-settings');
   if (!tabbar || !settingsBox) return;
   // move the footer meta controls into the settings rows (element move, wiring intact;
