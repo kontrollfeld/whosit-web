@@ -1561,11 +1561,17 @@ function broadcastStatus(room: Room): void {
     revealed
     && (!openRoom || (recipient.verified && recipient.confirmed))
     && (!openRoom || (subject.verified && subject.confirmed));
+  // `verified` also holds for someone who had nothing to present (anonymous, or no verifier at
+  // all). `presented` says whether a wallet actually vouched for them — what a tick in the
+  // interface may claim. Without it an anonymous call read „Verifizierter Anruf".
+  const presented = (x: Participant) =>
+    x.verified && requiresWalletPresentation(x.role === 'callee' ? room.requestedAttrs : room.disclosedAttrs);
   for (const p of room.participants) {
     const peers = ext.roomStore.peersOf(room, p).map((peer) => ({
       peerId: peer.peerId,
       role: peer.role,
       verified: peer.verified,
+      presented: presented(peer),
       confirmed: peer.confirmed,
       // Channel binding. The fingerprint is no secret — it is in the SDP anyway — but the
       // client needs it FROM THE SERVER in order to hold it against the remote description it
@@ -1592,7 +1598,7 @@ function broadcastStatus(room: Room): void {
       starting: room.starting,
       reviewOpen,
       self: {
-        peerId: p.peerId, role: p.role, verified: p.verified, confirmed: p.confirmed,
+        peerId: p.peerId, role: p.role, verified: p.verified, presented: presented(p), confirmed: p.confirmed,
         channelBound: p.channelBound === true,
         name: showValues(p, p) ? fullName(p) : undefined, claims: showValues(p, p) ? p.claims : undefined,
         // What I shared in-call (labels only — I know my own values).
@@ -1761,7 +1767,8 @@ wss.on('connection', (ws, request) => {
         send(ws, { type: 'error', message: 'too many new rooms from this address — try again in a few minutes' });
         return;
       }
-      await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv);
+      const arrival = msg.arrival === 'creator' || msg.arrival === 'invited' ? msg.arrival : undefined;
+      await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv, arrival);
       return;
     }
 
@@ -2222,7 +2229,7 @@ wss.on('connection', (ws, request) => {
   });
 });
 
-async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantAuth = false, origin = PUBLIC_URL, dtlsFingerprint?: unknown, inviteTok?: unknown): Promise<void> {
+async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantAuth = false, origin = PUBLIC_URL, dtlsFingerprint?: unknown, inviteTok?: unknown, arrival?: 'creator' | 'invited'): Promise<void> {
   if (!roomId) {
     send(ws, { type: 'error', message: 'missing roomId' });
     return;
@@ -2285,7 +2292,8 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // the guest can even verify in advance while waiting.
   const wanted: Role | undefined = invite ? (invite.role === 'host' ? 'caller' : 'callee') : undefined;
 
-  const result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), { reclaimRole: wanted });
+  // A scheduled room's roles come from the invitation alone; arrival only speaks for ad-hoc rooms.
+  const result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), { reclaimRole: wanted, arrival: invite ? undefined : arrival });
   if ('error' in result) {
     send(ws, { type: 'room-full' });
     console.log(`[room] Beitritt abgelehnt room=${roomId.slice(0, 8)} grund=${result.error}`);

@@ -152,7 +152,7 @@ export function joinRoom(
   ws: WebSocket,
   clientId: string,
   maxParticipants = 2,
-  opts: { reclaimRole?: Role } = {},
+  opts: { reclaimRole?: Role; arrival?: 'creator' | 'invited' } = {},
 ): { room: Room; participant: Participant; resumed: boolean; replaced?: WebSocket; reclaimed?: boolean } | { error: 'full' } {
   let room = rooms.get(roomId);
   if (!room) {
@@ -231,8 +231,9 @@ export function joinRoom(
     }
   }
 
-  // First/only caller-less slot becomes the caller (host), everyone else a guest.
-  const role: Role = room.participants.some((p) => p.role === 'caller') ? 'callee' : 'caller';
+  // First/only caller-less slot becomes the caller (host), everyone else a guest — except for
+  // someone who followed a link (see JoinOptions.arrival): they are a guest even in an empty room.
+  const role: Role = opts.arrival === 'invited' || room.participants.some((p) => p.role === 'caller') ? 'callee' : 'caller';
   const participant = newParticipant(clientId, ws, role);
   withdrawConsents(room);
   room.participants.push(participant);

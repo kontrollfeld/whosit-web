@@ -300,7 +300,7 @@ const fileInput = $('file-input');
 // re-translated once the async dictionary arrives (first messages fire before load).
 function statusState(msg) {
   const x = String(msg);
-  if (/Fehler|fehlgeschlagen|verloren|voll|abgelehnt|nicht unterst/i.test(x)) return 'error';
+  if (/Fehler|fehlgeschlagen|nicht geklappt|verloren|voll|abgelehnt|nicht unterst/i.test(x)) return 'error';
   if (/Weise dich|weise dich|Bitte Kamera|Prüfe, was/i.test(x)) return 'prompt';
   if (/wartet|warte|ausstehend|wird aufgebaut|betreten|neu verbinden/i.test(x)) return 'wait';
   if (/✓|zugestimmt|geschafft|steht\.|Verbunden/i.test(x)) return 'ok';
@@ -327,7 +327,7 @@ const ATTRIBUTES = [
   { key: 'age_over_18', label: 'Über 18 Jahre', note: 'ohne Geburtsdatum' },
   // Derived server-side (HMAC, per room, gone with the process) — not a wallet claim.
   // Only meaningful IN ADDITION to a real attribute; on its own it is not verification.
-  { key: 'pseudonym_id', label: 'Pseudonym', note: 'einmalige Kennung statt Name' },
+  { key: 'pseudonym_id', label: 'Pseudonym', note: 'einmalige Kennung — nur zusammen mit einer weiteren Angabe' },
 ];
 // The quick picks above the list. Built in, these three — shown only when the policy allows every
 // attribute in them. An operator can put their own in their place (/capabilities `ui.schnellwahl`,
@@ -335,7 +335,7 @@ const ATTRIBUTES = [
 const BUILTIN_PRESETS = [
   { id: 'age', label: 'Altersnachweis 18+', keys: ['age_over_18'] },
   { id: 'name', label: 'Name', keys: ['family_name', 'given_name'] },
-  { id: 'full', label: 'Voll', keys: ['family_name', 'given_name', 'age_over_18'] },
+  { id: 'full', label: 'Name + 18+', keys: ['family_name', 'given_name', 'age_over_18'] },
 ];
 let presets = BUILTIN_PRESETS.map((p) => ({ ...p, label: p.label }));
 const labelFor = (k) => (ATTRIBUTES.find((a) => a.key === k) || {}).label || k;
@@ -518,6 +518,13 @@ function buildSetup() {
   requestSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.request === requestMode));
   discloseListEl.hidden = discloseMode === 'anon';
   requestExtra.hidden = requestMode === 'anon';
+  // Screen readers hear which option of a segmented control is chosen — `.active` alone is only
+  // visible. Mirrored from the class, which stays the one source the rest of the code sets.
+  for (const seg of document.querySelectorAll('.seg')) {
+    const sync = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
+    sync();
+    new MutationObserver(sync).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
   // "Allow more guests later" — only meaningful with the multi-party capability.
   openroomRow.hidden = !capOn('multi-party');
   openroomToggle.addEventListener('change', onConfigChange);
@@ -755,8 +762,12 @@ const pairToken = params.get('pair');
 // In the app the bundle has no /zurueck path; openRoomUrl hands it over as ?zurueck=1&r=… instead.
 const backFromWallet = location.pathname === '/zurueck' || params.get('zurueck') === '1';
 let roomId = inviteCfg ? inviteCfg.room : (params.get('room') || (backFromWallet ? params.get('r') : null));
+// Whether THIS browser opened the room (see roomArrival): kept for the session even where storage fails.
+let createdHere = false;
 if (!roomId && !inviteToken && !pairToken && !backFromWallet) {
   roomId = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
+  createdHere = true;
+  try { localStorage.setItem('eudi_host_' + roomId, '1'); } catch { /* private mode: createdHere still holds */ }
   params.delete('new'); // entry flag from a start page's CTA — not part of the room URL
   params.set('room', roomId);
   // Keep the hash: in embed mode it carries the #cfg config (parsed further below) —
@@ -1352,9 +1363,21 @@ async function runNetworkCheck() {
 
 /** Joining — both when the connection is established AND when a scheduled appointment opens on an
  *  already-open socket (see enterWhenOpen). */
+/**
+ * Opened the room here, or came by its link? The server makes a link holder a guest even in an
+ * empty room: someone who opened the link while the host was away (longer than the grace period)
+ * used to become the host and found the setup form, and the real host came back as a guest.
+ * Scheduled calls take the role from the invitation, embeds keep the old first-come rule.
+ */
+function roomArrival() {
+  if (inviteCfg || isEmbedded) return undefined;
+  if (createdHere) return 'creator';
+  try { if (localStorage.getItem('eudi_host_' + roomId)) return 'creator'; } catch { /* unknown → link */ }
+  return 'invited';
+}
 async function sendJoin() {
   await ensureLocalCertificate();
-  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined });
+  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival() });
 }
 
 function connect() {
@@ -1377,6 +1400,21 @@ function connect() {
   };
   sock.onerror = () => {};
   sock.onmessage = (ev) => { if (ws !== sock) return; let m; try { m = JSON.parse(ev.data); } catch { return; } handle(m); };
+}
+
+/** A server error as something a person can act on. The server speaks English for logs and tools;
+ *  shown raw it read "Fehler: invalid roomId". The original goes to the console for support. */
+const SERVER_ERRORS = [
+  [/roomId/, 'Dieser Link ist unvollständig – öffne bitte den ganzen Link aus der Einladung.'],
+  [/EUDIPLO|offer failed/i, 'Die Ausweisprüfung ist gerade nicht erreichbar. Versuch es in einem Moment noch einmal.'],
+  [/too many new rooms/i, 'Von diesem Anschluss wurden gerade sehr viele Anrufe gestartet. Versuch es in ein paar Minuten noch einmal.'],
+  [/without a verifier/i, 'Auf dieser Instanz ist keine Ausweisprüfung eingerichtet – Anrufe bleiben anonym.'],
+  [/channel binding/i, 'Die Verbindung ließ sich nicht sicher zuordnen. Lade die Seite neu und versuch es noch einmal.'],
+];
+function errorText(raw) {
+  if (raw) console.warn('[server]', raw);
+  const hit = SERVER_ERRORS.find(([re]) => re.test(String(raw || '')));
+  return hit ? hit[1] : 'Etwas ist schiefgelaufen. Lade die Seite neu und versuch es noch einmal.'; // setStatus translates
 }
 
 function handle(msg) {
@@ -1419,7 +1457,7 @@ function handle(msg) {
     case 'invite-invalid': showInviteProblem(msg.reason, msg.opensAt, msg.startsAt); break;
     case 'auth': showAuth(msg); break;
     case 'auth-failed':
-      setStatus('Bestätigung fehlgeschlagen – bitte erneut scannen.');
+      setStatus('Das Ausweisen hat nicht geklappt – bitte erneut scannen.');
       haptic('error');
       if (walletModalCtx === 'auth') setWalletModalState('error');
       break;
@@ -1486,7 +1524,7 @@ function handle(msg) {
         if (lastStatusMsg) applyServerConfig(lastStatusMsg);
         break;
       }
-      setStatus(t('Fehler:') + ' ' + msg.message);
+      setStatus(errorText(msg.message), 'error');
       break;
   }
 }
@@ -1680,8 +1718,8 @@ function renderAuthCard(role, attrs, opts) {
     authTitle.textContent = t('Eigene Daten freigeben');
     authHint.innerHTML = t('Diese Angaben teilst du aus deiner <strong>Wallet</strong>:');
   } else {
-    authTitle.textContent = t('Identität bestätigen');
-    authHint.innerHTML = t('Du gibst <strong>nur diese Angaben</strong> aus deinem Personalausweis frei — sonst nichts:');
+    authTitle.textContent = t('Mit Wallet ausweisen');
+    authHint.innerHTML = t('Du gibst <strong>nur diese Angaben</strong> aus deinem Ausweis frei — sonst nichts:');
   }
   renderConsent(attrs);
 }
@@ -1700,13 +1738,28 @@ function renderAuthPeer(msg) {
 }
 
 function roleLabelFor(role) { return role === 'caller' ? t('Gastgeber:in') : t('Gast'); }
+/** Did a wallet actually vouch for this participant? `verified` alone also holds for someone who had
+ *  nothing to present (anonymous, no verifier) — a tick on that claims a check that never happened.
+ *  A server without the field (older Pro build) leaves the old reading. */
+function presentedOf(x) { return !!x && (x.presented !== undefined ? !!x.presented : !!x.verified); }
+/** The tick on a tile follows the status — a credential presented in-call can still add one. */
+function syncTileTicks(msg) {
+  for (const x of msg.peers || []) {
+    const el = x.peerId && videosEl.querySelector(`.tile[data-peer="${CSS.escape(x.peerId)}"] .name`);
+    if (el) el.classList.toggle('verified', presentedOf(x));
+  }
+}
+function peerPresented(peerId) {
+  const m = lastStatusMsg;
+  return !!m && (m.peers || []).some((x) => x.peerId === peerId && presentedOf(x));
+}
 
 // ---- progress stepper (role-aware; hidden in solo/embed) ----
 // Host flow: set up & invite → everyone identifies & confirms → connected.
 // Guest flow: identify → confirm → connected. Rendered from renderStatus/revealCall.
 const stepperEl = $('stepper');
-const STEPS_HOST = ['Einrichten & einladen', 'Ausweisen & bestätigen', 'Verbunden'];
-const STEPS_GUEST = ['Ausweisen', 'Bestätigen', 'Verbunden'];
+const STEPS_HOST = ['Einrichten & einladen', 'Ausweisen & zustimmen', 'Verbunden'];
+const STEPS_GUEST = ['Ausweisen', 'Zustimmen', 'Verbunden'];
 function updateStepper(active) {
   if (!stepperEl || soloMode || isEmbedded) return;
   const labels = myRole === 'callee' ? STEPS_GUEST : STEPS_HOST;
@@ -1739,7 +1792,7 @@ function updateStepper(active) {
  * part that actually tells you what to do.
  */
 function stepFlags(verified, confirmed, connected) {
-  return [['ausgewiesen', verified], ['bestätigt', confirmed], ['verbunden', connected]];
+  return [['ausgewiesen', verified], ['zugestimmt', confirmed], ['verbunden', connected]];
 }
 
 function renderSteps(chip, flags) {
@@ -1774,12 +1827,12 @@ function renderSteps(chip, flags) {
  * `identified` also drives the colour: only from that point on is a chip filled in its role
  * colour. A guest who has just arrived must not look as finished as one who has signed.
  */
-function chipState(name, verified, confirmed) {
+function chipState(name, verified, confirmed, presented = verified) {
   if (name) return { text: `${titleCase(name)} ✓`, identified: true };
-  if (confirmed) return { text: t('bestätigt ✓'), identified: true };
-  // Without a verifier "verified" only means "nothing to present" — saying "ausgewiesen ✓"
-  // would read as an ID check that never happened.
-  if (verified && verifierOff) return { text: t('anonym — ungeprüft'), identified: true };
+  // Nothing to present (anonymous, or no verifier at all): "verified" only means "nothing to
+  // present" — "ausgewiesen ✓" or a bare "zugestimmt ✓" would read as an ID check that never happened.
+  if (verified && (!presented || verifierOff)) return { text: t(confirmed ? 'anonym — zugestimmt' : 'anonym — ungeprüft'), identified: true };
+  if (confirmed) return { text: t('zugestimmt ✓'), identified: true };
   if (verified) return { text: t('ausgewiesen ✓'), identified: true };
   return { text: t('noch nicht ausgewiesen'), identified: false };
 }
@@ -1795,7 +1848,7 @@ function updateChips(msg) {
   const anonymousHost = isHost() && !hostDiscloses;
   const self = anonymousHost
     ? { text: t('Gastgeber:in'), identified: true }
-    : chipState(msg.self.name, msg.self.verified, msg.self.confirmed);
+    : chipState(msg.self.name, msg.self.verified, msg.self.confirmed, presentedOf(msg.self));
   // `pending` makes the chip pulse (see style.css): "it's your turn" should not only be readable
   // but visible. Only an open identification pulses — a finished participant has nothing to do.
   selfChip.className = `id-chip ${roleClass(myRole)}${self.identified ? ' is-identified' : ' pending'}`;
@@ -1818,7 +1871,7 @@ function updateChips(msg) {
     return;
   }
   for (const peer of list) {
-    const st = chipState(peer.name, peer.verified, peer.confirmed);
+    const st = chipState(peer.name, peer.verified, peer.confirmed, presentedOf(peer));
     const chip = document.createElement('div');
     chip.className = `id-chip ${roleClass(peer.role)}${st.identified ? ' is-identified' : ''}`;
     chip.innerHTML = '<span class="dot"></span>';
@@ -1942,7 +1995,7 @@ function renderStatus(msg) {
     return;
   }
 
-  if (callStarted) { updateChips(msg); updateStepper(2); if (msg.revealed) { renderResult(msg); resultBox.hidden = false; } updateCredBadges(msg); return; }
+  if (callStarted) { updateChips(msg); updateStepper(2); if (msg.revealed) { renderResult(msg); resultBox.hidden = false; } updateCredBadges(msg); syncTileTicks(msg); return; }
 
   const peerList = msg.peers || [];
   const peerPresent = peerList.length > 0;
@@ -1985,7 +2038,7 @@ function renderStatus(msg) {
     reviewBox.hidden = true;
     if (!isHost() && msg.self.verified) {
       setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true;
-      setStatus('Bestätigt ✓ – warte, bis der Gastgeber den Anruf startet …');
+      setStatus(presentedOf(msg.self) ? 'Ausgewiesen ✓ – warte, bis der Gastgeber den Anruf startet …' : 'Warte, bis der Gastgeber den Anruf startet …');
       return;
     }
     if (isHost() && allVerified) {
@@ -2017,8 +2070,8 @@ function renderStatus(msg) {
     const othersReady = others.length > 0 && others.every((x) => x.confirmed);
     setReviewUrgency(othersReady);
     setStatus(othersReady
-      ? (isHost() ? 'Du bist dran: Dein Gast hat bestätigt — prüfe und bestätige zum Verbinden.' : 'Du bist dran: Gastgeber:in hat bestätigt — prüfe und bestätige zum Verbinden.')
-      : 'Prüfe, was geteilt wird, und bestätige zum Verbinden.', 'prompt');
+      ? (isHost() ? 'Du bist dran: Dein Gast hat zugestimmt — prüfe und stimme zu, um zu verbinden.' : 'Du bist dran: Gastgeber:in hat zugestimmt — prüfe und stimme zu, um zu verbinden.')
+      : 'Prüfe, was geteilt wird, und stimme zu, um zu verbinden.', 'prompt');
     return;
   }
   reviewBox.hidden = true;
@@ -2028,7 +2081,7 @@ function renderStatus(msg) {
   if (isOpenRoom && msg.self.confirmed && !msg.revealed) {
     setupBox.hidden = true; authBox.hidden = true; startBar.hidden = true;
     shareBox.hidden = !isHost();
-    setStatus('Bestätigt ✓ – warte auf weitere Teilnehmer …');
+    setStatus('Zugestimmt ✓ – warte auf weitere Teilnehmer …');
     return;
   }
   // Non-open: confirmed, waiting for the others to confirm.
@@ -2036,7 +2089,7 @@ function renderStatus(msg) {
     setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true; startBar.hidden = true;
     renderReview(msg); reviewBox.hidden = false;
     reviewWait.hidden = true; setConfirmWaiting(true);
-    setStatus('Du hast bestätigt — wartet auf die anderen …');
+    setStatus('Du hast zugestimmt — warte auf die anderen …');
     return;
   }
 
@@ -2072,7 +2125,9 @@ function renderStatus(msg) {
     // the defaults. Name the consequence while it can still be avoided, and mark the card as
     // the step that is now due. Once it IS locked the note is only rubbing it in.
     if (inviteLockNote) inviteLockNote.hidden = locked;
-    shareBox.classList.toggle('is-next', !locked);
+    // …unless the host's own identification is due first: that card is the active one then, and two
+    // highlighted cards left it unclear which comes next.
+    shareBox.classList.toggle('is-next', !locked && !(!msg.self.verified && msg.disclosedAttrs.length > 0));
     // Scheduled call: the invitation was sent long ago, and appointment fields do not belong in a
     // call that already IS one. The card only stays if this device still has the guest link —
     // then the host can send it again.
@@ -2103,7 +2158,7 @@ function renderStatus(msg) {
     // identify at all).
     if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
     else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.');
-    else if (!peerPresent && msg.self.verified) setStatus('Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.', 'ok');
+    else if (!peerPresent && msg.self.verified) setStatus(presentedOf(msg.self) ? 'Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.' : 'Du bleibst anonym – schick jetzt den Link an deinen Gast.', 'ok');
     else if (!peerPresent) setStatus('Richte den Anruf ein und schick den Link an deinen Gast.');
     else if (hostMustScan) setStatus('Dein Gast ist da – weise dich jetzt aus.', 'prompt');
     else if (someoneUnverified) setStatus(peerList.length > 1 ? 'Deine Gäste sind da und weisen sich gerade aus …' : 'Dein Gast ist da und weist sich gerade aus …', 'wait');
@@ -2123,7 +2178,10 @@ function renderStatus(msg) {
         : msg.mode === 'chat' ? 'Du bist zu einem Chat eingeladen – weise dich mit deiner Wallet aus.'
         : 'Du bist zu einem Videoanruf eingeladen – weise dich mit deiner Wallet aus.', 'prompt');
     }
-    else if (!allVerified) setStatus('Du bist ausgewiesen ✓ – warte auf die anderen …');
+    // A guest can be first in the room now (the host stepped away, see roomArrival) — say so
+    // rather than "warte auf die anderen", which sounds like someone is already busy.
+    else if (!peerPresent) setStatus('Gastgeber:in ist noch nicht da – es geht automatisch weiter.', 'wait');
+    else if (!allVerified) setStatus(presentedOf(msg.self) ? 'Du bist ausgewiesen ✓ – warte auf die anderen …' : 'Du bleibst anonym – warte auf die anderen …');
     else setStatus('Gleich geschafft …');
   }
 }
@@ -2154,7 +2212,7 @@ function setActiveCard(el) {
 
 // ---- review actions ----
 // The connect button carries the waiting state itself: after the click, "waiting for confirmation".
-const CONFIRM_LABEL = 'Verbinden ✓', CONFIRM_WAIT = 'Warte auf Bestätigung …';
+const CONFIRM_LABEL = 'Verbinden ✓', CONFIRM_WAIT = 'Warte auf Zustimmung …';
 function setConfirmWaiting(w) {
   confirmBtn.classList.toggle('waiting', w);
   confirmBtn.disabled = w; declineBtn.disabled = w;
@@ -2172,12 +2230,12 @@ function setConfirmWaiting(w) {
 function setReviewUrgency(on) {
   confirmBtn.classList.toggle('urgent', !!on);
   reviewReady.hidden = !on;
-  if (on) reviewReady.textContent = t('Alle anderen sind bereit — es fehlt nur noch deine Bestätigung.');
+  if (on) reviewReady.textContent = t('Alle anderen sind bereit — es fehlt nur noch deine Zustimmung.');
 }
 startBtn.addEventListener('click', () => { startBtn.disabled = true; wsSend({ type: 'start-call' }); });
 confirmBtn.addEventListener('click', () => { wsSend({ type: 'confirm' }); reviewWait.hidden = true; setConfirmWaiting(true); });
-declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended = true; teardownCall(); showEnded('Du hast abgelehnt. Es wird keine Verbindung aufgebaut.'); });
-function onDeclined() { if (ended) return; ended = true; teardownCall(); showEnded(isHost() ? 'Dein Gast hat abgelehnt. Es wird keine Verbindung aufgebaut.' : 'Gastgeber:in hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
+declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended = true; teardownCall(); markRoomEnded(); showEnded('Du hast abgelehnt. Es wird keine Verbindung aufgebaut.'); });
+function onDeclined() { if (ended) return; ended = true; teardownCall(); markRoomEnded(); showEnded(isHost() ? 'Dein Gast hat abgelehnt. Es wird keine Verbindung aufgebaut.' : 'Gastgeber:in hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
 
 // ---- WebRTC (full mesh: one RTCPeerConnection per peer) ----
 // peerId -> { pc, dc, pendingIce, remoteDescSet, initiator, name, role, video, tile }
@@ -2337,6 +2395,19 @@ async function retryMedia() {
 }
 mediaRetryBtn.addEventListener('click', () => { retryMedia(); });
 function localTracks() { return localStream && localStream.getTracks ? localStream.getTracks() : []; }
+/**
+ * The offer must ask for sound (and picture) even when this side has none to send: an offer
+ * without a media section gets an answer without one, and the other side's camera and microphone
+ * went nowhere — one missing device left BOTH sides without sound and picture. A later addTrack
+ * (retryMedia) takes over these transceivers rather than adding new ones.
+ */
+function ensureReceiving(pc) {
+  if (mode === 'chat' || typeof pc.addTransceiver !== 'function') return;
+  const kinds = new Set(pc.getTransceivers().map((tr) => tr.receiver && tr.receiver.track && tr.receiver.track.kind).filter(Boolean));
+  for (const kind of mode === 'video' ? ['audio', 'video'] : ['audio']) {
+    if (!kinds.has(kind)) { try { pc.addTransceiver(kind, { direction: 'recvonly' }); } catch { /* old browser */ } }
+  }
+}
 
 // Create/find the per-peer connection. `meta` = { name, role, initiator }.
 function getPeer(peerId, meta) {
@@ -2364,7 +2435,33 @@ function getPeer(peerId, meta) {
   pc.onicecandidate = (e) => { if (e.candidate) wsSend({ type: 'ice', to: peerId, data: e.candidate }); };
   pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'connected') { revealCall(); updateSas(); }
+    // Mid-call trouble. "disconnected" often heals by itself (a Wi-Fi hiccup, a handover to
+    // mobile data); "failed" does not without a new ICE round — the offerer starts one, twice at
+    // most, before saying it did not work. Meanwhile the trust bar must not stay green as if all
+    // were well (body.link-shaky).
+    const st = pc.connectionState;
+    document.body.classList.toggle('link-shaky', callConnectedOnce && [...peers.values()].some((x) => x.pc.connectionState === 'disconnected' || x.pc.connectionState === 'failed'));
+    if (callConnectedOnce && (st === 'disconnected' || st === 'failed')) {
+      const cur = peers.get(peerId);
+      if (st === 'failed' && cur && cur.initiator && (cur.iceRestarts || 0) < 2) {
+        cur.iceRestarts = (cur.iceRestarts || 0) + 1;
+        setStatus('Verbindung gestört – wird wiederhergestellt …', 'wait');
+        pc.createOffer({ iceRestart: true })
+          .then((offer) => pc.setLocalDescription(offer).then(() => wsSend({ type: 'offer', to: peerId, data: offer })))
+          .catch((e) => console.warn('ice restart:', e && e.message));
+        if (lastStatusMsg) updateChips(lastStatusMsg);
+        return;
+      }
+      if (st === 'disconnected') { setStatus('Verbindung gestört – wird wiederhergestellt …', 'wait'); if (lastStatusMsg) updateChips(lastStatusMsg); return; }
+    }
+    if (pc.connectionState === 'connected') {
+      const cur = peers.get(peerId); if (cur) cur.iceRestarts = 0;
+      revealCall(); updateSas();
+      // Connected, but the other side sends no picture (no camera, or none allowed): a tile all
+      // the same, with name and badges — without one the host only saw themselves, with no hint
+      // that anyone was there.
+      if (mode === 'video' && !peers.get(peerId)?.tile) attachRemote(peerId, new MediaStream());
+    }
     else if (pc.connectionState === 'failed') setStatus('Die Verbindung kam nicht zustande. Oft liegt es am Netzwerk – versuch es mit einem anderen WLAN oder mit mobilen Daten.', 'error');
     if (lastStatusMsg) updateChips(lastStatusMsg); // last chip step = connected
   };
@@ -2415,7 +2512,7 @@ function attachRemote(peerId, stream) {
   if (!p.tile) {
     const tile = document.createElement('div'); tile.className = 'tile'; tile.dataset.peer = peerId;
     const video = document.createElement('video'); video.autoplay = true; video.playsInline = true; applySink(video);
-    const nameEl = document.createElement('div'); nameEl.className = 'name verified'; nameEl.textContent = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
+    const nameEl = document.createElement('div'); nameEl.className = peerPresented(peerId) ? 'name verified' : 'name'; nameEl.textContent = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
     tile.append(video, nameEl); videosEl.appendChild(tile);
     p.tile = tile; p.video = video;
     syncBanderoleTriggers();
@@ -2460,6 +2557,7 @@ async function startCall(msg) {
     if (p.tile && info.name) p.tile.querySelector('.name').textContent = titleCase(info.name);
     if (info.initiator && p.pc.connectionState !== 'connected') {
       if (!p.dc) { p.dc = p.pc.createDataChannel('chat'); wireChat(p.dc, info.peerId); }
+      ensureReceiving(p.pc);
       try {
         const offer = await p.pc.createOffer(p.offered ? { iceRestart: true } : undefined);
         await p.pc.setLocalDescription(offer); p.offered = true;
@@ -3264,7 +3362,7 @@ function onPeerGone(from) {
   peerCamOff.delete(from);
   if (stagePeer === from) { stagePeer = null; stageAuto = false; }
   updateSas();
-  if (peers.size === 0) { ended = true; teardownCall(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : goneAnon); }
+  if (peers.size === 0) { ended = true; teardownCall(); markRoomEnded(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : goneAnon); }
   else { setStatus(goneName ? t('{name} hat den Anruf verlassen.', { name: goneName }) : 'Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
 }
 
@@ -3308,6 +3406,13 @@ function showEnded(message) {
   authBox.hidden = true; setupBox.hidden = true; shareBox.hidden = true;
   restartLabel.textContent = t('Neuen Anruf starten');
   restartBtn.hidden = false;
+  // A guest on the website came for this one call — "Neuen Anruf starten" would make them the host
+  // of an empty room. Say they are done instead. (In the app it stays: starting calls is what it is for.)
+  const wasGuest = myRole ? myRole === 'callee' : roomArrival() === 'invited';
+  if (wasGuest && !isNativeApp() && !isEmbedded) {
+    restartBtn.hidden = true;
+    setStatus(t(message) + ' ' + t('Du kannst dieses Fenster jetzt schließen.'));
+  }
   syncMediaCheck();
   postToParent('ended', {});
 }
@@ -3335,7 +3440,15 @@ function showWalletDone() {
     setTimeout(() => { location.href = appUrl; }, 400);
   }
 }
-function hangUp() { if (ended) return; ended = true; haptic('medium'); wsSend({ type: 'hangup' }); teardownCall(); showEnded('Du hast aufgelegt.'); }
+function hangUp() { if (ended) return; ended = true; haptic('medium'); wsSend({ type: 'hangup' }); teardownCall(); markRoomEnded(); showEnded('Du hast aufgelegt.'); }
+/**
+ * An ad-hoc call that ended stays ended in this browser: reloaded, the page used to enter the empty
+ * room again and wait forever ("warte auf die anderen …"). Scheduled calls are left alone — their
+ * link is meant to lead back in. See the boot dispatch at the end of this file.
+ */
+const ENDED_KEY = () => 'eudi_ended_' + roomId;
+function markRoomEnded() { if (roomId && !inviteCfg) { try { localStorage.setItem(ENDED_KEY(), String(Date.now())); } catch {} } }
+function roomEndedHere() { try { return !!(roomId && !inviteCfg && !createdHere && localStorage.getItem(ENDED_KEY())); } catch { return false; } }
 
 /**
  * An invitation to a scheduled call was refused (or was already unreadable here).
@@ -3520,6 +3633,13 @@ function wireChat(channel, peerId) {
     // Whoever connects later (or meets someone who started muted) must see the state as it is,
     // not only the changes that follow.
     try { if (micMuted) channel.send(JSON.stringify({ k: 'mic', on: false })); if (camOff) channel.send(JSON.stringify({ k: 'cam', on: false })); } catch {}
+    // No device at all (none there, or not allowed) — the other side would otherwise wait for a
+    // picture or a voice that never comes. `none` lets them say why.
+    try {
+      const has = (kind) => localTracks().some((tr) => tr.kind === kind);
+      if (mode !== 'chat' && !has('audio')) channel.send(JSON.stringify({ k: 'mic', on: false, none: true }));
+      if (mode === 'video' && !has('video')) channel.send(JSON.stringify({ k: 'cam', on: false, none: true }));
+    } catch {}
     if (!chatOpenedShown) { chatOpenedShown = true; addChat('System', soloMode ? 'Loopback-Kanal offen.' : 'Sichere Verbindung steht – Chat ist aktiv.'); }
   };
   channel.onmessage = (e) => handleChatData(peerId, e.data);
@@ -3535,8 +3655,8 @@ function handleChatData(peerId, data) {
   else if (m && m.k === 'end') onFileEnd(peerId, m);
   else if (m && m.k === 'screen') onPeerScreen(peerId, !!m.on);
   else if (m && m.k === 'hand') onPeerHand(peerId, !!m.on);
-  else if (m && m.k === 'mic') onPeerMic(peerId, !!m.on);
-  else if (m && m.k === 'cam') onPeerCam(peerId, !!m.on);
+  else if (m && m.k === 'mic') { onPeerMic(peerId, !!m.on); if (m.none) noteNoDevice(peerId, 'mic'); }
+  else if (m && m.k === 'cam') { onPeerCam(peerId, !!m.on); if (m.none) noteNoDevice(peerId, 'cam'); }
   else if (m && m.k === 'file-del') removeSharedFile(m.id, false);
   else addChat(who, data);
 }
@@ -3596,6 +3716,14 @@ function toggleVideo() {
   enforceLocalMuteState();
   broadcast({ k: 'cam', on });
   refreshAllBadges();
+}
+/** Once per peer and device, in the chat: who joined without a microphone or camera. */
+const noDeviceNoted = new Set();
+function noteNoDevice(peerId, kind) {
+  const key = peerId + ':' + kind;
+  if (noDeviceNoted.has(key)) return;
+  noDeviceNoted.add(key);
+  addChat('System', `${peerName(peerId)}: ${t(kind === 'mic' ? 'ohne Mikrofon – hört dich, spricht aber nicht.' : 'ohne Kamera – du siehst kein Bild.')}`);
 }
 function onPeerMic(peerId, on) {
   if (!peerId) return;
@@ -4562,7 +4690,14 @@ restartBtn.addEventListener('click', startFreshCall);
 if (pairToken) startPairedSigner(pairToken);
 else if (walletDoneElsewhere) showWalletDone();
 else if (inviteToken && !inviteCfg) showInviteProblem('malformed');
+else if (roomEndedHere()) { ended = true; showEnded('Dieser Anruf ist beendet.'); }
 else connect();
+
+// Website, during a call: closing or reloading the tab by mistake ends it for both sides and costs
+// both the wallet check — the browser asks first. Not in the app (no tab to close) or an embed.
+window.addEventListener('beforeunload', (e) => {
+  if (callStarted && !ended && !isNativeApp() && !isEmbedded) { e.preventDefault(); e.returnValue = ''; }
+});
 // Warm up the ICE configuration and then check ONCE whether this network can carry a call at all.
 // The check gets exactly these iceServers — if it kept its own, it would be testing something
 // other than the later call.
@@ -4725,6 +4860,18 @@ function applyDynamicType() {
   move('lang-switch', 'settings-lang-slot', false);
   move('theme-toggle', 'settings-theme-slot', true);
   move('sound-toggle', 'settings-sound-slot', true);
+  // The two toggles are bare icon buttons: in a settings list you could not tell what is set. Their
+  // state is in the aria-label ("Design: automatisch …", "Töne: an") — shown next to them as well.
+  for (const [btnId, slotId] of [['theme-toggle', 'settings-theme-slot'], ['sound-toggle', 'settings-sound-slot']]) {
+    const btn = $(btnId), slot = $(slotId);
+    if (!btn || !slot) continue;
+    const state = document.createElement('span');
+    state.className = 'settings-state'; state.setAttribute('aria-hidden', 'true');
+    slot.prepend(state);
+    const sync = () => { const l = btn.getAttribute('aria-label') || ''; state.textContent = l.includes(':') ? l.slice(l.indexOf(':') + 1).trim() : ''; };
+    sync();
+    new MutationObserver(sync).observe(btn, { attributes: true, attributeFilter: ['aria-label'] });
+  }
   playAppIntro();
   move('app-version', 'settings-version-slot', true);
   const setTab = (tab) => {
@@ -4791,26 +4938,19 @@ function applyDynamicType() {
 (function initTrustBar() {
   const trustBar = $('trust-bar'), trustNames = $('trust-names'), trustSas = $('trust-sas');
   if (!trustBar || !trustNames || !trustSas) return;
-  const junk = () => new Set([
-    t('bestätigt'), t('verifiziert'), t('Du'), t('Gast'), t('Gastgeber:in'),
-    // The chip states, so a state never ends up in the trust bar as if it were a name.
-    t('ausgewiesen'), t('noch nicht ausgewiesen'), t('noch nicht beigetreten'), t('anonym — ungeprüft'),
-  ]);
-  const stripChip = (s) => s.replace(/✓/g, '').replace(/^[^:]*:\s*/, '').trim();
   const refreshTrust = () => {
     const inCall = document.body.classList.contains('in-call');
     trustBar.hidden = !inCall;
     if (!inCall) return;
-    const drop = junk();
     // The other side only: who you are is no news to you, and on a phone two names next to the
-    // security code left room for neither.
-    const names = [];
-    document.querySelectorAll('#peer-chips .id-chip .chip-label').forEach((el) => names.push(stripChip(el.textContent || '')));
-    const clean = names.filter((n) => n && !drop.has(n));
+    // security code left room for neither. Straight from the status, not read back out of the chip
+    // text: cutting "Gastgeber:in: Erika M." at the first colon left every guest with "in: Erika M.".
+    const m = lastStatusMsg;
+    const clean = ((m && m.peers) || []).filter((p) => p.name).map((p) => titleCase(p.name));
     // Without names, say whether anyone is verified at all — "Verifizierter Anruf" over a call
     // between two anonymous people would claim exactly what the product must never fake.
-    const m = lastStatusMsg;
-    const anyVerified = !!(m && ((m.self && m.self.verified) || (m.peers || []).some((p) => p.verified)));
+    const anyVerified = !!(m && (presentedOf(m.self) || (m.peers || []).some(presentedOf)));
+    trustBar.classList.toggle('unverified', !anyVerified);
     trustNames.textContent = clean.length ? clean.join(' ↔ ') : t(anyVerified ? 'Verifizierter Anruf' : 'Anruf ohne Ausweisprüfung');
     trustSas.textContent = (sasCode.textContent || '').trim();
     // Screen readers hear "Sicherheitscode" before the symbols — without a code (group call) not at all.

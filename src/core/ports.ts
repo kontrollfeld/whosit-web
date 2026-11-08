@@ -38,6 +38,11 @@ export interface JoinOptions {
    *  may reclaim the guest seat even after losing their tab, mid-call included.
    *  Only set once the invitation has already been verified. */
   reclaimRole?: Role;
+  /** How this person came to the room, as the client says: `creator` opened it, `invited` followed
+   *  a link. A link never makes its holder the host — a guest who arrives while the host is away
+   *  (longer than the grace period) waits as a guest instead of finding the setup form — and the
+   *  creator gets the host seat back. Absent (older clients, embeds): first to arrive hosts. */
+  arrival?: 'creator' | 'invited';
 }
 
 export interface Located {

@@ -1092,7 +1092,9 @@ details.policy-note .policy-official { font-style: italic; }
 .need-box .need-ic { flex: none; width: 20px; height: 20px; margin-top: 1px; color: var(--accent); }
 .need-box li .need-ic-audio, .need-box li.is-audio .need-ic-video { display: none; }
 .need-box li.is-audio .need-ic-audio { display: block; }
-.need-box a { white-space: nowrap; }
+/* Wraps like the text around it: kept on one line, it ran out of the box on an iPhone SE. */
+.need-box li > span { min-width: 0; }
+.need-box a { color: var(--accent); }
 .invite-wallet-note { display: flex; gap: 8px; align-items: flex-start; }
 .invite-wallet-note[hidden] { display: none; }
 .invite-wallet-note .h-ic { flex: none; margin-top: 2px; }
@@ -1415,6 +1417,8 @@ body.in-call .app-tabbar { display: none; }
 .settings-about { margin: 14px 2px 0; font-size: 0.8rem; color: var(--text-faint); }
 /* the moved-in footer pills keep their look; version badge loses its hover cursor */
 .settings-row .lang-switch, .settings-row .version-badge { font-size: 0.8rem; }
+#settings-theme-slot, #settings-sound-slot { display: inline-flex; align-items: center; gap: 10px; }
+.settings-state { font-size: 0.86rem; color: var(--text-muted); }
 
 /* ---- in-call trust bar (app and website) ---------------------------------
  * During a call the pre-call blocks (participant chips, verified data, SAS card) collapse into
@@ -1433,6 +1437,11 @@ body.in-call .trust-bar {
 }
 body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; background: var(--surface); }
 .trust-bar .t-ic { width: 18px; height: 18px; flex: none; color: var(--ok); }
+/* Nobody presented anything: a plain shield, no green, no tick. */
+.trust-bar.unverified .t-ic { color: var(--text-muted); }
+.trust-bar.unverified .t-ic path:last-child { display: none; }
+/* The connection is stuttering (see onconnectionstatechange): no green while it recovers. */
+body.link-shaky .trust-bar .t-ic { color: var(--warn-text); }
 .trust-bar .trust-names { flex: 1 1 0; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trust-bar .trust-sas { flex: none; margin-left: auto; font-size: 0.95rem; letter-spacing: 2px; }
 /* Large text (Dynamic Type): the code moves to a second row rather than squeezing the name to "E…". */
@@ -1445,6 +1454,11 @@ body.in-call .trust-bar { flex-wrap: wrap; }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 .trust-bar[aria-expanded="true"] .trust-chev { transform: rotate(180deg); }
+/* Phone, in a call: the trust bar already says who and how; a status line repeating "Verbunden ✓"
+   above it pushed the video down. It comes back for anything that needs attention. */
+@media (max-width: 640px) {
+  body.in-call #status-bar[data-state="ok"], body.in-call #status-bar[data-state="info"] { display: none; }
+}
 /* header + stepper are done once connected — collapsed in-call in the app and on phones */
 html.native-app body.in-call header,
 html.native-app body.in-call #stepper { display: none; }
