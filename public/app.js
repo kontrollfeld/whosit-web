@@ -1848,9 +1848,33 @@ function chipState(name, verified, confirmed, presented = verified) {
   return { text: t('noch nicht ausgewiesen'), identified: false };
 }
 
-/** Colour follows the ROLE, not the point of view: host blue, guest green — the same on both
- *  devices. Who "I" am is in the text („Du: …"), which does not need a colour of its own. */
-function roleClass(role) { return role === 'caller' ? 'role-host' : 'role-guest'; }
+/**
+ * Colour follows the POINT OF VIEW, not the role: "Du" neutral, the other side violet — on every
+ * screen the same question ("mine or theirs?"). By role, host blue and guest green, a guest saw
+ * their own chip green but their own data column blue, and both colours already meant something
+ * else (blue: tap here, green: verified). The role stays in the words („Gastgeber:in: …").
+ */
+const SELF_CHIP = 'who-self', PEER_CHIP = 'who-peer';
+
+/** The other side's mark: initials once a name may be shown, else a person. Never a name before
+ *  consent — callers pass `name` only where values are already revealed (renderResult). */
+const PERSON_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+function initialsOf(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  const first = (w) => [...w][0].toUpperCase();
+  return words.length === 1 ? first(words[0]) : first(words[0]) + first(words[words.length - 1]);
+}
+function fillPeerMark(el, name) {
+  const ini = initialsOf(name);
+  el.classList.toggle('has-initials', !!ini);
+  if (ini) el.textContent = ini; else el.innerHTML = PERSON_GLYPH;
+}
+function peerMark(name) {
+  const el = document.createElement('span'); el.className = 'who peer'; el.setAttribute('aria-hidden', 'true');
+  fillPeerMark(el, name);
+  return el;
+}
 
 function updateChips(msg) {
   const hostDiscloses = isHost() && msg.disclosedAttrs && msg.disclosedAttrs.length;
@@ -1862,7 +1886,7 @@ function updateChips(msg) {
     : chipState(msg.self.name, msg.self.verified, msg.self.confirmed, presentedOf(msg.self));
   // `pending` makes the chip pulse (see style.css): "it's your turn" should not only be readable
   // but visible. Only an open identification pulses — a finished participant has nothing to do.
-  selfChip.className = `id-chip ${roleClass(myRole)}${self.identified ? ' is-identified' : ' pending'}`;
+  selfChip.className = `id-chip ${SELF_CHIP}${self.identified ? ' is-identified' : ' pending'}`;
   selfLabel.textContent = `${t('Du')}: ${self.text}`;
   if (handRaised) selfLabel.textContent += ' ✋';
   renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, anyConnected()));
@@ -1874,7 +1898,7 @@ function updateChips(msg) {
     // Nobody there yet. „wartet …" claimed a presence that does not exist — before the link is
     // even shared there is no one to wait.
     const otherRole = myRole === 'caller' ? 'callee' : 'caller';
-    const chip = document.createElement('div'); chip.className = `id-chip ${roleClass(otherRole)}`;
+    const chip = document.createElement('div'); chip.className = `id-chip ${PEER_CHIP}`;
     chip.innerHTML = '<span class="dot"></span>';
     const s = document.createElement('span'); s.className = 'chip-label';
     s.textContent = `${roleLabelFor(otherRole)}: ${t('noch nicht beigetreten')}`;
@@ -1884,7 +1908,7 @@ function updateChips(msg) {
   for (const peer of list) {
     const st = chipState(peer.name, peer.verified, peer.confirmed, presentedOf(peer));
     const chip = document.createElement('div');
-    chip.className = `id-chip ${roleClass(peer.role)}${st.identified ? ' is-identified' : ''}`;
+    chip.className = `id-chip ${PEER_CHIP}${st.identified ? ' is-identified' : ''}`;
     chip.innerHTML = '<span class="dot"></span>';
     // `.chip-label` and not "the last span": the trust bar reads the name back out of here, and
     // since the step dots are a span too, `span:last-of-type` started picking those up instead.
@@ -1916,9 +1940,11 @@ function otherSideLabels(peers) {
     : { shares: t('Dein Gast teilt'), anon: t('Dein Gast bleibt anonym.') };
   return { shares: t('Gastgeber:in teilt'), anon: t('Gastgeber:in bleibt anonym.') };
 }
-function setOtherSideHeading(box, label) {
-  const el = box && box.querySelector('.review-col.guest > .field-label');
+function setOtherSideHeading(box, label, name) {
+  const el = box && box.querySelector('.review-col.guest > .field-label .col-title');
   if (el) el.textContent = label;
+  const mark = box && box.querySelector('.review-col.guest > .field-label .who.peer');
+  if (mark) fillPeerMark(mark, name);
 }
 
 function renderReview(msg) {
@@ -1955,7 +1981,8 @@ function renderResult(msg) {
   appendSharedCredentialRows(resultSelf, msg.self.sharedCredentials);
   const peers = msg.peers || [];
   const other = otherSideLabels(peers);
-  setOtherSideHeading(resultBox, other.shares);
+  // Initials only here, after consent, and only for one peer — with several, each block has its own.
+  setOtherSideHeading(resultBox, other.shares, peers.length === 1 && peers[0].name ? titleCase(peers[0].name) : '');
   if (peers.length <= 1) {
     renderResultInto(resultPeer, peers[0] && peers[0].claims, peers[0] ? attrsForPeer(msg, peers[0]) : [], other.anon);
     if (peers[0]) appendCredentialRows(resultPeer, peers[0].credentials);
@@ -1977,7 +2004,8 @@ function renderPeerBlocks(container, peers, renderInto, withNames) {
   container.innerHTML = '';
   for (const peer of peers) {
     const head = document.createElement('div'); head.className = 'peer-block-head';
-    head.textContent = (withNames && peer.name ? titleCase(peer.name) : roleLabelFor(peer.role));
+    const name = withNames && peer.name ? titleCase(peer.name) : '';
+    head.append(peerMark(name), document.createTextNode(name || roleLabelFor(peer.role)));
     const inner = document.createElement('div');
     container.append(head, inner);
     renderInto(inner, peer);

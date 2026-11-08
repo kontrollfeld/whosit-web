@@ -38,6 +38,17 @@
   --ok-border: rgba(5, 150, 105, 0.45);
   --ok-btn: #047857;
 
+  /* Who is who: "Du" neutral, the other side violet — a hue nothing else in the UI uses, so it
+     reads as a person, not as "tap here" (accent) or "verified" (ok). See .who below. */
+  --self: #475569;
+  --on-self: #ffffff;
+  --self-line: #94a3b8;
+  --peer: #7c3aed;
+  --peer-strong: #6d28d9;
+  --peer-soft: #f4effe;
+  --peer-border: rgba(124, 58, 237, 0.35);
+  --on-peer: #ffffff;
+
   --warn-soft: #fff7e6;
   --warn-border: #f0c36d;
   --warn-text: #7a5200;
@@ -95,6 +106,9 @@
   --ok-strong: #7fe7c3;
   --ok-soft: #0d2b23;
   --ok-border: rgba(52, 211, 153, 0.4); --ok-btn: #34d399;
+  --self: #b4c3da; --on-self: #0b1220; --self-line: #5b6f93;
+  --peer: #a78bfa; --peer-strong: #c4b5fd; --peer-soft: #1f1838;
+  --peer-border: rgba(167, 139, 250, 0.4); --on-peer: #150c2c;
   --warn-soft: #2d2410;
   --warn-border: #6b5620;
   --warn-text: #ead9a0;
@@ -131,6 +145,9 @@
     --ok-strong: #7fe7c3;
     --ok-soft: #0d2b23;
     --ok-border: rgba(52, 211, 153, 0.4); --ok-btn: #34d399;
+    --self: #b4c3da; --on-self: #0b1220; --self-line: #5b6f93;
+    --peer: #a78bfa; --peer-strong: #c4b5fd; --peer-soft: #1f1838;
+    --peer-border: rgba(167, 139, 250, 0.4); --on-peer: #150c2c;
     --warn-soft: #2d2410;
     --warn-border: #6b5620;
     --warn-text: #ead9a0;
@@ -465,11 +482,11 @@ button.danger:focus-visible { box-shadow: 0 0 0 3px var(--danger-soft), 0 0 0 1p
   background: var(--text-faint);
   transition: background var(--t), box-shadow var(--t);
 }
-/* Colour by ROLE, not by perspective: host blue, guest green — the same on both devices.
-   Who "I" am is stated as "Du:" in the text and needs no colour of its own.
-   The role only sets the colour; the state decides WHETHER it is filled. */
-.id-chip.role-host { --chip: var(--accent); --chip-soft: var(--accent-soft); --chip-border: var(--accent-border); --chip-strong: var(--accent-strong); }
-.id-chip.role-guest { --chip: var(--ok); --chip-soft: var(--ok-soft); --chip-border: var(--ok-border); --chip-strong: var(--ok-strong); }
+/* Colour by PERSPECTIVE, like every other you/them pair: "Du" neutral, the other side violet
+   (tokens --self / --peer). The role is in the words. The colour says whose chip it is; the
+   state decides WHETHER it is filled. */
+.id-chip.who-self { --chip: var(--self); --chip-soft: var(--surface-2); --chip-border: var(--self-line); --chip-strong: var(--navy); }
+.id-chip.who-peer { --chip: var(--peer); --chip-soft: var(--peer-soft); --chip-border: var(--peer-border); --chip-strong: var(--peer-strong); }
 
 /* Filled only from "verified" on. Someone who has just joined must not look as finished
    as someone who has already presented their ID — the dot already carries the role colour
@@ -1023,27 +1040,45 @@ details.policy-note .policy-official { font-style: italic; }
    the setup panels, participant chips and the review/result columns */
 .party { border-left: 3px solid var(--border-strong); border-radius: 2px; padding: 2px 0 4px 14px; margin-top: 16px; }
 .party > .field-label:first-child { margin-top: 0; }
-.party.you { border-left-color: var(--accent); }
-.party.guest { border-left-color: var(--ok); }
-.party.you > .field-label > span:first-child { color: var(--accent-strong); }
-.party.guest > .field-label > span:first-child { color: var(--ok-strong); }
-/* The two sides as questions, each with a person in its colour (you blue, guest green). */
-.party-q { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
-.party-q .party-ic { width: 20px; height: 20px; flex: none; }
-.party.you .party-q { color: var(--accent-strong); }
-.party.guest .party-q { color: var(--ok-strong); }
+.party.you { border-left-color: var(--self-line); }
+/* The other side is the one the call is about: its block is tinted, not just edged. */
+.party.guest {
+  border: 1px solid var(--peer-border); border-left: 3px solid var(--peer); border-radius: var(--r-sm);
+  background: var(--peer-soft); padding: 12px 12px 6px 14px;
+}
+/* The two sides as questions, each with its own mark (.who): "Du" and a violet person. */
+.party-q { display: flex; align-items: center; gap: 9px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
+.party.you .party-q { color: var(--navy); }
+.party.guest .party-q { color: var(--peer-strong); }
+
+/* Who a block, column or chip belongs to — never by colour alone (WCAG 1.4.1): "Du" as a word
+   in a neutral pill, the other side as a violet circle with initials (once values may be shown)
+   or a person. Decorative: the heading next to it says the same in words. */
+.who {
+  display: inline-grid; place-items: center; flex: none;
+  min-width: 26px; height: 26px; padding: 0 7px; border-radius: var(--r-pill);
+  font-size: 0.72rem; font-weight: 750; line-height: 1; letter-spacing: 0.02em; text-transform: none;
+}
+.who.self { background: var(--self); color: var(--on-self); }
+.who.peer { background: var(--peer); color: var(--on-peer); padding: 0; width: 26px; }
+.who.peer.has-initials { width: auto; padding: 0 6px; }
+.who.peer svg { width: 15px; height: 15px; }
 .party-q + .seg { margin-top: 10px; }
 /* The pseudonym, folded under "Weitere Angaben" (buildChecklist) */
 .attr-more > summary { cursor: pointer; padding: 10px 0; font-size: 0.86rem; color: var(--text-faint); }
 .attr-more[open] > summary { margin-bottom: 3px; }
 .presets-label { align-self: center; font-size: 0.8rem; color: var(--text-faint); }
 
-/* There is no `.id-chip.you` rule: chips are coloured by role, not by perspective — see
-   .role-host / .role-guest above. The .you/.guest colouring of the review columns, by
-   contrast, still distinguishes "my side / your side"; there the perspective is the point. */
-
-.review-col.you { border-top: 3px solid var(--accent); border-radius: 2px; padding-top: 10px; }
-.review-col.guest { border-top: 3px solid var(--ok); border-radius: 2px; padding-top: 10px; }
+/* "Du" left and neutral, the other side right and violet — the same rule as the chips and the
+   setup (.who). */
+.review-col { border-radius: var(--r-sm); padding: 10px; }
+.review-col.you { border-top: 3px solid var(--self-line); padding-left: 0; padding-right: 0; border-radius: 2px; }
+.review-col.guest { border: 1px solid var(--peer-border); border-top: 3px solid var(--peer); background: var(--peer-soft); }
+.review-col > .field-label { display: flex; align-items: center; gap: 8px; }
+.peer-block-head { display: flex; align-items: center; gap: 7px; }
+.peer-block-head .who { min-width: 22px; height: 22px; font-size: 0.66rem; }
+.peer-block-head .who.peer:not(.has-initials) { width: 22px; }
+.peer-block-head .who svg { width: 13px; height: 13px; }
 
 /* presets: highlighted only while the checked set matches the preset (app.js syncs) */
 .chip-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }

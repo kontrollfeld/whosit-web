@@ -110,9 +110,9 @@
     <!-- Participants (compact, always in view) -->
     <section id="identities" class="card identities">
       <div class="ids">
-        <!-- The role class (role-host / role-guest) is set by app.js: the colour follows the role,
-             not the perspective — host blue, guest green, the same on both devices. -->
-        <div class="id-chip" id="self-chip"><span class="dot"></span><span id="self-label" class="chip-label" data-i18n>Du</span></div>
+        <!-- The perspective class (who-self / who-peer) is set by app.js: "Du" neutral, the other
+             side violet, on both devices — the same rule as setup and review. -->
+        <div class="id-chip who-self" id="self-chip"><span class="dot"></span><span id="self-label" class="chip-label" data-i18n>Du</span></div>
         <div id="peer-chips"></div>
       </div>
     </section>
@@ -151,9 +151,10 @@
       </div><!-- /mode-block -->
 
       <div class="party you">
-        <!-- Asked as questions, with the person icon in the side's colour: "Ich teile" and "Der Gast
-             teilt" looked alike while meaning opposite things. -->
-        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was zeigst du deinem Gast?</span></span>
+        <!-- Asked as questions, each with its own mark: "Du" neutral, the other side violet (see
+             .who in style.css). "Ich teile" and "Der Gast teilt" looked alike while meaning
+             opposite things, and one person icon in blue and green did not tell them apart. -->
+        <span class="party-q"><span class="who self" aria-hidden="true" data-i18n>Du</span><span data-i18n>Was zeigst du deinem Gast?</span></span>
         <div class="seg" id="disclose-seg" role="group" aria-label="Was du teilst" data-i18n-attr="aria-label">
           <button type="button" data-disclose="anon" data-i18n>Anonym bleiben</button>
           <button type="button" data-disclose="data" class="active" data-i18n>Daten teilen</button>
@@ -162,7 +163,7 @@
       </div>
 
       <div class="party guest">
-        <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was soll dein Gast dir zeigen?</span></span>
+        <span class="party-q"><span class="who peer" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span data-i18n>Was soll dein Gast dir zeigen?</span></span>
         <div class="seg" id="request-seg" role="group" aria-label="Was der Gast teilt" data-i18n-attr="aria-label">
           <button type="button" data-request="anon" data-i18n>Nichts abfragen</button>
           <button type="button" data-request="data" class="active" data-i18n>Daten abfragen</button>
@@ -352,8 +353,8 @@
       </p>
 
       <div class="review-grid">
-        <div class="review-col you"><span class="field-label" data-i18n>Du teilst</span><div class="result-list" id="review-self"></div></div>
-        <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="review-peer"></div></div>
+        <div class="review-col you"><span class="field-label"><span class="who self" aria-hidden="true" data-i18n>Du</span><span class="col-title" data-i18n>Du teilst</span></span><div class="result-list" id="review-self"></div></div>
+        <div class="review-col guest"><span class="field-label"><span class="who peer" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="col-title" data-i18n>Dein Gegenüber teilt</span></span><div class="result-list" id="review-peer"></div></div>
       </div>
       <p class="hint"><span data-i18n>Verbindungsart:</span> <strong id="review-mode">Video</strong></p>
       <details class="policy-note">
@@ -427,8 +428,8 @@
       <p class="hint" data-i18n-html data-verified-only>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
       <p class="hint" data-i18n data-testmode-only hidden>Testbetrieb: Auf dieser Instanz wird nichts geprüft — beide bleiben anonym.</p>
       <div class="review-grid">
-        <div class="review-col you"><span class="field-label" data-i18n>Du teilst</span><div class="result-list" id="result-self"></div></div>
-        <div class="review-col guest"><span class="field-label" data-i18n>Dein Gegenüber teilt</span><div class="result-list" id="result-peer"></div></div>
+        <div class="review-col you"><span class="field-label"><span class="who self" aria-hidden="true" data-i18n>Du</span><span class="col-title" data-i18n>Du teilst</span></span><div class="result-list" id="result-self"></div></div>
+        <div class="review-col guest"><span class="field-label"><span class="who peer" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="col-title" data-i18n>Dein Gegenüber teilt</span></span><div class="result-list" id="result-peer"></div></div>
       </div>
     </section>
 
