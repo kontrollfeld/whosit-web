@@ -372,6 +372,9 @@ input[type="text"]:focus-visible {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 input::placeholder { color: var(--text-faint); }
+/* iOS zooms into a text field set below 16px as soon as it gets focus — in a call that shifts the
+   whole layout while typing a chat message. Touch only; a mouse keeps the compact size. */
+@media (pointer: coarse) { input[type="text"] { font-size: 16px; } }
 
 /* ---- buttons ---- */
 button {
@@ -555,6 +558,8 @@ body.bg-unmirror .tile[data-peer="self"] video, body.bg-unmirror #mc-video { tra
 .tile-fs svg { width: 16px; height: 16px; }
 .videos.spotlightable .tile-fs { display: inline-flex; opacity: 0.5; transition: opacity 0.15s; }
 .videos.spotlightable .tile:hover .tile-fs { opacity: 1; }
+/* Without hover (touch) the button would stay half-transparent for good, over moving video. */
+@media (hover: none) { .videos.spotlightable .tile-fs { opacity: 1; } }
 /* A tile in native fullscreen fills the screen; never crop its content there. */
 .tile:fullscreen { aspect-ratio: auto; width: 100vw; height: 100vh; }
 .tile:fullscreen video { object-fit: contain; background: #000; }
@@ -1430,7 +1435,13 @@ body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; ba
 .trust-bar .t-ic { width: 18px; height: 18px; flex: none; color: var(--ok); }
 .trust-bar .trust-names { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trust-bar .trust-sas { flex: none; font-size: 0.95rem; letter-spacing: 2px; }
-.trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-faint); transition: transform var(--t); }
+/* --text-muted, not --text-faint: a control's icon needs 3:1 against its surface (WCAG 1.4.11). */
+.trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-muted); transition: transform var(--t); }
+/* Read by screen readers, not shown: "Sicherheitscode" before the symbols in the bar. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 .trust-bar[aria-expanded="true"] .trust-chev { transform: rotate(180deg); }
 /* header + stepper are done once connected — collapsed in-call in the app and on phones */
 html.native-app body.in-call header,
@@ -1836,10 +1847,11 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
 .notify-btn svg { width: 18px; height: 18px; }
 .notify-btn:disabled { opacity: 1; color: var(--ok-strong, #16a34a); border-color: transparent; background: none; cursor: default; padding-left: 0; }
 
-/* "You are muted" — a bubble above the call controls */
+/* "You are muted" — a bubble above the call controls. --cc-h is the bar's measured height
+   (app.js): one row on a phone, but two when the host also has the Pro actions. */
 .muted-hint {
   position: fixed; z-index: 21; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px);
-  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + 76px);
+  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + var(--cc-h, 62px) + 14px);
   display: flex; align-items: center; gap: 10px;
   background: var(--text); color: var(--bg); border-radius: var(--r-pill);
   padding: 8px 8px 8px 16px; box-shadow: var(--shadow); font-size: 0.9rem;
@@ -1868,11 +1880,41 @@ body.wizard:not([data-wkind="invite"]):not([data-wkind="auth"]) #media-check { d
 .bg-pop {
   position: fixed; z-index: 22; left: 50%; transform: translateX(-50%);
   width: max-content; max-width: calc(100vw - 32px);
-  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + 76px);
+  bottom: calc(max(14px, calc(6px + env(safe-area-inset-bottom))) + var(--cc-h, 62px) + 14px);
   padding: 12px; margin: 0; box-shadow: var(--shadow);
 }
 .bg-pop[hidden] { display: none; }
 .muted-hint button { min-height: 34px; padding: 6px 14px; font-size: 0.85rem; }
+
+/* ---- touch: hit areas of at least 44 × 44 pt (Apple HIG; WCAG 2.5.5) ----
+ * Only for coarse pointers (phones, tablets, the app) — a mouse keeps the compact sizes. Where
+ * the look should stay as it is, an invisible ::after grows the hit area around the control. */
+@media (pointer: coarse) {
+  .tile-fs::after,
+  .muted-hint button::after,
+  .collapse-btn::after,
+  .file-del::after { content: ""; position: absolute; inset: -9px -6px; }
+  .muted-hint button, .collapse-btn, .file-del { position: relative; }
+  /* Name and credential badge on a tile clip their text (ellipsis), and that would clip an
+     ::after too. A transparent 7px border grows them to 44px instead; the 1px rim moves into an
+     inset shadow and the badge shifts outward by the difference, so it shows where it always
+     did. No backdrop blur here: it would paint the transparent border as a halo, and it costs
+     GPU time over the video. */
+  .tile .name, .tile .cred-badge {
+    border-width: 7px; border-color: transparent; background-clip: padding-box;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tile .name { left: 2px; right: 2px; bottom: 2px; max-width: calc(100% - 4px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+  /* smaller type than the name, so a wider border to reach 44px */
+  .tile .cred-badge { border-width: 9px; top: 0; right: 0; max-width: 100%; box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.5); }
+  .videos.duo .tile:not([data-peer="self"]) .cred-badge { bottom: 38px; }
+  /* No room for an ::after between neighbours: these simply get the full size. */
+  .emoji-palette .emoji {
+    box-sizing: border-box; min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bg-tile { height: 44px; }
+}
 
 /* Logo moment (app.js showLogoMoment): the logo animation once when a call connects. The colour
    logo needs light ground, so the card stays light in dark mode too. Taps go through. */

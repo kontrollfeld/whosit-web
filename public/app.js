@@ -254,6 +254,15 @@ const chatLog = $('chat-log');
 const chatInput = $('chat-input');
 const chatSend = $('chat-send');
 const callControls = $('call-controls');
+// The muted hint and the background picker float just above the call controls (style.css,
+// --cc-h). The bar's height is not fixed — one row on a phone, two when the host also has the
+// Pro actions — so it is measured rather than assumed. A hidden bar (0) keeps the last value.
+if (window.ResizeObserver) {
+  new ResizeObserver(() => {
+    const h = callControls.offsetHeight;
+    if (h) document.documentElement.style.setProperty('--cc-h', h + 'px');
+  }).observe(callControls);
+}
 const hangupBtn = $('hangup-btn');
 const screenBtn = $('screen-btn');
 const screenLabel = $('screen-label');
@@ -1889,6 +1898,7 @@ function renderPeerBlocks(container, peers, renderInto, withNames) {
 
 function renderStatus(msg) {
   lastStatusMsg = msg;
+  syncBanderoleTriggers();
   const wasVerified = selfVerified;
   selfVerified = msg.self.verified;
   if (selfVerified && !wasVerified) walletModalSucceeded('auth');
@@ -2383,6 +2393,7 @@ function attachRemote(peerId, stream) {
     const nameEl = document.createElement('div'); nameEl.className = 'name verified'; nameEl.textContent = p.name ? titleCase(p.name) : (p.role ? roleLabelFor(p.role) : t('Gegenüber'));
     tile.append(video, nameEl); videosEl.appendChild(tile);
     p.tile = tile; p.video = video;
+    syncBanderoleTriggers();
     applyStage(); // pick up cursor/title + any pending screen-share auto-stage for this peer
   }
   p.video.srcObject = stream;
@@ -2646,9 +2657,24 @@ function banderoleDataFor(key) {
   const peer = (msg.peers || []).find((p) => p.peerId === key);
   return peer ? { claims: peer.claims, attrs: attrsForPeer(msg, peer), empty: 'bleibt anonym.', creds: peer.credentials } : null;
 }
+// The name badge and the credential badge open the banderole, but only once there are values
+// (after the mutual reveal). Until then they are plain labels; from then on they announce
+// themselves as buttons to VoiceOver/TalkBack and take the keyboard. They stay <div>s on purpose:
+// the global button styles (accent fill, 44px, hover lift) would have to be undone one by one.
+function syncBanderoleTriggers() {
+  const live = !!(lastStatusMsg && lastStatusMsg.revealed);
+  for (const el of videosEl.querySelectorAll('.tile .name, .tile .cred-badge')) {
+    if (live) {
+      el.setAttribute('role', 'button'); el.tabIndex = 0;
+      el.setAttribute('aria-expanded', String(!!el.closest('.tile').querySelector('.banderole')));
+    } else {
+      el.removeAttribute('role'); el.removeAttribute('tabindex'); el.removeAttribute('aria-expanded');
+    }
+  }
+}
 function toggleBanderole(tile) {
   const open = tile.querySelector('.banderole');
-  if (open) { open.remove(); return; }
+  if (open) { open.remove(); syncBanderoleTriggers(); return; }
   const data = banderoleDataFor(tile.dataset.peer);
   if (!data) return;
   const band = document.createElement('div');
@@ -2671,6 +2697,7 @@ function toggleBanderole(tile) {
     div.append(lab, val); band.appendChild(div);
   }
   tile.appendChild(band);
+  syncBanderoleTriggers();
 }
 videosEl.addEventListener('click', (e) => {
   const nameEl = e.target.closest('.tile .name, .tile .cred-badge');
@@ -2678,6 +2705,13 @@ videosEl.addEventListener('click', (e) => {
   e.stopPropagation(); // don't also spotlight the tile
   toggleBanderole(nameEl.closest('.tile'));
 }, true);
+videosEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const nameEl = e.target.closest('.tile .name[role="button"], .tile .cred-badge[role="button"]');
+  if (!nameEl) return;
+  e.preventDefault(); // Space would scroll the page
+  toggleBanderole(nameEl.closest('.tile'));
+});
 
 // ---- in-call credential requests (server-enforced `in-call-credentials`) ----
 // The HOST asks a participant for a further catalog credential DURING
@@ -2906,6 +2940,7 @@ function credBadgeFor(tile, labels) {
   if (!badge) { badge = document.createElement('div'); badge.className = 'cred-badge'; tile.appendChild(badge); }
   badge.textContent = '🪪 ' + labels.join(', ') + ' ✓';
   badge.title = t('Nachweis anzeigen');
+  syncBanderoleTriggers();
 }
 function updateCredBadges(msg) {
   for (const peer of (msg.peers || [])) {
@@ -4716,6 +4751,9 @@ async function startIntroSound() {
     const anyVerified = !!(m && ((m.self && m.self.verified) || (m.peers || []).some((p) => p.verified)));
     trustNames.textContent = clean.length ? clean.join(' ↔ ') : t(anyVerified ? 'Verifizierter Anruf' : 'Anruf ohne Ausweisprüfung');
     trustSas.textContent = (sasCode.textContent || '').trim();
+    // Screen readers hear "Sicherheitscode" before the symbols — without a code (group call) not at all.
+    const sasLabel = $('trust-sas-label');
+    if (sasLabel) sasLabel.hidden = !trustSas.textContent;
   };
   trustBar.addEventListener('click', () => {
     const open = document.body.classList.toggle('trust-open');
