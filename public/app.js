@@ -1428,7 +1428,8 @@ function handle(msg) {
       postToParent('joined', { role: msg.role });
       break;
     case 'room-full':
-      setStatus('Dieser Raum ist bereits voll.');
+      // Followed a link into someone else's 1:1 call (a forwarded invitation): say why, not just "full".
+      setStatus(roomArrival() === 'invited' ? 'Dieser Anruf ist privat und bereits besetzt.' : 'Dieser Raum ist bereits voll.');
       setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true;
       restartLabel.textContent = t('Neuen Raum starten'); restartBtn.hidden = false;
       break;

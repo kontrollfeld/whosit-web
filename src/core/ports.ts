@@ -43,6 +43,9 @@ export interface JoinOptions {
    *  (longer than the grace period) waits as a guest instead of finding the setup form — and the
    *  creator gets the host seat back. Absent (older clients, embeds): first to arrive hosts. */
   arrival?: 'creator' | 'invited';
+  /** More than two only where the host ticked "Gruppenanruf" (room.openRoom): a forwarded link
+   *  otherwise let a third person into what the host had set up as a private 1:1 call. */
+  groupOnlyIfOpen?: boolean;
 }
 
 export interface Located {

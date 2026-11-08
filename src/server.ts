@@ -2293,7 +2293,8 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   const wanted: Role | undefined = invite ? (invite.role === 'host' ? 'caller' : 'callee') : undefined;
 
   // A scheduled room's roles come from the invitation alone; arrival only speaks for ad-hoc rooms.
-  const result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), { reclaimRole: wanted, arrival: invite ? undefined : arrival });
+  // Ad-hoc rooms hold two unless the host ticked "Gruppenanruf"; scheduled rooms keep their rules.
+  const result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), { reclaimRole: wanted, arrival: invite ? undefined : arrival, groupOnlyIfOpen: !invite });
   if ('error' in result) {
     send(ws, { type: 'room-full' });
     console.log(`[room] Beitritt abgelehnt room=${roomId.slice(0, 8)} grund=${result.error}`);

@@ -152,7 +152,7 @@ export function joinRoom(
   ws: WebSocket,
   clientId: string,
   maxParticipants = 2,
-  opts: { reclaimRole?: Role; arrival?: 'creator' | 'invited' } = {},
+  opts: { reclaimRole?: Role; arrival?: 'creator' | 'invited'; groupOnlyIfOpen?: boolean } = {},
 ): { room: Room; participant: Participant; resumed: boolean; replaced?: WebSocket; reclaimed?: boolean } | { error: 'full' } {
   let room = rooms.get(roomId);
   if (!room) {
@@ -162,6 +162,8 @@ export function joinRoom(
     room = { id: roomId, participants: [], mode: 'video', requestedAttrs: ['family_name'], disclosedAttrs: ['family_name'], locked: false, starting: false, openRoom: false };
     rooms.set(roomId, room);
   }
+  // A private call stays private: more than two only once the host made it a group call.
+  if (opts.groupOnlyIfOpen && !room.openRoom) maxParticipants = Math.min(maxParticipants, 2);
 
   // Resume: same clientId reconnecting → re-attach to the existing participant,
   // keeping its role, EUDIPLO session and verification state. Allowed even when
