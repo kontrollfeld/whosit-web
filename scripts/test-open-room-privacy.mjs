@@ -33,6 +33,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { verifierResults, sessionForWebhook } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3986;
 const APP_PORT = 3987;
@@ -60,16 +61,22 @@ const verifier = http.createServer(async (req, res) => {
     const id = randomUUID();
     offers.set(id, body.webhook.url);
     const uri = `http://127.0.0.1:${VERIFIER_PORT}/simulate/${id}`;
-    return json(res, 200, { uri, crossDeviceUri: uri });
+    return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
+  const sess = p.match(/^\/api\/session\/([0-9a-f-]+)$/i);
+  if (sess && req.method === 'GET') return json(res, 200, results.lookup(sess[1]));
+  if (sess && req.method === 'DELETE') { res.writeHead(204); return res.end(); }
   return json(res, 404, { error: 'not found' });
 });
+const results = verifierResults();
 
 /** The wallet presented successfully: report it the way EUDIPLO would. */
 async function present(url, values) {
+  const body = { status: 'completed', credentials: [{ values: [values] }] };
+  results.record(sessionForWebhook(offers, url), body);
   const r = await fetch(url, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
+    body: JSON.stringify(body),
   });
   if (r.status !== 200) throw new Error(`webhook rejected: HTTP ${r.status}`);
 }

@@ -30,6 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { requireQesDeviceModule, importClient } from './lib/qes-device-module.mjs';
+import { verifierResults } from './lib/verifier-results.mjs';
 
 const QES_DEVICE = requireQesDeviceModule('test-qes-pairing');
 
@@ -62,8 +63,10 @@ const verifier = http.createServer(async (req, res) => {
     return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
   if (req.method === 'DELETE') { res.writeHead(204); return res.end(); }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
   return json(res, 404, {});
 });
+const results = verifierResults();
 
 // ------------------------------------------------------------------- Clients ----
 function socket(onOpen, port = APP_PORT) {
@@ -100,9 +103,11 @@ async function verifiedParticipant(roomId, names, port = APP_PORT) {
   const p = socket((c) => c.send({ type: 'join', roomId, clientId: randomUUID(), wantAuth: true }), port);
   const auth = await p.wait('auth');
   const sessionId = String(auth.uri).split('/').pop();
+  const presented = { session: sessionId, status: 'completed', credentials: [{ values: [names] }] };
+  results.record(sessionId, presented);
   const r = await fetch(offers.get(sessionId), {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ session: sessionId, status: 'completed', credentials: [{ values: [names] }] }),
+    body: JSON.stringify(presented),
   });
   if (!r.ok) throw new Error(`webhook ${offers.get(sessionId)} -> ${r.status} ${await r.text()}`);
   await p.wait('status', (m) => m.self?.verified === true);

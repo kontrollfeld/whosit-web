@@ -63,7 +63,8 @@ const offers = new Map();
 /**
  * The dummy's session store — the thing the real EUDIPLO keeps, and the reason
  * `src/verifier-session.ts` exists: after a presentation the claims sit HERE until someone
- * deletes them. `GET /api/session/:id` shows them, `DELETE /api/session/:id` removes them.
+ * deletes them. `GET /api/session/:id` shows them — the app reads every result back from there
+ * rather than trusting the callback — and `DELETE /api/session/:id` removes them.
  * The app calls that DELETE the moment it has read the webhook, so against this dummy the
  * GET is already a 404 by the time you try it by hand.
  */
@@ -239,6 +240,8 @@ small{color:#5d6b85}</style>
     // never `credentials`.
     if (form.get('decline')) {
       const payload = { status: 'failed', session: id, outcome: { result: 'failed', error: 'access_denied', message: 'The user declined the presentation' } };
+      // Stored before the callback, like the success below: the app reads the result back.
+      sessions.set(id, payload);
       try {
         const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         console.log(`[mock] posted declined presentation for ${id} → ${r.status}`);

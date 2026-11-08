@@ -24,7 +24,7 @@ import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableM
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { readOperatorUi } from './operator-ui';
 import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
-import { createVerifierOffer, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
+import { createVerifierOffer, confirmedPresentation, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
 import { refreshVerifierStatus, type StatusSources } from './verifier-status';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
@@ -73,7 +73,7 @@ import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, Ver
 import { presentationPort, handlePresentationWebhook } from './presentations';
 import { createRun, runById, runsOf, endRun, panelPath, redeem as redeemRun, finish as finishRun, sweepRuns, type ActionRun } from './call-actions';
 import { catalogEntry, publicCatalog, buildCatalogDcql, extractCatalogClaims, hasMandatoryClaims, claimKey, loadCatalog, credentialTypes, setCatalogSource, catalogConfigId } from './credential-catalog';
-import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, type CredentialRequest } from './credential-requests';
+import { createRequest, requestBySession, requestById, hasPending, openRequestsInvolving, finishRequest, isFinished, type CredentialRequest } from './credential-requests';
 import { purgeVerifierSession } from './verifier-session';
 import { createPairing, joinPairing, pairingOfOwner, pairingOfPhone, endPairing } from './device-pairing';
 import { COMMUNITY_FEATURE_IDS, parseFeaturesOff } from './core/features';
@@ -1193,7 +1193,7 @@ function credentialAudit(r: CredentialRequest, type: VerificationEventType, clai
 // Webhook branch for an IN-CALL credential request session (Pro). Same token check as
 // the gate; claims are extracted via the CATALOG paths (not the PID normalizer) and the
 // values go to the REQUESTER only — never into the room broadcast or the logs.
-function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res: express.Response): void {
+async function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res: express.Response): Promise<void> {
   const presented = String(req.query.t || '');
   const a = Buffer.from(presented);
   const b = Buffer.from(r.webhookToken);
@@ -1202,7 +1202,12 @@ function handleCredentialWebhook(r: CredentialRequest, req: express.Request, res
     res.status(401).send('unauthorized');
     return;
   }
-  const payload = req.body || {};
+  // The body is only the trigger; the result is read back from the verifier (see
+  // confirmedPresentation in ./eudiplo for why a token-carrying callback is not enough).
+  const payload = await confirmedPresentation(req.body, r.verifierSessionId);
+  if (!payload) { dropStaleCallback(req.body, 'in-call credential'); res.status(200).send('OK'); return; }
+  // The request ended (declined, expired, a second copy of this callback) while we asked.
+  if (isFinished(r)) { res.status(200).send('OK'); return; }
   if (typeof payload.session === 'string' && payload.session) r.verifierSessionId = payload.session;
   const claims = extractCatalogClaims(r.credential, payload);
   // Success needs a positive signal AND every mandatory claim — a partial presentation
@@ -1251,13 +1256,28 @@ function lateWebhookBudget(now = Date.now()): boolean {
   return true;
 }
 
+/** A callback for an offer that was replaced since: its session may still hold claims, so it is
+ *  deleted like any other late result (budgeted, see lateWebhookBudget). */
+function dropStaleCallback(body: any, what: string): void {
+  console.log(`[webhook] ${what}: callback for a replaced offer ignored`);
+  const stale = String((body || {}).session || '');
+  if (UUID_RE.test(stale) && lateWebhookBudget()) purgeVerifierSession(stale, 'reissued');
+}
+
 app.post('/webhook/:sessionId', (req, res) => {
+  handleWebhook(req, res).catch((e) => {
+    console.error('[webhook] handler failed:', e instanceof Error ? e.message : e);
+    if (!res.headersSent) res.status(500).send('error');
+  });
+});
+
+async function handleWebhook(req: express.Request, res: express.Response): Promise<void> {
   // A module's presentation outside a call (./presentations) — its own registry, random UUIDs.
-  if (handlePresentationWebhook(req, res, { record: recordVerification })) return;
+  if (await handlePresentationWebhook(req, res, { record: recordVerification })) return;
   // In-call credential sessions live in their own registry (disjoint UUID namespaces).
   const credentialRequest = requestBySession(req.params.sessionId);
   if (credentialRequest) {
-    handleCredentialWebhook(credentialRequest, req, res);
+    await handleCredentialWebhook(credentialRequest, req, res);
     return;
   }
   const hit = ext.roomStore.findBySession(req.params.sessionId);
@@ -1292,7 +1312,25 @@ app.post('/webhook/:sessionId', (req, res) => {
 
   const wsAlive = participant.ws.readyState === participant.ws.OPEN;
   console.log(`[webhook] matched ${participant.role} (${participant.clientId.slice(0, 8)}) wsAlive=${wsAlive}`);
-  const payload = req.body || {};
+  // The body is only the trigger. What counts is what the verifier itself recorded — read back
+  // over the authenticated API (see confirmedPresentation in ./eudiplo): a valid token proves
+  // that the caller knows the URL, not that a wallet presented anything.
+  const known = participant.verifierSessionId;
+  const payload = await confirmedPresentation(req.body, known);
+  if (!payload) {
+    dropStaleCallback(req.body, participant.role);
+    res.status(200).send('OK');
+    return;
+  }
+  // The world may have moved on while we asked: the participant left, a newer offer replaced
+  // this one, or a second copy of this very callback was handled first (the token rotates on
+  // success, and a failure replaces the offer). Deciding twice would record two verifications.
+  if (ext.roomStore.findBySession(req.params.sessionId)?.participant !== participant
+    || participant.verifierSessionId !== known || participant.webhookToken !== presented) {
+    console.log(`[webhook] ${participant.role}: superseded while the result was read back`);
+    res.status(200).send('OK');
+    return;
+  }
 
   // Require a POSITIVE proof of a successful presentation (see isVerificationSuccess).
   // normalizeClaims maps any format (mdoc / SD-JWT / …) onto the canonical claim keys.
@@ -1300,9 +1338,8 @@ app.post('/webhook/:sessionId', (req, res) => {
   const success = isVerificationSuccess(payload);
   // Attributes this participant was asked to present (for the audit event).
   const attrs = attrsFor(room, participant);
-  // EUDIPLO names its own session in the payload. Preferred over the id we noted when the
-  // offer was created: it is the authoritative one, and it keeps the purge working even for
-  // an offer whose response carried no id.
+  // The session that was read back. Normally the id noted with the offer; for an offer whose
+  // response carried no id it is the one the callback named, and noting it keeps the purge working.
   if (typeof payload.session === 'string' && payload.session) participant.verifierSessionId = payload.session;
 
   if (success) {
@@ -1399,7 +1436,7 @@ app.post('/webhook/:sessionId', (req, res) => {
   }
 
   res.status(200).send('OK');
-});
+}
 
 // The operator's own site (see ./operator-pages): short paths, root files, redirects, 404 page.
 // Registered AFTER every route of the application on purpose — a file in the operator's directory
@@ -1493,6 +1530,7 @@ function send(ws: WebSocket, obj: unknown): void {
 // The public origin the wallet/EUDIPLO must reach us at. An explicit non-localhost
 // PUBLIC_URL wins; otherwise derive it from the (Traefik/Coolify) proxy headers, so
 // it just works behind whosit.eu without any env config.
+const HOST_HEADER_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*(?::\d{1,5})?$/i;
 function publicOriginFrom(req: http.IncomingMessage): string {
   const env = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
   // Honor an explicitly-set PUBLIC_URL (incl. http://localhost for local dev + the
@@ -1505,9 +1543,16 @@ function publicOriginFrom(req: http.IncomingMessage): string {
   let proto = String(h['x-forwarded-proto'] || '').split(',')[0].trim();
   if (proto === 'wss') proto = 'https';
   else if (proto === 'ws') proto = 'http';
-  if (!proto) proto = 'https';
+  if (proto !== 'http') proto = 'https';
   const host = String(h['x-forwarded-host'] || h['host'] || '').split(',')[0].trim();
-  return host ? `${proto}://${host}` : env || `http://localhost:${PORT}`;
+  // A host name and an optional port, nothing else. The value comes from the client (through
+  // the proxy) and is pasted into URLs; `evil.tld/x?` or `a@evil.tld` would turn the webhook
+  // or wallet return address into something else entirely. What remains — a client naming
+  // another host — is why the presentation result is read back from the verifier rather than
+  // taken from the callback (see confirmedPresentation in ./eudiplo). Pin PUBLIC_URL to rule
+  // it out entirely.
+  if (host && HOST_HEADER_RE.test(host)) return `${proto}://${host}`;
+  return env || `http://localhost:${PORT}`;
 }
 
 function fullName(p?: Participant): string {
@@ -2208,26 +2253,34 @@ wss.on('connection', (ws, request) => {
     // If they do not come back, the call ended NOW, not when the grace runs out (./usage).
     const closedAt = Date.now();
     participant.graceTimer = setTimeout(() => {
-      // Open in-call credential requests involving the leaver die with them.
-      for (const r of openRequestsInvolving(participant)) {
-        finishRequest(r, 'expired');
-        credentialAudit(r, 'credential-expired', []);
-        const other = r.requester === participant ? r.target : r.requester;
-        send(other.ws, { type: 'credential-expired', requestId: r.requestId, from: participant.peerId, label: r.credential.label });
-      }
-      const peers = ext.roomStore.peersOf(room, participant);
-      purgeVerifierSession(participant.verifierSessionId, 'left');
-      endRunsOf(participant);
-      ext.roomStore.remove(room, participant);
-      participantLeft(room, room.participants.length, closedAt);
-      for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
-      if (peers.length) broadcastStatus(room);
-      firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'left' }));
+      leaveRoom(room, participant, closedAt);
       console.log(`[room] removed ${participant.role} (${participant.clientId.slice(0, 8)}) after grace`);
     }, grace);
     console.log(`[room] ${participant.role} (${participant.clientId.slice(0, 8)}) disconnected — ${grace / 1000}s grace`);
   });
 });
+
+/** Take a participant out of the room for good: their open credential requests, their verifier
+ *  session and their runs end with them, and everyone still there is told. */
+function leaveRoom(room: Room, participant: Participant, closedAt = Date.now()): void {
+  if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
+  // Open in-call credential requests involving the leaver die with them.
+  for (const r of openRequestsInvolving(participant)) {
+    finishRequest(r, 'expired');
+    credentialAudit(r, 'credential-expired', []);
+    const other = r.requester === participant ? r.target : r.requester;
+    send(other.ws, { type: 'credential-expired', requestId: r.requestId, from: participant.peerId, label: r.credential.label });
+  }
+  const peers = ext.roomStore.peersOf(room, participant);
+  purgeVerifierSession(participant.verifierSessionId, 'left');
+  participant.verifierSessionId = undefined;
+  endRunsOf(participant);
+  ext.roomStore.remove(room, participant);
+  participantLeft(room, room.participants.length, closedAt);
+  for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
+  if (peers.length) broadcastStatus(room);
+  firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'left' }));
+}
 
 async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantAuth = false, origin = PUBLIC_URL, dtlsFingerprint?: unknown, inviteTok?: unknown, arrival?: 'creator' | 'invited'): Promise<void> {
   if (!roomId) {
@@ -2294,7 +2347,25 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
 
   // A scheduled room's roles come from the invitation alone; arrival only speaks for ad-hoc rooms.
   // Ad-hoc rooms hold two unless the host ticked "Gruppenanruf"; scheduled rooms keep their rules.
-  const result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), { reclaimRole: wanted, arrival: invite ? undefined : arrival, groupOnlyIfOpen: !invite });
+  const joinOpts = { reclaimRole: wanted, arrival: invite ? undefined : arrival, groupOnlyIfOpen: !invite };
+  let result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), joinOpts);
+  // The same browser returns with the OTHER invitation of the room — it held the guest seat and
+  // now brings the host link, or the other way round. The store resumes by browser, so it hands
+  // back the old seat, with its verification. Turning that seat into the other role would let a
+  // guest who had nothing to present (and so counted as verified at once) become the host without
+  // ever meeting the host gate, which only runs when a host's presentation arrives (security
+  // review 2026-11-08). The old seat is given up instead, and the invitation's role is taken like
+  // any reclaim: identity starts over, and the host presents — and meets the gate — like anyone.
+  if (!('error' in result) && wanted && result.participant.role !== wanted) {
+    const { room: switchedRoom, participant: oldSeat, replaced } = result;
+    console.log(`[invite] ${oldSeat.role} (${clientId.slice(0, 8)}) returns with the ${wanted} invitation — old seat given up room=${auditHash('room', roomId)}`);
+    if (replaced) {
+      send(replaced, { type: 'session-taken-over' });
+      try { replaced.close(4001, 'session taken over'); } catch { /* already closed */ }
+    }
+    leaveRoom(switchedRoom, oldSeat);
+    result = ext.roomStore.join(roomId, ws, clientId, maxParticipants(), joinOpts);
+  }
   if ('error' in result) {
     send(ws, { type: 'room-full' });
     console.log(`[room] Beitritt abgelehnt room=${roomId.slice(0, 8)} grund=${result.error}`);
@@ -2313,7 +2384,6 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
     console.log(`[invite] ${participant.role} reclaimed their seat via the invitation room=${roomId.slice(0, 8)}`);
   }
   if (invite) {
-    if (wanted && participant.role !== wanted) participant.role = wanted;
     // First join into this room: adopt the agreed scope and pin it.
     if (!room.configPinned) {
       room.mode = invite.m;

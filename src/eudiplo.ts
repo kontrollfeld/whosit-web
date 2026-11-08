@@ -408,6 +408,49 @@ export async function verifierGet(path: string): Promise<any> {
 }
 
 /**
+ * What the verifier itself recorded for a presentation, in the shape of its webhook body.
+ *
+ * The webhook body is NOT evidence. The token in the webhook URL only proves that the caller
+ * knows that URL, and the URL is built from the request origin (publicOriginFrom in ./server):
+ * behind a proxy that passes a client's X-Forwarded-Host through, an attacker has EUDIPLO send
+ * their own failed presentation to a host they control, learns URL and token, and POSTs any
+ * name they like to the real endpoint (security review 2026-11-08). EUDIPLO stores status,
+ * outcome and the verified credentials BEFORE it sends the webhook (complete- and
+ * fail-presentation-response in EUDIPLO 9.1), so this authenticated read-back returns exactly
+ * what it verified — and nothing a caller wrote.
+ *
+ * `known` is the session id noted when the offer was created; the body's `session` is used only
+ * when the offer came back without one. Returns `null` when the body names a DIFFERENT session
+ * than the one on record: a late callback for an offer that was replaced since. The caller
+ * ignores it — it is not the presentation the person is looking at now.
+ *
+ * Never throws: an unreachable verifier, an unknown session or an unexpected answer all read as
+ * a failed presentation. Failing closed costs a rescan; failing open would cost the claim.
+ */
+export async function confirmedPresentation(body: any, known?: string): Promise<Record<string, unknown> | null> {
+  const named = typeof body?.session === 'string' && body.session ? body.session : undefined;
+  if (known && named && named !== known) return null;
+  const id = known ?? named;
+  if (!id) return { status: 'failed', reason: 'no-session-id' };
+  try {
+    const s = await verifierGet(`/api/session/${encodeURIComponent(id)}`);
+    if (!s || typeof s !== 'object') return { status: 'failed', session: id, reason: 'unexpected-answer' };
+    return {
+      session: id,
+      status: s.status,
+      ...(s.outcome != null ? { outcome: s.outcome } : {}),
+      // Credentials count only on a completed session — a failed one may still list the
+      // credentials it rejected (outcome.credentials), never their values.
+      ...(s.status === 'completed' && Array.isArray(s.credentials) ? { credentials: s.credentials } : {}),
+      ...(s.transaction_data != null ? { transaction_data: s.transaction_data } : {}),
+    };
+  } catch (e: any) {
+    console.warn(`[eudiplo] could not read the presentation back from the verifier: ${e?.status ?? e?.message ?? e}`);
+    return { status: 'failed', session: id, reason: 'lookup-failed' };
+  }
+}
+
+/**
  * Create a verifier offer for the registered config `requestId`. EUDIPLO POSTs the result
  * to `webhookUrl` when the wallet responds.
  *

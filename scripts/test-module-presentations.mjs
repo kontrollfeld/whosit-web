@@ -25,6 +25,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifierResults } from './lib/verifier-results.mjs';
+
 
 const VERIFIER_PORT = 3994;
 const APP_PORT = 3995;
@@ -67,6 +69,7 @@ module.exports.register = () => ({
 const offers = new Map();     // session → webhook url
 const configs = new Map();    // config id → body
 const deleted = [];
+const results = verifierResults();
 const readBody = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b)); });
 const json = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
 const verifier = http.createServer(async (req, res) => {
@@ -81,6 +84,7 @@ const verifier = http.createServer(async (req, res) => {
     return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
   if (req.method === 'DELETE' && p.startsWith('/api/session/')) { deleted.push(p.split('/').pop()); res.writeHead(204); return res.end(); }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
   return json(res, 404, {});
 });
 
@@ -113,6 +117,8 @@ async function up(port) {
 
 const A = `http://127.0.0.1:${APP_PORT}`;
 const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+/** A wallet's answer as the verifier delivers it: recorded there first, then the callback. */
+const deliver = (url, body) => { results.record(body.session, body); return post(url, body); };
 const procs = [];
 try {
   await new Promise((r) => verifier.listen(VERIFIER_PORT, r));
@@ -148,7 +154,7 @@ try {
   const hook = offers.get(sess1).url;
   const forged = await post(hook.replace(/t=[^&]+/, 't=falsch'), { status: 'completed', session: sess1, credentials: [{ values: [{ given_name: 'Mallory', family_name: 'X' }] }] });
   check('a forged callback is refused', forged.status === 401, `HTTP ${forged.status}`);
-  const cb = await post(hook, { status: 'completed', session: sess1, credentials: [{ values: [{ given_name: 'Erika', family_name: 'Mustermann', age_over_18: true }] }] });
+  const cb = await deliver(hook, { status: 'completed', session: sess1, credentials: [{ values: [{ given_name: 'Erika', family_name: 'Mustermann', age_over_18: true }] }] });
   check('the real one is taken', cb.ok, `HTTP ${cb.status}`);
   check('a repeat changes nothing', !(await post(hook, { status: 'completed', session: sess1, credentials: [{ values: [{ given_name: 'Mallory', family_name: 'X' }] }] })).ok);
   check('the verifier session is purged', deleted.includes(sess1), deleted.join(','));
@@ -162,7 +168,7 @@ try {
   console.log('\nA declined presentation');
   const s2 = await (await post(`${A}/modules/demo-modul/start`, { attrs: ['age_over_18'] })).json();
   const sess2 = String(s2.uri).split('session=')[1];
-  await post(offers.get(sess2).url, { status: 'failed', session: sess2, outcome: { result: 'failed', error: 'access_denied' } });
+  await deliver(offers.get(sess2).url, { status: 'failed', session: sess2, outcome: { result: 'failed', error: 'access_denied' } });
   check('failed, without claims', (await (await fetch(`${A}/modules/demo-modul/stand/${s2.id}`)).json()).state === 'failed');
 
   console.log('\nThe record');

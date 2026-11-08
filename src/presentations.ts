@@ -22,7 +22,7 @@
  */
 import { randomUUID, timingSafeEqual } from 'crypto';
 import type { Request, Response } from 'express';
-import { createVerifierOffer, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix } from './eudiplo';
+import { createVerifierOffer, confirmedPresentation, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix } from './eudiplo';
 import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, pidConfigId, type SemanticAttr } from './credential-profiles';
 import { partitionAttributes, policyDescriptor, isDerived, requiresWalletPresentation } from './wrp-policy';
 import { purgeVerifierSession } from './verifier-session';
@@ -158,16 +158,26 @@ export function presentationPort(module: string, deps: PresentationDeps): Presen
  * The verifier's callback for a module presentation. Returns false when the session is not one of
  * ours (then the caller tries rooms and in-call requests).
  */
-export function handlePresentationWebhook(req: Request, res: Response, deps: PresentationDeps): boolean {
+export async function handlePresentationWebhook(req: Request, res: Response, deps: PresentationDeps): Promise<boolean> {
   const p = open.get(req.params.sessionId);
   if (!p) return false;
-  if (!same(String(req.query.t || ''), p.webhookToken)) {
+  const token = String(req.query.t || '');
+  if (!same(token, p.webhookToken)) {
     console.warn(`[presentation] ${p.module}: rejected callback — bad/missing token`);
     res.status(401).send('unauthorized');
     return true;
   }
   if (p.state !== 'pending') { res.status(409).send('already answered'); return true; }
-  const payload = req.body || {};
+  // The body is only the trigger; the result is read back from the verifier (see
+  // confirmedPresentation in ./eudiplo for why a token-carrying callback is not enough).
+  const payload = await confirmedPresentation(req.body, p.verifierSessionId);
+  if (!payload) {
+    console.log(`[presentation] ${p.module}: callback for a replaced offer ignored`);
+    res.status(200).send('OK');
+    return true;
+  }
+  // A second copy of this callback was answered while we asked (the token rotates below).
+  if (p.state !== 'pending' || p.webhookToken !== token) { res.status(409).send('already answered'); return true; }
   if (typeof payload.session === 'string' && payload.session) p.verifierSessionId = payload.session;
   // Only what was asked for: normalizeClaims copies the policy's allowlist, this narrows it to the
   // presentation's own attributes.

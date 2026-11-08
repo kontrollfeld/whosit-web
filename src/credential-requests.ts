@@ -89,6 +89,11 @@ export function openRequestsInvolving(p: Participant): CredentialRequest[] {
   return [...byId.values()].filter((r) => !TERMINAL.has(r.status) && (r.requester === p || r.target === p));
 }
 
+/** Whether the request has reached a terminal state (see finishRequest). */
+export function isFinished(r: CredentialRequest): boolean {
+  return TERMINAL.has(r.status);
+}
+
 /** Move a request to a terminal state: stop the timer, drop it from the registry, and delete
  *  the verifier session that was created for it. Terminal means terminal — a presented (or
  *  declined, or expired) in-call credential leaves nothing at the verifier either, on the

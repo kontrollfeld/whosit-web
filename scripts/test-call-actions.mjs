@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { verifierResults, sessionForWebhook } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3997;
 const APP_PORT = 3998;
@@ -67,12 +68,17 @@ const verifier = http.createServer(async (req, res) => {
     return json(res, 200, { uri: `http://x/${id}`, crossDeviceUri: `http://x/${id}`, session: id });
   }
   if (req.method === 'DELETE') { res.writeHead(204); return res.end(); }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
   return json(res, 404, {});
 });
-const present = (auth, values) => fetch(offers.get(String(auth.uri).split('/').pop()), {
-  method: 'POST', headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
-});
+const results = verifierResults();
+/** A wallet's answer as the verifier delivers it: recorded there first (the app reads it back
+ *  from there, see scripts/lib/verifier-results.mjs), then the callback. */
+const deliver = (url, body) => {
+  results.record(sessionForWebhook(offers, url), body);
+  return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+};
+const present = (auth, values) => deliver(offers.get(String(auth.uri).split('/').pop()), { status: 'completed', credentials: [{ values: [values] }] });
 
 function participant(roomId) {
   const seen = [];

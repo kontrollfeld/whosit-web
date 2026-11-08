@@ -28,6 +28,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { verifierResults } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3982;
 const APP_PORT = 3983;
@@ -81,12 +82,15 @@ const verifier = http.createServer(async (req, res) => {
     res.writeHead(204);
     return res.end();
   }
+  if (sess && req.method === 'GET') return json(res, 200, results.lookup(sess[1]));
   return json(res, 404, { error: 'not found' });
 });
+const results = verifierResults();
 
 /** Report a presentation result for `sessionId` to the server, the way EUDIPLO would. */
 async function callback(sessionId, body) {
   const url = offers.get(sessionId);
+  results.record(sessionId, body);
   const r = await fetch(url, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ session: sessionId, ...body }),

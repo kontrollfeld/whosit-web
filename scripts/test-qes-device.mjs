@@ -29,6 +29,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { requireQesDeviceModule, importClient } from './lib/qes-device-module.mjs';
+import { verifierResults } from './lib/verifier-results.mjs';
 
 const QES_DEVICE = requireQesDeviceModule('test-qes-device');
 
@@ -65,8 +66,10 @@ const verifier = http.createServer(async (req, res) => {
     return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
   if (req.method === 'DELETE' && p.startsWith('/api/session/')) { res.writeHead(204); return res.end(); }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
   return json(res, 404, {});
 });
+const results = verifierResults();
 
 // ------------------------------------------------------------------- Client ----
 function participant(roomId) {
@@ -212,9 +215,11 @@ try {
   check('refused before verification', /not verified/.test(refused), refused || 'a certificate was issued');
 
   const sessionId = String(auth.uri).split('/').pop();
+  const presented = { session: sessionId, status: 'completed', credentials: [{ values: [{ given_name: 'Erika', family_name: 'Mustermann' }] }] };
+  results.record(sessionId, presented);
   await fetch(offers.get(sessionId), {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ session: sessionId, status: 'completed', credentials: [{ values: [{ given_name: 'Erika', family_name: 'Mustermann' }] }] }),
+    body: JSON.stringify(presented),
   });
   await guest.wait('status', (m) => m.self?.verified === true);
 

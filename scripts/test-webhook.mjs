@@ -27,6 +27,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { verifierResults, sessionForWebhook } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3976;
 const APP_PORT = 3977;
@@ -60,23 +61,35 @@ const verifier = http.createServer(async (req, res) => {
     const id = randomUUID();
     offers.set(id, body.webhook.url);
     const uri = `http://127.0.0.1:${VERIFIER_PORT}/simulate/${id}`;
-    return json(res, 200, { uri, crossDeviceUri: uri });
+    return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
+  const sess = p.match(/^\/api\/session\/([0-9a-f-]+)$/i);
+  if (sess && req.method === 'GET') { readBacks.push(sess[1]); return json(res, 200, results.lookup(sess[1])); }
+  if (sess && req.method === 'DELETE') { res.writeHead(204); return res.end(); }
   return json(res, 404, { error: 'not found' });
 });
+/** What the verifier holds per session, and which sessions the app read back. */
+const results = verifierResults();
+const readBacks = [];
 
 /** Send a successful presentation callback to a (possibly tampered-with) URL. */
 async function callback(url, values = { family_name: 'Mustermann', given_name: 'Erika' }) {
+  const body = { status: 'completed', credentials: [{ values: [values] }] };
+  results.record(sessionForWebhook(offers, url), body);
   const r = await fetch(url, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
+    body: JSON.stringify(body),
   });
   return r.status;
 }
 
 /** Send a raw callback body (EUDIPLO 9 also calls for failed, declined and cancelled presentations). */
 async function rawCallback(url, body) {
-  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  // EUDIPLO names the offer's own session in its callbacks.
+  const id = sessionForWebhook(offers, url);
+  const sent = 'session' in body ? { ...body, session: id } : body;
+  results.record(id, sent);
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(sent) });
   return r.status;
 }
 
@@ -242,7 +255,44 @@ try {
     check(`${name}: guest stays unverified`, !guest.find('status', (m) => m.self?.verified === true), 'a failure callback verified the guest');
   }
   check('the failure code reaches the log', /verification failed \(access_denied\)/.test(appLog.join('')), 'no "(access_denied)" in the log');
-  check('an unknown failure shape is logged by field names', /verification failed \(code unknown: status=failed keys=\[status,session,detail\]\)/.test(appLog.join('')), 'no "code unknown" line with the field names');
+  check('an unknown failure shape is logged by field names', /verification failed \(code unknown: status=failed keys=\[session,status\]\)/.test(appLog.join('')), 'no "code unknown" line with the field names');
+
+  // ---------------------------------------------------------------------------
+  console.log('\nThe callback is a trigger, not evidence (read back from the verifier)');
+  {
+    // Someone who learnt the webhook URL — token included — posts a success the verifier never
+    // saw: the URL is built from the request origin, so a spoofed X-Forwarded-Host hands it out.
+    const { guest, url } = await newGuestWithWebhookUrl(randomUUID());
+    clients.push(guest);
+    const id = sessionForWebhook(offers, url);
+    const forged = await fetch(url, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'completed', session: id, credentials: [{ values: [{ given_name: 'Olaf', family_name: 'Forged' }] }] }),
+    });
+    check('forged success with a valid token -> 200', forged.status === 200, `got ${forged.status}`);
+    check('the app asked the verifier for that session', readBacks.includes(id), JSON.stringify(readBacks));
+    await guest.wait('auth-failed').then(() => check('forged success: guest told auth-failed', true), (e) => check('forged success: guest told auth-failed', false, e.message));
+    check('forged success: guest stays unverified', !guest.find('status', (m) => m.self?.verified === true), 'a callback the verifier never saw verified the guest');
+    check('the forged name went nowhere', !JSON.stringify(guest.seen).includes('Forged'), 'the forged name reached the client');
+  }
+  {
+    // A late callback for an offer that was replaced since: not the presentation on screen now.
+    const { guest, url } = await newGuestWithWebhookUrl(randomUUID());
+    clients.push(guest);
+    const stale = randomUUID();
+    results.record(stale, { status: 'completed', credentials: [{ values: [{ given_name: 'Old', family_name: 'Offer' }] }] });
+    const r = await fetch(url, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'completed', session: stale, credentials: [{ values: [{ given_name: 'Old', family_name: 'Offer' }] }] }),
+    });
+    check('stale callback -> 200', r.status === 200, `got ${r.status}`);
+    await new Promise((res) => setTimeout(res, 300));
+    check('stale callback: guest stays unverified', !guest.find('status', (m) => m.self?.verified === true), 'a replaced offer verified the guest');
+    check('stale callback: the current offer stays (no auth-failed)', !guest.find('auth-failed'), 'a stale callback killed the code on screen');
+    // …and the real one still goes through afterwards.
+    check('the current offer still verifies', (await callback(url)) === 200);
+    await guest.wait('status', (m) => m.self?.verified === true).then(() => check('verified by the current offer', true), (e) => check('verified by the current offer', false, e.message));
+  }
 
   // ---------------------------------------------------------------------------
   console.log('\nThe log reveals no identity data');

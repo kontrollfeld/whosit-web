@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { verifierResults } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3982;
 const GATED_PORT = 3983;
@@ -77,10 +78,13 @@ const verifier = http.createServer(async (req, res) => {
     const id = randomUUID();
     offers.set(id, { webhook: body.webhook.url, requestId: body.requestId });
     const uri = `http://127.0.0.1:${VERIFIER_PORT}/simulate/${id}`;
-    return json(res, 200, { uri, crossDeviceUri: uri });
+    return json(res, 200, { uri, crossDeviceUri: uri, session: id });
   }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
+  if (req.method === 'DELETE' && p.startsWith('/api/session/')) { res.writeHead(204); return res.end(); }
   return json(res, 404, { error: 'not found' });
 });
+const results = verifierResults();
 
 /** Extract the offer identifier from the wallet URI. */
 const offerIdOf = (uri) => String(uri).split('/').pop();
@@ -105,9 +109,11 @@ async function present(offerId, identity) {
   const wanted = requestedClaims(offerId);
   const values = {};
   for (const [k, v] of Object.entries(identity)) if (wanted.has(k)) values[k] = v;
+  const body = { status: 'completed', credentials: [{ values: [values] }] };
+  results.record(offerId, body);
   const r = await fetch(offer.webhook, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
+    body: JSON.stringify(body),
   });
   return { status: r.status, sent: Object.keys(values) };
 }
@@ -117,7 +123,7 @@ async function present(offerId, identity) {
  * A participant as an object: collects every message and allows targeted waiting.
  * Without that collection a test would miss a message that arrives before the wait begins.
  */
-function participant(port, { roomId, clientId, wantAuth }) {
+function participant(port, { roomId, clientId, wantAuth, inv }) {
   const seen = [];
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const p = {
@@ -140,7 +146,7 @@ function participant(port, { roomId, clientId, wantAuth }) {
     close: () => ws.close(),
   };
   ws.on('message', (raw) => { try { seen.push(JSON.parse(raw.toString())); } catch {} });
-  ws.on('open', () => p.send({ type: 'join', roomId, clientId, wantAuth }));
+  ws.on('open', () => p.send({ type: 'join', roomId, clientId, wantAuth, inv }));
   return p;
 }
 
@@ -330,11 +336,40 @@ try {
   check('a guest with an unlisted name gets through', stGuest.self.verified === true);
   check('the guest is not rejected', !guest6.find('host-denied'));
 
+  console.log('\nA guest seat does not become the host seat (same browser, other invitation)');
+  // A scheduled call whose guest presents nothing: the guest counts as verified at once. The same
+  // browser then returns with the HOST link. Resuming that seat as the host would skip the gate,
+  // which only runs when a host's presentation arrives.
+  const at = Date.now();
+  const minted = await (await fetch(`${GATED}/invite`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: 'video', requestedAttrs: [], disclosedAttrs: ['given_name', 'family_name'], start: new Date(at + 5 * 60_000).toISOString(), end: new Date(at + 35 * 60_000).toISOString() }),
+  })).json();
+  check('a scheduled pair was issued', !!minted?.hostToken && !!minted?.guestToken, JSON.stringify(minted));
+  const asGuest = participant(GATED_PORT, { roomId: minted.room, clientId: 'c-switch', inv: minted.guestToken });
+  sockets.push(asGuest);
+  await asGuest.wait('status', (m) => m.self?.verified === true);
+  check('as the guest it has nothing to present', true);
+  asGuest.close();
+  await new Promise((r) => setTimeout(r, 300));
+  const asHost = participant(GATED_PORT, { roomId: minted.room, clientId: 'c-switch', inv: minted.hostToken });
+  sockets.push(asHost);
+  const joinedAsHost = await asHost.wait('joined');
+  check('the host invitation gives the host role', joinedAsHost.role === 'caller', JSON.stringify(joinedAsHost));
+  check('a fresh seat, not the guest seat resumed', joinedAsHost.resumed === false, JSON.stringify(joinedAsHost));
+  const authSwitch = await asHost.wait('auth').catch(() => null);
+  check('the host is asked for a wallet presentation', !!authSwitch);
+  check("the guest's verification is not carried over", !asHost.seen.some((m) => m.type === 'status' && m.self?.verified === true));
+  if (authSwitch) {
+    await present(offerIdOf(authSwitch.uri), { given_name: 'Mallory', family_name: 'Unbekannt' });
+    check('the host gate runs and refuses an unlisted name', !!(await asHost.wait('host-denied').catch(() => null)));
+  }
+
   console.log('\nThe rejection is in the record — without the name');
   const gatedLog = (logs.get(GATED_PORT) || []).join('');
   const auditLines = gatedLog.split('\n').filter((z) => z.includes('[audit]'));
   check('the host-denied event is recorded', auditLines.some((z) => z.includes('host-denied')));
-  const names = ['Meier', 'Mustermann', 'Erika', 'Hans-Peter', 'Wilhelmine', 'Unbekannt'];
+  const names = ['Meier', 'Mustermann', 'Erika', 'Hans-Peter', 'Wilhelmine', 'Unbekannt', 'Mallory'];
   const leaked = names.filter((n) => auditLines.some((z) => z.includes(n)));
   check('no name in the verification record', leaked.length === 0, `found: ${leaked.join(',')}`);
   const leakedLog = names.filter((n) => gatedLog.includes(n));

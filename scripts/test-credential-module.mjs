@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { verifierResults, sessionForWebhook } from './lib/verifier-results.mjs';
 
 const VERIFIER_PORT = 3987;
 const APP_PORT = 3988;
@@ -71,12 +72,17 @@ const verifier = http.createServer(async (req, res) => {
     return json(res, 200, { uri: `http://x/${id}`, crossDeviceUri: `http://x/${id}`, session: id });
   }
   if (req.method === 'DELETE') { res.writeHead(204); return res.end(); }
+  if (req.method === 'GET' && p.startsWith('/api/session/')) return json(res, 200, results.lookup(p.split('/').pop()));
   return json(res, 404, {});
 });
-const present = (auth, values) => fetch(offers.get(String(auth.uri).split('/').pop()), {
-  method: 'POST', headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ status: 'completed', credentials: [{ values: [values] }] }),
-});
+const results = verifierResults();
+/** A wallet's answer as the verifier delivers it: recorded there first (the app reads it back
+ *  from there, see scripts/lib/verifier-results.mjs), then the callback. */
+const deliver = (url, body) => {
+  results.record(sessionForWebhook(offers, url), body);
+  return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+};
+const present = (auth, values) => deliver(offers.get(String(auth.uri).split('/').pop()), { status: 'completed', credentials: [{ values: [values] }] });
 
 function participant(roomId) {
   const seen = [];
@@ -183,7 +189,7 @@ try {
   check('no panel for it', !guest.last('action-requested'));
   guest.send({ type: 'credential-accept', requestId: ask.requestId });
   const auth = await guest.wait('credential-auth');
-  await fetch(offers.get(String(auth.uri).split('/').pop()), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'completed', credentials: [{ values: [{ member_id: 'M-42', since: '2020' }] }] }) });
+  await deliver(offers.get(String(auth.uri).split('/').pop()), { status: 'completed', credentials: [{ values: [{ member_id: 'M-42', since: '2020' }] }] });
   const got = await host.wait('credential-presented');
   check('the host gets the values', JSON.stringify(got.claims) === JSON.stringify([{ name: 'Mitgliedsnummer', value: 'M-42' }, { name: 'Mitglied seit', value: '2020' }]), JSON.stringify(got.claims));
   host.send({ type: 'action-start', to: guestPeer, module: 'demo-nachweise', action: 'nachweis', choice: 'kaputt' });
@@ -194,11 +200,11 @@ try {
   const s = await (await post(`${A}/dn/start`, { id: 'mitglied' })).json();
   const sess = String(s.uri).split('/').pop();
   check('started', !!s.id && offers.has(sess));
-  await fetch(offers.get(sess), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'completed', session: sess, credentials: [{ values: [{ since: '2020' }] }] }) });
+  await deliver(offers.get(sess), { status: 'completed', session: sess, credentials: [{ values: [{ since: '2020' }] }] });
   check('a presentation without the mandatory field fails', (await get(`/dn/stand/${s.id}`)).state === 'failed');
   const s2 = await (await post(`${A}/dn/start`, { id: 'mitglied' })).json();
   const sess2 = String(s2.uri).split('/').pop();
-  await fetch(offers.get(sess2), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'completed', session: sess2, credentials: [{ values: [{ member_id: 'M-7', given_name: 'Mallory' }] }] }) });
+  await deliver(offers.get(sess2), { status: 'completed', session: sess2, credentials: [{ values: [{ member_id: 'M-7', given_name: 'Mallory' }] }] });
   const st = await get(`/dn/stand/${s2.id}`);
   check('ok: its claims, nothing else', st.state === 'ok' && st.credential === 'mitglied' && JSON.stringify(st.claims) === '{"member_id":"M-7"}', JSON.stringify(st));
   check('no value in the log', !/M-42|M-7|Mallory|Gustav/.test(log.join('')), log.join('').match(/.*(M-42|M-7|Mallory).*/)?.[0]);
