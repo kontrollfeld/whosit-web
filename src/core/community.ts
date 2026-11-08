@@ -4,7 +4,7 @@
  * Community Edition default implementations of the extension ports.
  * These preserve the exact current behavior: in-memory rooms + no verification sink.
  */
-import { joinRoom, peerOf, peersOf, findByPeerId, findBySession, findByWs, removeParticipant, activeRoomCount, hasRoom } from '../rooms';
+import { joinRoom, peerOf, peersOf, findByPeerId, findBySession, findByWs, removeParticipant, activeRoomCount, activeCallCount, hasRoom } from '../rooms';
 import type { RoomStore, VerificationSink, VerificationEvent } from './ports';
 
 /** In-memory room store — the existing rooms.ts module behind the RoomStore port. */
@@ -17,6 +17,7 @@ export const communityRoomStore: RoomStore = {
   findByWs,
   remove: removeParticipant,
   activeCount: activeRoomCount,
+  activeCalls: activeCallCount,
   has: hasRoom,
 };
 

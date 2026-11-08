@@ -940,7 +940,10 @@ app.get('/health', publicCors, (_req, res) => {
   // `null` when the configured store cannot report it (an older Pro build). A rollout must
   // treat that as "cannot confirm it is quiet", not as zero.
   const activeRooms = ext.roomStore.activeCount ? ext.roomStore.activeCount() : null;
-  res.json({ ok: true, publicUrl: PUBLIC_URL, activeRooms });
+  // Calls, not rooms: what a rollout waits for (see ./rooms, activeCallCount). Absent where the
+  // store cannot say — the rollout then reads activeRooms, as before.
+  const activeCalls = ext.roomStore.activeCalls ? ext.roomStore.activeCalls() : undefined;
+  res.json({ ok: true, publicUrl: PUBLIC_URL, activeRooms, ...(activeCalls === undefined ? {} : { activeCalls }) });
 });
 
 // ICE configuration for the browser. Serves STUN plus, when a TURN relay is configured

@@ -294,6 +294,17 @@ export function hasRoom(roomId: string): boolean {
 export function activeRoomCount(): number {
   return rooms.size;
 }
+/**
+ * Rooms with a CALL in them: two people or more, counting those inside their reconnect grace.
+ * A host alone in a room waiting for a guest is not one — counted as one, a tab left open kept an
+ * instance "busy" for two days and an update waiting with it (2026-11-08). Restarting still ends
+ * that wait; the host's page reconnects to a fresh room and the guest's link still leads there.
+ */
+export function activeCallCount(): number {
+  let n = 0;
+  for (const r of rooms.values()) if (r.participants.length >= 2) n++;
+  return n;
+}
 
 export function removeParticipant(room: Room, participant: Participant): void {
   const i = room.participants.indexOf(participant);

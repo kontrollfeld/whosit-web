@@ -55,7 +55,8 @@ try {
 
   console.log('\nA call is up');
   const host = await open();
-  host.ws.send(JSON.stringify({ type: 'join', roomId: randomUUID(), clientId: randomUUID() }));
+  const raum = randomUUID();
+  host.ws.send(JSON.stringify({ type: 'join', roomId: raum, clientId: randomUUID() }));
   await sleep(500);
   check('the host is in a room', host.seen.some((m) => m.type === 'status'), JSON.stringify(host.seen.map((m) => m.type)));
 
@@ -76,7 +77,15 @@ try {
   let health = null;
   try { health = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json(); } catch {}
   check('/health answers and counts the room', health?.ok === true && health.activeRooms >= 1, JSON.stringify(health));
+  // A host alone is a room, not a call — what a rollout waits for is a call (./src/rooms).
+  check('… but no call: one person alone', health?.activeCalls === 0, JSON.stringify(health));
   check('the host\'s connection is still open', host.ws.readyState === WebSocket.OPEN, `readyState ${host.ws.readyState}`);
+  const gast = await open();
+  gast.ws.send(JSON.stringify({ type: 'join', roomId: raum, clientId: randomUUID() }));
+  await sleep(500);
+  const h2 = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
+  check('a second person in the room: one call', h2.activeCalls === 1 && h2.activeRooms >= 1, JSON.stringify(h2));
+  gast.ws.close();
   host.ws.close();
 } catch (e) {
   check('test aborted', false, e.message);
