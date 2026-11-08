@@ -154,40 +154,34 @@
         <!-- Asked as questions, with the person icon in the side's colour: "Ich teile" and "Der Gast
              teilt" looked alike while meaning opposite things. -->
         <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was zeigst du deinem Gast?</span></span>
-        <span class="field-note party-note" data-i18n>Angaben aus deinem eigenen Ausweis</span>
         <div class="seg" id="disclose-seg" role="group" aria-label="Was du teilst" data-i18n-attr="aria-label">
           <button type="button" data-disclose="anon" data-i18n>Anonym bleiben</button>
           <button type="button" data-disclose="data" class="active" data-i18n>Daten teilen</button>
         </div>
         <div class="attr-list" id="disclose-list" hidden></div>
-        <details class="policy-note">
-          <summary data-i18n>Warum nur diese Angaben?</summary>
-          <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
-          <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
-        </details>
       </div>
 
       <div class="party guest">
         <span class="party-q"><svg class="party-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span data-i18n>Was soll dein Gast dir zeigen?</span></span>
-        <span class="field-note party-note" data-i18n>Angaben aus dem Ausweis deines Gastes</span>
         <div class="seg" id="request-seg" role="group" aria-label="Was der Gast teilt" data-i18n-attr="aria-label">
           <button type="button" data-request="anon" data-i18n>Nichts abfragen</button>
           <button type="button" data-request="data" class="active" data-i18n>Daten abfragen</button>
         </div>
         <div id="request-extra">
-          <div class="presets" id="presets">
+          <!-- Only the operator's named picks (ui.schnellwahl, renderPresets). With the four rows of the
+               standard policy, built-in shortcuts just ticked the same boxes a second time. -->
+          <div class="presets" id="presets" hidden>
             <span class="presets-label" data-i18n>Schnellauswahl:</span>
-            <button type="button" class="chip-btn" data-preset="age" data-i18n>Altersnachweis 18+</button>
-            <button type="button" class="chip-btn" data-preset="name" data-i18n>Name</button>
-            <button type="button" class="chip-btn" data-preset="full" data-i18n>Name + 18+</button>
           </div>
           <div class="attr-list" id="request-list"></div>
-          <details class="policy-note">
-            <summary data-i18n>Warum nur diese Angaben?</summary>
-            <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
-            <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
-          </details>
         </div>
+        <!-- Once in the setup, not per side: both copies said the same. Outside #request-extra, so
+             it stays on the guest step with "Nichts abfragen" too. -->
+        <details class="policy-note">
+          <summary data-i18n>Warum nur diese Angaben?</summary>
+          <p data-i18n>Abgefragt wird so wenig wie möglich: nur Angaben, die für einen Anruf mit Ausweis sinnvoll und erlaubt sind.</p>
+          <p class="policy-official" data-policy-note data-i18n>Gemäß eIDAS 2.0 WRP-Zulassung auf datensparsame Basis-Attribute beschränkt.</p>
+        </details>
       </div>
 
       <!-- Why "Daten teilen" is locked on an instance without a verifier, and how to get one. -->

@@ -329,15 +329,10 @@ const ATTRIBUTES = [
   // Only meaningful IN ADDITION to a real attribute; on its own it is not verification.
   { key: 'pseudonym_id', label: 'Pseudonym', note: 'einmalige Kennung — nur zusammen mit einer weiteren Angabe' },
 ];
-// The quick picks above the list. Built in, these three — shown only when the policy allows every
-// attribute in them. An operator can put their own in their place (/capabilities `ui.schnellwahl`,
-// src/operator-ui.ts). See renderPresets().
-const BUILTIN_PRESETS = [
-  { id: 'age', label: 'Altersnachweis 18+', keys: ['age_over_18'] },
-  { id: 'name', label: 'Name', keys: ['family_name', 'given_name'] },
-  { id: 'full', label: 'Name + 18+', keys: ['family_name', 'given_name', 'age_over_18'] },
-];
-let presets = BUILTIN_PRESETS.map((p) => ({ ...p, label: p.label }));
+// The quick picks above the list: only an operator's own (/capabilities `ui.schnellwahl`,
+// src/operator-ui.ts), named after their purpose. There used to be three built-in ones, but on
+// the standard policy's four rows they only ticked the same boxes a second time. See renderPresets().
+let presets = [];
 const labelFor = (k) => (ATTRIBUTES.find((a) => a.key === k) || {}).label || k;
 const modeLabel = (m) => (m === 'audio' ? 'Audio' : m === 'chat' ? 'Chat' : 'Video');
 
@@ -447,6 +442,11 @@ let setupBuilt = false;
 // directly beneath each group.
 function buildChecklist(container, prefix, defaultKeys) {
   const allowed = allowedAttrKeys();
+  // What the server derives itself (the pseudonym) is folded away under "Weitere Angaben": it is
+  // the row nobody understands at first sight and is only useful next to a real attribute. Open
+  // from the start when it is already chosen (invitation, embed, operator preselection).
+  const derived = derivedKeys();
+  let more = null;
   for (const a of ATTRIBUTES) {
     if (!allowed.includes(a.key)) continue; // server narrowed the scope → don't offer it
     const row = document.createElement('label'); row.className = 'attr-row';
@@ -457,7 +457,15 @@ function buildChecklist(container, prefix, defaultKeys) {
     if (a.note) { const n = document.createElement('span'); n.className = 'attr-note'; n.textContent = ' · ' + t(a.note); span.appendChild(n); }
     const ic = attrIconEl(a.key);
     row.append(cb); if (ic) row.append(ic); row.append(span);
-    container.appendChild(row);
+    if (derived.includes(a.key)) {
+      if (!more) {
+        more = document.createElement('details'); more.className = 'attr-more';
+        const sum = document.createElement('summary'); sum.textContent = t('Weitere Angaben');
+        more.appendChild(sum); container.appendChild(more);
+      }
+      if (cb.checked) more.open = true;
+      more.appendChild(row);
+    } else container.appendChild(row);
   }
 }
 // Ticked when the setup opens: the operator's preselection, else the family name.
@@ -592,16 +600,14 @@ function setRequestMode(m) {
 }
 function attrsChecked(prefix) { return ATTRIBUTES.map((a) => a.key).filter((k) => { const cb = document.getElementById(prefix + '-' + k); return cb && cb.checked; }); }
 /**
- * The quick-pick buttons: the operator's (`ui.schnellwahl`) if there are any, else the built-in
- * ones the policy fully allows. A pick reduced to nothing by the policy is not shown.
+ * The quick-pick buttons: the operator's (`ui.schnellwahl`), none otherwise. A pick reduced to
+ * nothing by the policy is not shown.
  */
 function renderPresets() {
   const allowed = allowedAttrKeys();
-  const own = operatorUi && Array.isArray(operatorUi.schnellwahl) && operatorUi.schnellwahl.length ? operatorUi.schnellwahl : null;
-  presets = own
-    ? own.map((p, i) => ({ id: 'own-' + i, label: (p.name && (p.name[i18nLocale] || p.name.de)) || '', keys: (p.angaben || []).filter((k) => allowed.includes(k)) }))
-      .filter((p) => p.label && p.keys.length)
-    : BUILTIN_PRESETS.filter((p) => p.keys.every((k) => allowed.includes(k))).map((p) => ({ ...p, label: t(p.label) }));
+  const own = operatorUi && Array.isArray(operatorUi.schnellwahl) ? operatorUi.schnellwahl : [];
+  presets = own.map((p, i) => ({ id: 'own-' + i, label: (p.name && (p.name[i18nLocale] || p.name.de)) || '', keys: (p.angaben || []).filter((k) => allowed.includes(k)) }))
+    .filter((p) => p.label && p.keys.length);
   presetsEl.querySelectorAll('[data-preset]').forEach((b) => b.remove());
   for (const p of presets) {
     const b = document.createElement('button');
@@ -634,7 +640,11 @@ function applyServerConfig(msg) {
   if (!setupBuilt || setupLocked) return;
   const apply = (prefix, list) => {
     const keys = Array.isArray(list) ? list : [];
-    for (const a of ATTRIBUTES) { const cb = document.getElementById(prefix + '-' + a.key); if (cb) cb.checked = keys.includes(a.key); }
+    for (const a of ATTRIBUTES) {
+      const cb = document.getElementById(prefix + '-' + a.key); if (!cb) continue;
+      cb.checked = keys.includes(a.key);
+      const more = cb.closest('details'); if (more && cb.checked) more.open = true; // never a hidden tick
+    }
     return keys.length > 0;
   };
   const hasRequest = apply('request', msg.requestedAttrs);

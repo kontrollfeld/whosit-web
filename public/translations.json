@@ -14,7 +14,6 @@
     "Daten teilen": "Share data",
     "Was der Gast teilt": "What the guest shares",
     "Daten abfragen": "Request data",
-    "Altersnachweis 18+": "Proof of age 18+",
     "Name": "Name",
     "Voll": "Full",
     "Du teilst:": "You share:",
@@ -510,9 +509,7 @@
     "Schritt {n} von {m}": "Step {n} of {m}",
     "Ändern": "Change",
     "Was zeigst du deinem Gast?": "What do you show your guest?",
-    "Angaben aus deinem eigenen Ausweis": "Details from your own ID",
     "Was soll dein Gast dir zeigen?": "What should your guest show you?",
-    "Angaben aus dem Ausweis deines Gastes": "Details from your guest’s ID",
     "Nichts abfragen": "Ask for nothing",
     "Schnellauswahl:": "Quick pick:",
     "Warum nur diese Angaben?": "Why only these details?",
@@ -644,7 +641,6 @@
     "Du kannst dieses Fenster jetzt schließen.": "You can close this window now.",
     "Gastgeber:in ist noch nicht da – es geht automatisch weiter.": "The host isn't here yet – this continues automatically.",
     "Mit Wallet ausweisen": "Identify with your wallet",
-    "Name + 18+": "Name + 18+",
     "Verbindung gestört – wird wiederhergestellt …": "Connection interrupted – restoring …",
     "Warte auf Zustimmung …": "Waiting for agreement …",
     "Zugestimmt ✓ – warte auf weitere Teilnehmer …": "Agreed ✓ – waiting for more participants …",
@@ -657,7 +653,8 @@
     "Ausweisen & zustimmen": "Identify & agree",
     "Zustimmen": "Agree",
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— more than one guest, also while the call is running. Unticked, the call stays private between two.",
-    "Dieser Anruf ist privat und bereits besetzt.": "This call is private and already taken."
+    "Dieser Anruf ist privat und bereits besetzt.": "This call is private and already taken.",
+    "Weitere Angaben": "More details"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -674,7 +671,6 @@
     "Daten teilen": "Partager des données",
     "Was der Gast teilt": "Ce que l'invité partage",
     "Daten abfragen": "Demander des données",
-    "Altersnachweis 18+": "Preuve d'âge 18+",
     "Name": "Nom",
     "Voll": "Complet",
     "Du teilst:": "Vous partagez :",
@@ -1170,9 +1166,7 @@
     "Schritt {n} von {m}": "Étape {n} sur {m}",
     "Ändern": "Modifier",
     "Was zeigst du deinem Gast?": "Que montrez-vous à votre invité ?",
-    "Angaben aus deinem eigenen Ausweis": "Données de votre propre pièce d’identité",
     "Was soll dein Gast dir zeigen?": "Que doit vous montrer votre invité ?",
-    "Angaben aus dem Ausweis deines Gastes": "Données de la pièce d’identité de votre invité",
     "Nichts abfragen": "Ne rien demander",
     "Schnellauswahl:": "Choix rapide :",
     "Warum nur diese Angaben?": "Pourquoi seulement ces données ?",
@@ -1304,7 +1298,6 @@
     "Du kannst dieses Fenster jetzt schließen.": "Vous pouvez maintenant fermer cette fenêtre.",
     "Gastgeber:in ist noch nicht da – es geht automatisch weiter.": "L'hôte n'est pas encore là – la suite se fera automatiquement.",
     "Mit Wallet ausweisen": "S’identifier avec le wallet",
-    "Name + 18+": "Nom + 18+",
     "Verbindung gestört – wird wiederhergestellt …": "Connexion perturbée – rétablissement en cours …",
     "Warte auf Zustimmung …": "En attente d'accord …",
     "Zugestimmt ✓ – warte auf weitere Teilnehmer …": "Accepté ✓ – en attente d'autres participants …",
@@ -1317,6 +1310,7 @@
     "Ausweisen & zustimmen": "S’identifier et accepter",
     "Zustimmen": "Accepter",
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— plus d’un invité, y compris pendant l’appel. Sans cette case, l’appel reste privé à deux.",
-    "Dieser Anruf ist privat und bereits besetzt.": "Cet appel est privé et déjà occupé."
+    "Dieser Anruf ist privat und bereits besetzt.": "Cet appel est privé et déjà occupé.",
+    "Weitere Angaben": "Autres données"
   }
 }
