@@ -1544,6 +1544,17 @@ function applyWalletButtons() {
   for (const a of document.querySelectorAll('a[data-wallet-info]')) a.href = `https://eudi-wallet.gov.de/${dyouLocale()}`;
 }
 
+// qrcodejs writes the encoded text into the container's `title`: hovering the code showed the whole
+// wallet URL as a tooltip on top of it, and the phone's camera could no longer read the code. Patched
+// on the prototype, so the modules that draw codes with window.QRCode (qes pairing) get it too.
+if (window.QRCode && QRCode.prototype && QRCode.prototype.makeCode) {
+  const makeCode = QRCode.prototype.makeCode;
+  QRCode.prototype.makeCode = function (text) {
+    makeCode.call(this, text);
+    if (this._el && this._el.removeAttribute) this._el.removeAttribute('title');
+  };
+}
+
 function renderWalletOffer(offer) {
   qrContainer.innerHTML = '';
   if (!offer) return;
@@ -4759,8 +4770,15 @@ function applyDynamicType() {
         if (target && target !== roomId) location.href = `index.html?room=${encodeURIComponent(target)}`;
       } catch { /* not a room link — ignore */ }
     };
-    CapApp.addListener('appUrlOpen', (e) => { if (e && e.url) openRoomUrl(e.url); });
-    CapApp.getLaunchUrl().then((r) => { if (r && r.url) openRoomUrl(r.url); }).catch(() => {});
+    // getLaunchUrl is not "the link that started the app" but the LAST link the app was opened
+    // with, for as long as it runs. Read on every page load, it took "Neuen Raum starten" after a
+    // call — a reload — straight back into the old, now full room; only quitting the app helped.
+    // So a link counts once: remembered in sessionStorage (kept across reloads, gone with the app).
+    const LAUNCH_KEY = 'whosit_link_handled';
+    const handled = (url) => { try { return sessionStorage.getItem(LAUNCH_KEY) === url; } catch { return false; } };
+    const markHandled = (url) => { try { sessionStorage.setItem(LAUNCH_KEY, url); } catch { /* private mode */ } };
+    CapApp.addListener('appUrlOpen', (e) => { if (e && e.url) { markHandled(e.url); openRoomUrl(e.url); } });
+    CapApp.getLaunchUrl().then((r) => { if (r && r.url && !handled(r.url)) { markHandled(r.url); openRoomUrl(r.url); } }).catch(() => {});
   }
 })();
 
