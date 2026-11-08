@@ -306,7 +306,8 @@ function statusState(msg) {
   if (/✓|zugestimmt|geschafft|steht\.|Verbunden/i.test(x)) return 'ok';
   return 'info';
 }
-function setStatus(msg, state) { statusBar.dataset.raw = msg; statusBar.dataset.state = state || statusState(msg); statusBar.textContent = t(msg); }
+const statusText = $('status-text'), statusKicker = $('status-kicker');
+function setStatus(msg, state) { statusBar.dataset.raw = msg; statusBar.dataset.state = state || statusState(msg); statusText.textContent = t(msg); }
 i18nReady.then(() => { if (statusBar.dataset.raw) setStatus(statusBar.dataset.raw); });
 function setLocalLabel(name) { localNameTag.textContent = name ? name + ' · ' + t('Du') : t('Du'); }
 
@@ -1790,6 +1791,17 @@ function updateStepper(active) {
     stepperEl.appendChild(li);
   });
   stepperEl.hidden = false;
+  if (statusKicker) statusKicker.textContent = labels[active] ? t(labels[active]) : '';
+}
+function hideStepper() {
+  if (stepperEl) stepperEl.hidden = true;
+  if (statusKicker) statusKicker.textContent = '';
+}
+// App: one header row — logo left, the stepper as dots on the right (style.css). Moved, not
+// duplicated, so updateStepper keeps a single element to fill.
+if (isNativeApp() && stepperEl) {
+  const hdr = document.querySelector('header');
+  if (hdr) hdr.appendChild(stepperEl);
 }
 
 /**
@@ -3435,7 +3447,7 @@ function showEnded(message) {
   // "Verbunden". The chips stay — greyed — as the record of whom you spoke with.
   document.body.classList.remove('in-call', 'trust-open', 'pre-start');
   document.body.classList.add('call-ended');
-  if (stepperEl) stepperEl.hidden = true;
+  hideStepper();
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
   peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; sasCard.hidden = true; startBar.hidden = true;
@@ -3461,7 +3473,7 @@ function showWalletDone() {
   showEnded('Du bist ausgewiesen. Mach beim Anruf weiter: auf dem anderen Gerät oder in der whosit-App. Dieses Fenster kannst du schließen.');
   // A new call is not what this person came for.
   restartBtn.hidden = true;
-  if (stepperEl) stepperEl.hidden = true;
+  hideStepper();
   // Nobody is "in" anything here — no participant chips either.
   const ids = selfChip && selfChip.closest('section, .card');
   if (ids) ids.hidden = true;
@@ -4888,6 +4900,11 @@ function applyDynamicType() {
 (function initAppShell() {
   if (!isNativeApp()) return;
   document.documentElement.classList.add('native-app'); // safety net for the head script
+  // The backdrop behind the status bar (style.css) only once the page has moved: at the top it
+  // sat as a solid strip on the page's glow, a visible edge with nothing to cover.
+  const onScroll = () => document.documentElement.classList.toggle('scrolled', window.scrollY > 4);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
   // The setting is changed in the Settings app, so it is read again whenever the app is back.
   applyDynamicType();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) applyDynamicType(); });

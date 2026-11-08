@@ -199,7 +199,10 @@ html.native-app body:not(.in-call)::before {
   /* z-index: over the sticky bars, under sheets and dialogs (60+) */
   content: ''; position: fixed; z-index: 25; top: 0; left: 0; right: 0;
   height: env(safe-area-inset-top); background: var(--bg); pointer-events: none;
+  /* Only once scrolled (html.scrolled, app.js): at the top it is a solid edge on the glow. */
+  opacity: 0; transition: opacity 0.18s ease;
 }
+html.native-app.scrolled body:not(.in-call)::before { opacity: 1; }
 
 /* ---- footer / version badge + language switcher ---- */
 .app-footer {
@@ -348,6 +351,13 @@ html.native-app .brand-claim { font-size: 0.62rem; }
   animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse { 50% { opacity: 0.4; } }
+.status-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The stage name above the status text — app only, where the stepper is just dots (updateStepper). */
+.status-kicker { display: none; }
+html.native-app body:not(.in-call) .status-kicker:not(:empty) {
+  display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent-strong);
+}
 
 /* ---- cards ---- */
 .card {
@@ -1411,7 +1421,6 @@ body.wm-open { overflow: hidden; }
  * Layout: compact header, marketing stripped, bottom tab bar (Anruf/Mehr). */
 html.native-app .sub,
 html.native-app .wallet-note { display: none; }
-html.native-app header { margin-bottom: 8px; }
 html.native-app .logo { margin-bottom: 0; gap: 10px; }
 html.native-app .logo-mark { width: 34px; height: 34px; filter: none; }
 html.native-app .logo-lockup { width: 160px; }
@@ -1600,9 +1609,20 @@ body.wizard[data-wkind="auth"] .preview .prev-mode { display: block; }
   .stepper li span:last-child { display: none; }
   .stepper li.active span:last-child { display: inline; margin-left: 8px; white-space: nowrap; }
 }
-/* native app: tighten the header→stepper gap so it reads as one unit under the logo */
-html.native-app header { margin-bottom: 10px; }
-html.native-app .stepper { margin-bottom: 14px; }
+/* Native app: ONE header row — logo left, stepper as bare dots right (moved into the header by
+   app.js). Logo left and the stepper centred below it were two axes with empty space on the
+   right; the stage name is in the status card's kicker instead. */
+html.native-app header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+html.native-app header .stepper { margin: 0; flex: none; flex-wrap: nowrap; gap: 0; }
+html.native-app header .stepper li { gap: 0; }
+html.native-app header .stepper li + li::before {
+  content: ""; width: 14px; height: 2px; margin: 0 5px;
+  background: var(--border-strong); border-radius: 2px; align-self: center;
+}
+html.native-app header .stepper li.done + li::before,
+html.native-app header .stepper li.active::before { background: var(--accent); }
+html.native-app header .stepper li span:last-child,
+html.native-app header .stepper li.active span:last-child { display: none; }
 
 /* Logo: the gold ring of stars rotates very slowly (transform only, GPU). The shield
  * stays static. Respects prefers-reduced-motion (the ring then stands still). */

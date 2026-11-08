@@ -88,7 +88,10 @@
       </div>
     </div>
 
-    <div id="status-bar" class="status" role="status" aria-live="polite" data-i18n>Verbindung wird hergestellt …</div>
+    <!-- The kicker names the current stage (native app only, see updateStepper): there the stepper
+         is reduced to dots next to the logo, and the stage name moves here, onto the line that
+         explains it — once instead of twice. Hidden from screen readers: the stepper says it. -->
+    <div id="status-bar" class="status" role="status" aria-live="polite"><span class="status-body"><span id="status-kicker" class="status-kicker" aria-hidden="true"></span><span id="status-text" data-i18n>Verbindung wird hergestellt …</span></span></div>
 
     <!-- Media permission: a separate, STANDING notice — deliberately not the status line. That
          one is overwritten two lines later during connection setup (app.js, startCall), so a
