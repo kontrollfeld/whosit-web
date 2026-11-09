@@ -1574,6 +1574,7 @@ const wmStatus = $('wm-status');
 const wmStatusText = $('wm-status-text');
 const wmIcon = $('wm-icon');
 const wmRetry = $('wm-retry');
+const wmHint = $('wm-hint');
 const wmCopy = $('wm-copy');
 const dyouOpen = $('dyou-open');
 const walletAlt = $('wallet-alt');
@@ -1620,7 +1621,16 @@ const WALLET_STATES = {
   success: { title: 'Verifizierung erfolgreich!', text: 'Du wirst automatisch zurückgeleitet.', icon: 'ok' },
   error: { title: 'Das hat nicht geklappt', text: 'Die Wallet hat die Anfrage nicht abgeschlossen. Mit einem neuen Code kannst du es noch einmal versuchen.', icon: 'err' },
 };
+// The wallet fetched the request and then nothing: it declined on the phone without telling the
+// verifier (d-you does so when it has no usable PID left — "Du benötigst einen gültigen
+// Nachweis"), and the spinner would turn forever. After a while, say what may have happened and
+// offer a fresh code; the spinner stays, a late answer is still taken.
+const WALLET_STUCK_MS = 45_000;
+let walletStuckTimer = null;
 function setWalletModalState(state) {
+  clearTimeout(walletStuckTimer);
+  wmHint.hidden = true;
+  if (state === 'loading') walletStuckTimer = setTimeout(walletModalStuck, WALLET_STUCK_MS);
   const st = WALLET_STATES[state] || WALLET_STATES.default;
   walletModal.dataset.state = state;
   wmTitle.textContent = t(st.title);
@@ -1632,6 +1642,13 @@ function setWalletModalState(state) {
   // Announced, not just shown: someone who scanned with a screen reader running learns here that
   // the next step is on the phone.
   wmLive.textContent = state === 'default' ? '' : `${t(st.title)} ${st.text ? t(st.text) : ''}`;
+}
+
+function walletModalStuck() {
+  if (walletModal.dataset.state !== 'loading' || !walletModalCtx) return;
+  wmHint.hidden = false;
+  wmRetry.hidden = walletModalCtx !== 'auth';
+  wmLive.textContent = wmHint.textContent;
 }
 
 function openWalletModal(ctx, opener) {
@@ -1654,6 +1671,7 @@ function openWalletModal(ctx, opener) {
 function closeWalletModal() {
   if (!walletModalCtx) return;
   clearTimeout(walletModalCloseTimer);
+  clearTimeout(walletStuckTimer);
   walletModal.hidden = true;
   document.body.classList.remove('wm-open');
   walletModalCtx = null;

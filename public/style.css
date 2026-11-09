@@ -1215,6 +1215,7 @@ body.wm-open { overflow: hidden; }
 @keyframes wm-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .wm-icon.wait { animation: none; border-top-color: #c4c4c4; } }
 #wm-retry { margin-top: 6px; }
+.wm-hint { margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.9rem; color: #333; }
 /* On a phone the modal fills the screen, with the same elements and texts (guide). It then
    reaches under the status bar and the notch (viewport-fit=cover, and always in the app): keep
    the close button and the content inside the safe area, or the button sits where iOS takes the
