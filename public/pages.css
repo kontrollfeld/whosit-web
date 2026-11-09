@@ -186,6 +186,15 @@ p { margin: 0 0 1em; }
 }
 html:not(.branded) .brand-operator { display: none; }
 html.branded .brand-official { display: none !important; }
+
+/* A customer logo (branding.js): its own width at the mark's height, capped so a long wordmark
+   leaves room for the name; on light ground in dark mode, where a dark logo on a transparent
+   background would vanish. No drop shadow — that belongs to our mark. */
+img.brand-logo-img { width: auto; max-width: min(200px, 42vw); object-fit: contain; filter: none; flex: none; }
+:root[data-theme="dark"] img.brand-logo-img { background: #ffffff; padding: 4px 8px; border-radius: 8px; box-sizing: content-box; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img.brand-logo-img { background: #ffffff; padding: 4px 8px; border-radius: 8px; box-sizing: content-box; }
+}
 .brand-operator { display: inline-flex; align-items: center; gap: 10px; }
 .logo strong { color: var(--navy); font-size: 1.05rem; letter-spacing: -0.01em; white-space: nowrap; }
 .header-cta { min-height: 40px; padding: 8px 18px; font-size: 0.9rem; }

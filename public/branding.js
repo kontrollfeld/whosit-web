@@ -68,8 +68,11 @@
 
   if (b.logo) {
     // The bundled logo is an inline SVG; a customer logo is a file. What gets replaced is
-    // therefore the element, not its content — and the measured size is carried over, otherwise
-    // the header jumps when it is swapped.
+    // therefore the element, not its content. Only the measured HEIGHT is carried over (the header
+    // must not jump): a customer logo is often a wide wordmark, and squeezed into the square of
+    // our mark it shrank to a few pixels. The width follows the file, capped in CSS
+    // (.brand-logo-img), which also gives it light ground in dark mode — a black wordmark on a
+    // transparent background vanished there.
     var marks = document.querySelectorAll('[data-brand-logo], [data-brand-lockup] > svg');
     for (var k = 0; k < marks.length; k++) {
       var alt = marks[k];
@@ -77,14 +80,19 @@
       var img = document.createElement('img');
       img.src = b.logo;
       img.alt = b.name || '';
-      if (box.width) img.style.width = box.width + 'px';
       if (box.height) img.style.height = box.height + 'px';
-      img.className = alt.getAttribute('class') || '';
+      img.className = ((alt.getAttribute('class') || '') + ' brand-logo-img').trim();
       alt.parentNode.replaceChild(img, alt);
     }
-    var icon = document.querySelector('link[rel="icon"]') || document.createElement('link');
-    icon.rel = 'icon';
-    icon.href = b.logo;
-    if (!icon.parentNode) document.head.appendChild(icon);
+    // The favicon only from a roughly square logo: a wordmark at 16 px is a grey line.
+    var probe = new Image();
+    probe.onload = function () {
+      if (!probe.naturalHeight || probe.naturalWidth / probe.naturalHeight > 1.4) return;
+      var icon = document.querySelector('link[rel="icon"]') || document.createElement('link');
+      icon.rel = 'icon';
+      icon.href = b.logo;
+      if (!icon.parentNode) document.head.appendChild(icon);
+    };
+    probe.src = b.logo;
   }
 })();

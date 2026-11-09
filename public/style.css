@@ -301,6 +301,15 @@ header { margin-bottom: 22px; }
 }
 html:not(.branded) .brand-operator { display: none; }
 html.branded .brand-official { display: none !important; }
+
+/* A customer logo (branding.js): its own width at the mark's height, capped so a long wordmark
+   leaves room for the name; on light ground in dark mode, where a dark logo on a transparent
+   background would vanish. No drop shadow — that belongs to our mark. */
+img.brand-logo-img { width: auto; max-width: min(200px, 42vw); object-fit: contain; filter: none; flex: none; }
+:root[data-theme="dark"] img.brand-logo-img { background: #ffffff; padding: 4px 8px; border-radius: 8px; box-sizing: content-box; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img.brand-logo-img { background: #ffffff; padding: 4px 8px; border-radius: 8px; box-sizing: content-box; }
+}
 .logo .brand-official { margin: 0; line-height: 0; }
 .brand-operator { display: flex; align-items: center; gap: 13px; }
 .logo-mark {
@@ -1424,6 +1433,7 @@ html.native-app .sub,
 html.native-app .wallet-note { display: none; }
 html.native-app .logo { margin-bottom: 0; gap: 10px; }
 html.native-app .logo-mark { width: 34px; height: 34px; filter: none; }
+html.native-app img.brand-logo-img { width: auto; }
 html.native-app .logo-lockup { width: 160px; }
 html.native-app .brand-operator { gap: 10px; }
 html.native-app .logo h1 { font-size: 1.22rem; }
