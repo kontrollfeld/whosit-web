@@ -138,9 +138,9 @@ export const WRP_POLICIES: Record<string, WrpPolicy> = {
    * checking in and of everyone staying with them.
    *
    * SANDBOX ONLY, like 'immobilien-mieterpruefung' and for the same reason: no registration covers
-   * this purpose today. It exists so an accommodation provider (Suite.030, 2026-11-06) can see its
-   * own check-in against the sandbox verifier; production needs that provider's own registration
-   * for exactly these attributes and its own EUDIPLO tenant.
+   * this purpose today. It lets an accommodation provider try its check-in against the
+   * sandbox verifier; production needs the provider's own registration for exactly these
+   * attributes and its own EUDIPLO tenant.
    *
    * Nationality is the attribute that sets it apart: since 2025 the registration form is required
    * for guests of foreign nationality only, so it is what the form exists to establish.
