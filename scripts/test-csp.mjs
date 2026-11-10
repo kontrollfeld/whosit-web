@@ -64,13 +64,24 @@ async function pageCheck(base, label) {
 try {
   const plain = start(3981);
   const branded = start(3980, { EUDI_BRAND_LOGO: '/logo/logo-horizontal-colour.svg', EUDI_BRAND_NAME: 'Testbetrieb GmbH' });
-  await Promise.all([up(plain), up(branded)]);
+  // A logo that spells the name: the inline script differs once more, so the policy must follow.
+  const wordmark = start(3982, { EUDI_BRAND_LOGO: '/logo/logo-horizontal-colour.svg', EUDI_BRAND_NAME: 'Testbetrieb GmbH', EUDI_BRAND_NAME_IN_LOGO: 'true' });
+  const nameOnly = start(3983, { EUDI_BRAND_NAME: 'Testbetrieb GmbH', EUDI_BRAND_NAME_IN_LOGO: 'true' });
+  await Promise.all([up(plain), up(branded), up(wordmark), up(nameOnly)]);
   console.log('\nPlain instance');
   await pageCheck(plain, 'plain');
   console.log('\nBranded instance (injects a script of its own)');
   await pageCheck(branded, 'branded');
   const bh = await (await fetch(`${branded}/?new=1`)).text();
   check('the branded page really carries the extra script', /EUDI_BRANDING/.test(bh));
+  check('the name is shown beside the logo unless told otherwise', !/brand-name-in-logo/.test(bh));
+  console.log('\nBranded instance whose logo carries the name');
+  await pageCheck(wordmark, 'wordmark');
+  const wh = await (await fetch(`${wordmark}/?new=1`)).text();
+  check('the name is hidden beside the logo, before first paint', /classList\.add\('brand-name-in-logo'\)/.test(wh) && /"nameInLogo":true/.test(wh));
+  check('the name stays in the page', /Testbetrieb GmbH/.test(wh));
+  const nh = await (await fetch(`${nameOnly}/?new=1`)).text();
+  check('without a logo the name is never hidden', /EUDI_BRANDING/.test(nh) && !/brand-name-in-logo/.test(nh));
   console.log('\nNot on API answers');
   const ice = await fetch(`${plain}/ice`);
   check('/ice carries no script policy', !/script-src/.test(ice.headers.get('content-security-policy') || ''));

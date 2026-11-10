@@ -79,7 +79,11 @@
       var box = alt.getBoundingClientRect();
       var img = document.createElement('img');
       img.src = b.logo;
-      img.alt = b.name || '';
+      // A wordmark with the name hidden beside it: the name is still in the page as a heading for
+      // screen readers, so the image stays silent rather than saying it twice. If the file does
+      // not load, the name comes back and the empty image goes — a header with neither logo nor name says nothing at all.
+      img.alt = b.nameInLogo ? '' : (b.name || '');
+      if (b.nameInLogo) img.onerror = function () { document.documentElement.classList.remove('brand-name-in-logo'); this.hidden = true; };
       if (box.height) img.style.height = box.height + 'px';
       img.className = ((alt.getAttribute('class') || '') + ' brand-logo-img').trim();
       alt.parentNode.replaceChild(img, alt);

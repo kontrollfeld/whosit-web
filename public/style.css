@@ -310,6 +310,14 @@ img.brand-logo-img { width: auto; max-width: min(200px, 42vw); object-fit: conta
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) img.brand-logo-img { background: #ffffff; padding: 4px 8px; border-radius: 8px; box-sizing: content-box; }
 }
+/* The logo is a wordmark (EUDI_BRAND_NAME_IN_LOGO): the name beside it would say the same thing
+   twice. Hidden from sight only — it stays the heading a screen reader announces. The logo may
+   then take the room the name left. */
+html.brand-name-in-logo .brand-operator [data-brand-name] {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+html.brand-name-in-logo img.brand-logo-img { max-width: min(260px, 62vw); }
 .logo .brand-official { margin: 0; line-height: 0; }
 .brand-operator { display: flex; align-items: center; gap: 13px; }
 .logo-mark {

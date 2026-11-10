@@ -17,6 +17,7 @@ export interface Branding {
   accent?: string;      // light mode
   accentDark?: string;  // dark mode; when absent, the light one is lightened
   logo?: string;        // URL path, e.g. /brand/logo.svg
+  nameInLogo?: boolean; // the logo is a wordmark: do not show the name as text next to it
 }
 
 const HEX = /^#([0-9a-f]{6})$/i;
@@ -38,12 +39,16 @@ export function readBranding(env: NodeJS.ProcessEnv = process.env): Branding | n
   const accent = (env.EUDI_BRAND_ACCENT || '').trim();
   const accentDark = (env.EUDI_BRAND_ACCENT_DARK || '').trim();
   const logo = (env.EUDI_BRAND_LOGO || '').trim();
+  // Only with both: without a logo there is nothing the name could be part of, and without a name
+  // nothing to hide. The name itself stays — in the page title, for screen readers, in a calendar
+  // entry — it is only not drawn a second time beside a logo that already spells it.
+  const nameInLogo = /^(1|true|yes)$/i.test((env.EUDI_BRAND_NAME_IN_LOGO || '').trim()) && !!name && !!logo;
   if (!name && !accent && !logo) return null;
   // An unusable colour is discarded rather than approximated — otherwise a CSS value no
   // browser understands would end up in the page, leaving the interface half-branded with no
   // explanation.
   const ok = (c: string) => (rgb(c) ? c : undefined);
-  return { name: name || undefined, accent: ok(accent), accentDark: ok(accentDark), logo: logo || undefined };
+  return { name: name || undefined, accent: ok(accent), accentDark: ok(accentDark), logo: logo || undefined, nameInLogo: nameInLogo || undefined };
 }
 
 /**
@@ -94,8 +99,10 @@ export function snippets(b: Branding | null): { head: string; tail: string } {
     // operator's own: a logo alone replaces the mark and the favicon, not the whosit logo. That
     // case exists for real — www.whosit.eu sets EUDI_BRAND_LOGO to our own mark, a relic of the
     // neutral-mark period — and it must keep showing the logo file, not mark plus text.
-    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo })};` +
-    (b.name ? `document.documentElement.classList.add('branded');` : '') + `</script>` +
+    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo, nameInLogo: b.nameInLogo })};` +
+    (b.name ? `document.documentElement.classList.add('branded');` : '') +
+    // Before first paint as well, so the name does not show for a moment and then vanish.
+    (b.nameInLogo ? `document.documentElement.classList.add('brand-name-in-logo');` : '') + `</script>` +
     `<script src="/branding.js" defer></script>`;
   if (!b.accent) return { head, tail: '' };
   const dark = b.accentDark || toHex(mix(rgb(b.accent)!, [255, 255, 255], 0.35));
