@@ -99,7 +99,8 @@ export function snippets(b: Branding | null): { head: string; tail: string } {
     // operator's own: a logo alone replaces the mark and the favicon, not the whosit logo. That
     // case exists for real — www.whosit.eu sets EUDI_BRAND_LOGO to our own mark, a relic of the
     // neutral-mark period — and it must keep showing the logo file, not mark plus text.
-    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo, nameInLogo: b.nameInLogo })};` +
+    // `<` escaped: a name containing `</script>` or `<!--` must not end the element early.
+    `<script>window.EUDI_BRANDING=${JSON.stringify({ name: b.name, logo: b.logo, nameInLogo: b.nameInLogo }).replace(/</g, '\\u003c')};` +
     (b.name ? `document.documentElement.classList.add('branded');` : '') +
     // Before first paint as well, so the name does not show for a moment and then vanish.
     (b.nameInLogo ? `document.documentElement.classList.add('brand-name-in-logo');` : '') + `</script>` +
@@ -130,7 +131,8 @@ export function brandHtml(html: string, b: Branding | null): string {
   if (b?.name) {
     // Only the FIRST occurrence, and only if there is one — otherwise the page would end up
     // with no title at all.
-    out = out.replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(b.name)}</title>`);
+    // A function, not a string: in a replacement string `$&` and `$'` would be expanded.
+    out = out.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${esc(b.name!)}</title>`);
   }
   return out;
 }

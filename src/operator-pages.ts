@@ -193,7 +193,8 @@ export function resolveOperatorRedirect(cfg: OperatorPagesConfig, urlPath: strin
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       for (const [from, to] of Object.entries(raw ?? {})) {
         if (typeof to !== 'string' || !from.startsWith('/')) continue;
-        if (!(to.startsWith('/') && !to.startsWith('//')) && !to.startsWith('https://')) continue;
+        // `/\\host` counts as protocol-relative in browsers, like `//host`.
+        if (!(to.startsWith('/') && !to.startsWith('//') && !to.startsWith('/\\')) && !to.startsWith('https://')) continue;
         map.set(from, to);
       }
     } catch (e) {
