@@ -208,6 +208,35 @@ try {
   check('the continuously connected host keeps their seat',
     hStatus?.self?.role === 'caller', JSON.stringify(hStatus?.self));
 
+  // A seat taken over AFTER the call started. The room is locked then, and the remaining
+  // participant's agreement was given to the person who has just been replaced. The newcomer
+  // must not receive anything on that old agreement: the remaining side agrees again.
+  console.log('\nTaking over a seat once the call has started');
+  const lk = await mint({ mode: 'chat', requestedAttrs: [], disclosedAttrs: [], ...soon });
+  const lHost = await join({ roomId: lk.json.room, inv: lk.json.hostToken, clientId: 'lk-host' });
+  const lGuest = await join({ roomId: lk.json.room, inv: lk.json.guestToken, clientId: 'lk-guest-1' });
+  openSockets.push(lHost.ws, lGuest.ws);
+  lHost.ws.send(JSON.stringify({ type: 'confirm' }));
+  lGuest.ws.send(JSON.stringify({ type: 'confirm' }));
+  await new Promise((r) => setTimeout(r, 500));
+  check('the call starts once both agreed', lHost.seen.some((m) => m.type === 'ready') && lGuest.seen.some((m) => m.type === 'ready'));
+  const readyBefore = lHost.seen.filter((m) => m.type === 'ready').length;
+  const lGuest2 = await join({ roomId: lk.json.room, inv: lk.json.guestToken, clientId: 'lk-guest-2' });
+  openSockets.push(lGuest2.ws);
+  check('the invitation still takes the seat in a started call', lGuest2.first.type === 'joined' && lGuest2.first.role === 'callee', JSON.stringify(lGuest2.first));
+  await new Promise((r) => setTimeout(r, 300));
+  const lHostStatus = [...lHost.seen].reverse().find((m) => m.type === 'status');
+  check("the host's agreement is withdrawn when the other seat changes hands",
+    lHostStatus?.self?.confirmed === false, JSON.stringify(lHostStatus?.self));
+  lGuest2.ws.send(JSON.stringify({ type: 'confirm' }));
+  await new Promise((r) => setTimeout(r, 500));
+  check('the newcomer alone cannot restart the call',
+    !lGuest2.seen.some((m) => m.type === 'ready') && lHost.seen.filter((m) => m.type === 'ready').length === readyBefore,
+    lGuest2.seen.map((m) => m.type).join(','));
+  lHost.ws.send(JSON.stringify({ type: 'confirm' }));
+  await new Promise((r) => setTimeout(r, 500));
+  check('once the host agrees again, the call goes on', lGuest2.seen.some((m) => m.type === 'ready'));
+
   console.log('\nNo EUDIPLO needed');
   check('the server contacted no verifier', !serverLog.join('').includes('[eudiplo] offer'));
 

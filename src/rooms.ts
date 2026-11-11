@@ -103,13 +103,19 @@ export interface Room {
   links?: Set<string>;
 }
 
-/** Before the call starts, an agreement is to the people who were in the room when it was given.
- *  When that changes — someone leaves, someone new takes a seat — every agreement so far is taken
- *  back and each has to agree again, having seen who is there now (audit #10, 2026-11-05). Not in
- *  an open room: there every guest shares the same attributes and late-join is the point; and not
- *  once the call runs (locked): no new person gets in then. */
-export function withdrawConsents(room: Room): void {
-  if (room.locked || room.openRoom) return;
+/** An agreement is to the people who were in the room when it was given. When that changes —
+ *  someone leaves, someone new takes a seat — every agreement so far is taken back and each has to
+ *  agree again, having seen who is there now (audit #10, 2026-11-05). Not in an open room: there
+ *  every guest shares the same attributes and late-join is the point.
+ *
+ *  Once the call runs (locked) a LEAVE keeps the agreements: nobody new is let in, and those who
+ *  stay are still talking to the people they agreed to. A new person taking a seat (`newPerson`)
+ *  withdraws them even then: an invitation still takes its seat in a started call, and whoever
+ *  holds it must not receive the other side's data on an agreement given to their predecessor
+ *  (security audit 2026-11-11). */
+export function withdrawConsents(room: Room, opts: { newPerson?: boolean } = {}): void {
+  if (room.openRoom) return;
+  if (room.locked && !opts.newPerson) return;
   for (const p of room.participants) p.confirmed = false;
 }
 
@@ -204,14 +210,14 @@ export function joinRoom(
       holder.clientId = clientId;
       holder.ws = ws;
       resetIdentity(holder);
-      withdrawConsents(room);
+      withdrawConsents(room, { newPerson: true });
       return { room, participant: holder, resumed: false, reclaimed: true, replaced };
     }
     // No placeholder left (grace period elapsed): creating a new one is correct — and
     // `locked` must not prevent it, because this very person WAS invited.
     if (room.participants.length < maxParticipants) {
       const p = newParticipant(clientId, ws, opts.reclaimRole);
-      withdrawConsents(room);
+      withdrawConsents(room, { newPerson: true });
       room.participants.push(p);
       return { room, participant: p, resumed: false, reclaimed: true };
     }
