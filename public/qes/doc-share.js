@@ -259,7 +259,8 @@ export function createDocShare(ctx) {
     if (!step && !settled()) { send({ q: 'doc-error', docId: m.docId, reason: 'busy' }); return; }
     if (!step && (out || inc || pdfDoc)) teardown(/*silent*/ true);
     if (step && inc && !inc.done) { send({ q: 'doc-error', docId: m.docId, reason: 'busy' }); return; }
-    if (!Number.isFinite(m.size) || m.size <= 0 || m.size > MAX_DOC_BYTES || !Number.isFinite(m.chunks) || m.chunks !== Math.ceil(m.size / m.chunkSize)) {
+    if (!Number.isFinite(m.size) || m.size <= 0 || m.size > MAX_DOC_BYTES || m.chunkSize !== CHUNK_SIZE
+        || !Number.isFinite(m.chunks) || m.chunks !== Math.ceil(m.size / m.chunkSize)) {
       send({ q: 'doc-error', docId: m.docId, reason: 'invalid-offer' }); return;
     }
     inc = {
@@ -268,6 +269,11 @@ export function createDocShare(ctx) {
       step,
     };
     if (step) {
+      // A version flows without asking only inside a ceremony this side agreed to and is now
+      // waiting on: the joiner accepted it, the starter started it. Before that, a peer could
+      // send a "version" and have this client sign it in its owner's name without anyone
+      // clicking (security audit 2026-11-11).
+      if (!cer || cer.state !== 'peer-signing') { send({ q: 'doc-error', docId: m.docId, reason: 'not-agreed' }); inc = null; return; }
       // Consent for the ceremony was given at ceremony start — versions flow directly.
       inc.accepted = true;
       progressUI('in', inc.name, inc.size);
@@ -296,10 +302,16 @@ export function createDocShare(ctx) {
   }
 
   async function onChunk(buf) {
-    if (!inc || inc.done) return;
+    // Nothing is taken before the receiver accepted the offer: no bytes held, nothing parsed or
+    // shown, no receipt sent (security audit 2026-11-11).
+    if (!inc || inc.done || !inc.accepted) return;
+    if (buf.byteLength < 4) return;
     const view = new DataView(buf);
     const i = view.getUint32(0);
     if (i >= inc.chunks.length || inc.chunks[i]) return;
+    // Every chunk but the last is exactly chunkSize; the last carries the rest.
+    const want = i === inc.chunks.length - 1 ? inc.size - i * inc.chunkSize : inc.chunkSize;
+    if (buf.byteLength - 4 !== want) { send({ q: 'doc-error', docId: inc.docId, reason: 'invalid-chunk' }); return; }
     inc.chunks[i] = new Uint8Array(buf, 4);
     inc.got++;
     setProgress(inc.got / inc.chunks.length);
@@ -382,7 +394,7 @@ export function createDocShare(ctx) {
       case 'signed':
         // Announcement of the peer's completed signing step; the signed PDF follows as
         // a version transfer on the ordered channel. Remember what to expect.
-        if (cer && m.cid === cer.cid) {
+        if (cer && m.cid === cer.cid && cer.state === 'peer-signing') {
           cer.expected = { step: Number(m.step), sha256: String(m.sha256), subject: String(m.subject || '?'), qualified: !!m.qualified };
         }
         break;
@@ -636,6 +648,7 @@ export function createDocShare(ctx) {
   /** A signed version from the peer finished transferring (hash already verified). */
   async function onVersionReceived(step, bytes) {
     if (!cer) return;
+    if (cer.state !== 'peer-signing') { abortCeremony('unexpected-version'); return; }
     const exp = cer.expected;
     if (!exp || exp.step !== step || exp.sha256 !== inc.sha256) { abortCeremony('unexpected-version'); return; }
     // Incremental-update invariant: everything already signed must remain byte-

@@ -1272,8 +1272,11 @@ function verifyPeerBinding(peerId) {
   const p = peers.get(peerId);
   const info = lastStatusMsg && (lastStatusMsg.peers || []).find((x) => x.peerId === peerId);
   if (!p || !info || !info.channelBound || !info.dtlsFingerprint) return true; // nothing asserted
-  const actual = sdpFingerprint256(p.pc.remoteDescription);
-  if (actual && actual !== String(info.dtlsFingerprint).toUpperCase()) {
+  // Every fingerprint line counts and each must be the bound SHA-256 one; none at all fails too.
+  const sdp = (p.pc.remoteDescription && p.pc.remoteDescription.sdp) || '';
+  const lines = [...sdp.matchAll(/^a=fingerprint:(\S+)\s+([0-9A-Fa-f:]+)\s*$/gim)];
+  const bound = String(info.dtlsFingerprint).toUpperCase();
+  if (!lines.length || !lines.every((m) => m[1].toLowerCase() === 'sha-256' && m[2].toUpperCase() === bound)) {
     console.error('[channel-binding] Fingerprint der Gegenstelle weicht von der geprüften Identität ab');
     ended = true;
     teardownCall();
@@ -4605,15 +4608,23 @@ async function sendFile(file) {
     ui.div.appendChild(del);
   } finally { fileBusy = false; fileBtn.disabled = false; }
 }
+// What a peer may push into this tab. The sender is the other side of the call, so its
+// announcement is checked here too: the operator's switch for file transfer, and a size bound so
+// a peer cannot fill this tab's memory (security audit 2026-11-11).
+const MAX_INCOMING_FILE_BYTES = 200 * 1024 * 1024;
 function onFileMeta(peerId, who, m) {
   const key = peerId || '__solo__';
+  if (!capOn('file-transfer')) return;
+  const size = Number(m.size);
+  if (!Number.isFinite(size) || size < 0 || size > MAX_INCOMING_FILE_BYTES) return;
   const ui = addFileRow('in', m.name, m.size);
-  incoming.set(key, { id: m.id, name: m.name, size: m.size, mime: m.mime, chunks: [], received: 0, ui, who });
+  incoming.set(key, { id: m.id, name: m.name, size, mime: m.mime, chunks: [], received: 0, ui, who });
 }
 function onFileChunk(peerId, data) {
   const key = peerId || '__solo__';
   const rec = incoming.get(key); if (!rec) return;
   const buf = data instanceof ArrayBuffer ? data : (data.buffer || data);
+  if (rec.received + buf.byteLength > rec.size) { incoming.delete(key); rec.ui.div.remove(); return; } // more than announced
   rec.chunks.push(buf); rec.received += buf.byteLength;
   setFileProgress(rec.ui, rec.size ? rec.received / rec.size : 0);
 }
@@ -4621,7 +4632,11 @@ function onFileEnd(peerId) {
   const key = peerId || '__solo__';
   const rec = incoming.get(key); if (!rec) return;
   incoming.delete(key);
-  const blob = new Blob(rec.chunks, { type: rec.mime || 'application/octet-stream' });
+  // Always octet-stream, never the type the peer named: this blob: URL lives in the app's own
+  // origin, and an HTML or SVG file opened from it (middle click, "open in new tab") would render
+  // there with the peer's content (security audit 2026-11-11). The file keeps its name and is
+  // downloaded; the operating system opens it by its extension.
+  const blob = new Blob(rec.chunks, { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   rec.ui.label.textContent = '';
   const a = document.createElement('a');
