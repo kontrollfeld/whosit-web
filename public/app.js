@@ -3496,7 +3496,9 @@ function showEnded(message) {
   const wasGuest = myRole ? myRole === 'callee' : roomArrival() === 'invited';
   if (wasGuest && !isNativeApp() && !isEmbedded) {
     restartBtn.hidden = true;
-    setStatus(t(message) + ' ' + t('Du kannst dieses Fenster jetzt schließen.'));
+    // Only if the message does not say it already ("… dieses Fenster kannst du schließen."):
+    // otherwise the sentence stood there twice.
+    setStatus(/Fenster kannst du schließen/.test(message) ? t(message) : t(message) + ' ' + t('Du kannst dieses Fenster jetzt schließen.'));
   }
   syncMediaCheck();
   postToParent('ended', {});
