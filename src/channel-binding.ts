@@ -83,6 +83,19 @@ export function fingerprintFromSdp(sdp: unknown): string | null {
 }
 
 /**
+ * Does an SDP establish the connection with exactly the bound key? Every `a=fingerprint` line
+ * counts — session and media level alike — and each must be SHA-256 and equal to `bound`. An SDP
+ * with no fingerprint, a weaker algorithm only, or a second differing line fails: reading just the
+ * first SHA-256 line would let a key the wallet never saw through (security audit 2026-11-11).
+ */
+export function sdpMatchesBinding(sdp: unknown, bound: string): boolean {
+  if (typeof sdp !== 'string') return false;
+  const lines = [...sdp.matchAll(/^a=fingerprint:(\S+)\s+(\S+)\s*$/gim)];
+  if (!lines.length) return false;
+  return lines.every((m) => m[1].toLowerCase() === 'sha-256' && normalizeFingerprint(m[2]) === bound);
+}
+
+/**
  * Can binding work at all with the active profiles?
  *
  * Only if EVERY offered profile supports the check. With a mix of SD-JWT and mdoc the wallet
