@@ -2067,6 +2067,19 @@ function renderStatus(msg) {
     return;
   }
 
+  // The server withdrew this side's agreement in a running call: someone new took the other seat
+  // (an invitation reopened elsewhere), or this side's channel binding lapsed. The people on the
+  // other end are not the ones agreed to — drop the connections and go back to the review; a new
+  // 'ready' starts them again (security audit 2026-11-11).
+  if (callStarted && !ended && !msg.openRoom && !msg.self.confirmed) {
+    for (const id of [...peers.keys()]) removePeer(id);
+    screenSharers.clear(); handsUp.clear(); stagePeer = null;
+    if (qesShare) qesShare.teardown(true);
+    callStarted = false;
+    document.body.classList.remove('in-call');
+    resultBox.hidden = true;
+    setStatus('Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.');
+  }
   if (callStarted) { updateChips(msg); updateStepper(2); if (msg.revealed) { renderResult(msg); resultBox.hidden = false; } updateCredBadges(msg); syncTileTicks(msg); return; }
 
   const peerList = msg.peers || [];

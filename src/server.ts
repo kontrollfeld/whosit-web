@@ -2338,8 +2338,10 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // One socket, one seat. A socket that joins another room gives up the seat it held; otherwise
   // only its first seat would be cleaned up on close and the others would stay for the life of the
   // process — with their verifier sessions (security audit 2026-11-11).
+  // Also within one room: a second join under ANOTHER client id would otherwise make a second
+  // seat on the same socket. The same client id resumes its seat as before.
   const held = ext.roomStore.findByWs(ws);
-  if (held && held.room.id !== roomId) leaveRoom(held.room, held.participant);
+  if (held && (held.room.id !== roomId || held.participant.clientId !== clientId)) leaveRoom(held.room, held.participant);
   // Every join may start a verifier session; renew-auth and new rooms are rate-limited, a join
   // on an open socket was not. Our page joins once per socket and reconnects with a new one.
   const joins = (joinsPerSocket.get(ws) ?? 0) + 1;

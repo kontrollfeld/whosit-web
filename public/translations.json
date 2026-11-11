@@ -655,7 +655,8 @@
     "Zustimmen": "Agree",
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— more than one guest, also while the call is running. Unticked, the call stays private between two.",
     "Dieser Anruf ist privat und bereits besetzt.": "This call is private and already taken.",
-    "Weitere Angaben": "More details"
+    "Weitere Angaben": "More details",
+    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Someone new has taken the other seat. Please review and agree again."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1313,6 +1314,7 @@
     "Zustimmen": "Accepter",
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— plus d’un invité, y compris pendant l’appel. Sans cette case, l’appel reste privé à deux.",
     "Dieser Anruf ist privat und bereits besetzt.": "Cet appel est privé et déjà occupé.",
-    "Weitere Angaben": "Autres données"
+    "Weitere Angaben": "Autres données",
+    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Une nouvelle personne a pris l’autre place. Veuillez vérifier et donner à nouveau votre accord."
   }
 }
