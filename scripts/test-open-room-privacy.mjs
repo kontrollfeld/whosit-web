@@ -170,9 +170,13 @@ try {
   const host = participant(APP_PORT, { roomId, clientId: hostClientId, wantAuth: false });
   clients.push(host);
   await host.wait('status');
+  // The join makes an offer of its own. Wait for it before noting what exists: set-config replaces
+  // it, and an offer that arrives late would otherwise be taken for the new one — presenting to a
+  // replaced offer is rightly refused, and the host would never be verified (flaky in CI).
+  await host.wait('auth');
   const offersBeforeHost = new Set(offers.keys());
   host.send({ type: 'set-config', mode: 'chat', requestedAttrs: ATTRS, disclosedAttrs: ATTRS, openRoom: true });
-  const hostAuth = await host.wait('auth');
+  const hostAuth = await host.wait('auth', (m) => !offersBeforeHost.has(String(m.uri).split('/').pop()));
   const hostOfferId = String(hostAuth.uri).split('/').pop();
   if (offersBeforeHost.has(hostOfferId)) throw new Error('host offer was not re-issued after set-config');
   await present(offers.get(hostOfferId), { given_name: 'Hanna', family_name: 'Hostmann' });
