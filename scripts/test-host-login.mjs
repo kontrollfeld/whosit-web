@@ -123,7 +123,7 @@ async function present(offerId, identity) {
  * A participant as an object: collects every message and allows targeted waiting.
  * Without that collection a test would miss a message that arrives before the wait begins.
  */
-function participant(port, { roomId, clientId, wantAuth, inv }) {
+function participant(port, { roomId, clientId, wantAuth, inv, arrival }) {
   const seen = [];
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const p = {
@@ -146,7 +146,7 @@ function participant(port, { roomId, clientId, wantAuth, inv }) {
     close: () => ws.close(),
   };
   ws.on('message', (raw) => { try { seen.push(JSON.parse(raw.toString())); } catch {} });
-  ws.on('open', () => p.send({ type: 'join', roomId, clientId, wantAuth, inv }));
+  ws.on('open', () => p.send({ type: 'join', roomId, clientId, wantAuth, inv, arrival }));
   return p;
 }
 
@@ -335,6 +335,37 @@ try {
   const stGuest = await guest6.wait('status', (m) => m.self?.verified === true);
   check('a guest with an unlisted name gets through', stGuest.self.verified === true);
   check('the guest is not rejected', !guest6.find('host-denied'));
+
+  console.log('\nNo call on a gated instance without an admitted host');
+  // Two people who followed a link into an empty ad-hoc room are both guests (arrival
+  // 'invited'). Nobody holds the host seat, so nobody ever met the gate — the instance must not
+  // put them through to each other, nor show either of them the other's verified name.
+  const r8 = room();
+  const g8a = participant(GATED_PORT, { roomId: r8, clientId: 'c-guest-8a', arrival: 'invited' });
+  const g8b = participant(GATED_PORT, { roomId: r8, clientId: 'c-guest-8b', arrival: 'invited' });
+  sockets.push(g8a, g8b);
+  check('both arrive as guests', (await g8a.wait('joined')).role === 'callee' && (await g8b.wait('joined')).role === 'callee');
+  for (const [g, who] of [[g8a, { given_name: 'Wilhelmine', family_name: 'Unbekannt' }], [g8b, { given_name: 'Mallory', family_name: 'Unbekannt' }]]) {
+    const a8 = await g.wait('auth');
+    await present(offerIdOf(a8.uri), who);
+    await g.wait('status', (m) => m.self?.verified === true);
+  }
+  g8a.send({ type: 'confirm' }); g8b.send({ type: 'confirm' });
+  await new Promise((r) => setTimeout(r, 600));
+  check('two guests are not connected', !g8a.find('ready') && !g8b.find('ready'));
+  check("neither sees the other's name", !g8a.seen.some((m) => m.type === 'status' && m.peers?.some((x) => x.name)));
+
+  // A host who has not passed the gate cannot arrange the room either (open group room, other
+  // attributes) for guests to meet in.
+  const r9 = room();
+  const host9 = participant(GATED_PORT, { roomId: r9, clientId: 'c-host-9' });
+  sockets.push(host9);
+  await host9.wait('auth');
+  const before9 = await host9.wait('status');
+  host9.send({ type: 'set-config', mode: 'chat', requestedAttrs: ['family_name'], disclosedAttrs: ['given_name', 'family_name'], openRoom: true });
+  await new Promise((r) => setTimeout(r, 400));
+  const after9 = [...host9.seen].reverse().find((m) => m.type === 'status');
+  check('an unverified host cannot change the arrangement', after9?.mode === before9.mode && after9?.openRoom === before9.openRoom, `${before9.mode} -> ${after9?.mode}`);
 
   console.log('\nA guest seat does not become the host seat (same browser, other invitation)');
   // A scheduled call whose guest presents nothing: the guest counts as verified at once. The same

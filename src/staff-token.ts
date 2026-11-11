@@ -77,6 +77,11 @@ export function verifyStaffToken(token: unknown): StaffResult {
     return { ok: false, reason: 'malformed' };
   }
   if (payload?.v !== 1) return { ok: false, reason: 'version' };
+  // Staff and invitation tokens share their shape (v, exp) and could share a key if an operator
+  // set EUDI_STAFF_SECRET to the value of EUDI_INVITE_SECRET; a guest's invitation would then open
+  // the staff functions. An invitation always names its room and role — a staff token never does
+  // (security audit 2026-11-11).
+  if ('room' in (payload as object) || 'role' in (payload as object)) return { ok: false, reason: 'malformed' };
   if (typeof payload.exp !== 'number' || Date.now() / 1000 > payload.exp) {
     return { ok: false, reason: 'expired' };
   }

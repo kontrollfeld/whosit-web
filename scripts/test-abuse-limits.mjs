@@ -90,7 +90,9 @@ try {
   check('the third new room is refused, with a reason', refused.length === 1, JSON.stringify(roomer.seen.filter((m) => m.type === 'error')));
   const guest = await connect('198.51.100.30');
   clients.push(guest);
-  guest.ws.send(JSON.stringify({ type: 'join', roomId: rooms[0], clientId: randomUUID() }));
+  // rooms[1]: one socket holds one seat, so joining rooms[1] gave up rooms[0] (and the empty
+  // room went with it). rooms[1] is the room that still exists.
+  guest.ws.send(JSON.stringify({ type: 'join', roomId: rooms[1], clientId: randomUUID() }));
   await sleep(300);
   check('joining a room that exists is not a new room', guest.seen.some((m) => m.type === 'joined'), JSON.stringify(guest.seen.map((m) => m.type)));
 

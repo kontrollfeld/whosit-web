@@ -36,7 +36,7 @@ const OPERATOR = readOperatorPages();
  *  ./relying-party). Computed once: both inputs are environment variables. */
 const RELYING_PARTY = relyingParty(BRANDING?.name);
 import { buildDcql, selectedProfiles, normalizeClaims, detectPresentedProfile, pidConfigId as configId, type SemanticAttr, type CredentialProfile } from './credential-profiles';
-import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFingerprint, fingerprintFromSdp, type TransactionDataEntry } from './channel-binding';
+import { buildTransactionData, bindingSupported, bindingEnabled, normalizeFingerprint, sdpMatchesBinding, type TransactionDataEntry } from './channel-binding';
 import {
   resolveAttributes, partitionAttributes, PolicyViolationError, policyDescriptor,
   isDerived, requiresWalletPresentation, wrpStrict, WRP_PURPOSE_ID,
@@ -1570,6 +1570,19 @@ function attrsFor(room: Room, p: Participant): SemanticAttr[] {
 // Tell each participant about the room config + everyone's state. Actual values
 // (names + claims) are withheld until ALL present have confirmed the review — before
 // that each side only learns WHICH fields will be shared, never the contents.
+/**
+ * On an instance with a host list, a call needs a host who met it. The gate runs when the HOST
+ * seat's presentation arrives (handleWebhook); a seat that is not the host's never meets it. So
+ * without this, two people who followed a link into an empty room — both guests — or guests
+ * beside a host who never verified could be put through and see each other's verified names on an
+ * instance that only lets listed people hold calls (security audit 2026-11-11). A verified caller
+ * on a gated instance has passed the gate: one who did not is removed from the room.
+ */
+function hasAdmittedHost(room: Room): boolean {
+  if (!hostGateActive()) return true;
+  return room.participants.some((p) => p.role === 'caller' && p.verified);
+}
+
 /** Whether the review is open in this room — the one place it is decided (status and `confirm`). */
 function reviewIsOpen(room: Room): boolean {
   const multiParty = isMultiParty();
@@ -1585,7 +1598,8 @@ function broadcastStatus(room: Room): void {
   // Open room: values are revealed among the ≥2 confirmed participants; a mid-verify
   // late-joiner doesn't un-reveal the others (per-peer gate below). Otherwise: reveal
   // only once ALL present have confirmed.
-  const revealed = openRoom ? confirmedCount >= 2 : (room.participants.length >= 2 && room.participants.every((p) => p.verified && p.confirmed));
+  const revealed = hasAdmittedHost(room)
+    && (openRoom ? confirmedCount >= 2 : (room.participants.length >= 2 && room.participants.every((p) => p.verified && p.confirmed)));
   // When the review panel opens on the client. Open room: per-person (as soon as verified).
   // Gathered multi-party (>2 present): once the host started. Otherwise (1:1, or a
   // multi-party-capable room that so far only has host+1 guest): once 2 are present —
@@ -1659,6 +1673,7 @@ function broadcastStatus(room: Room): void {
 // (no late-join, v1 — see src/rooms.ts + maxParticipants() in src/server.ts) and tells everyone which mesh links to open.
 // Glare avoidance: of each pair, the LOWER peerId creates the offer.
 function maybeConnect(room: Room): void {
+  if (!hasAdmittedHost(room)) return;
   if (isMultiParty() && room.openRoom) return maybeConnectOpen(room);
   if (room.participants.length < 2) return;
   // A genuinely gathered multi-party room (>2 present) waits for the host to press
@@ -1824,6 +1839,8 @@ wss.on('connection', (ws, request) => {
       if (!hit || hit.participant.role !== 'caller') return;
       const { room, participant: host } = hit;
       if (room.participants.some((p) => p.role === 'callee')) return; // locked
+      // On a gated instance only a host who met the gate arranges the room (see hasAdmittedHost).
+      if (hostGateActive() && !host.verified) return;
       // Scheduled call: the arrangement is in the invitation the guest agreed to — not even
       // the host can shift it any more (see ./invite-token). The client therefore renders the
       // setup read-only (configPinned in the status).
@@ -2176,8 +2193,7 @@ wss.on('connection', (ws, request) => {
       // verification would otherwise have bypassed the binding. The counter-check on the
       // client side (see public/app.js) catches the opposite case — a server lying here.
       if ((msg.type === 'offer' || msg.type === 'answer') && hit.participant.channelBound) {
-        const sdpFp = fingerprintFromSdp((msg.data as any).sdp);
-        if (sdpFp && sdpFp !== hit.participant.dtlsFingerprint) {
+        if (!hit.participant.dtlsFingerprint || !sdpMatchesBinding((msg.data as any).sdp, hit.participant.dtlsFingerprint)) {
           console.warn(`[channel-binding] SDP fingerprint differs from the bound identity (${hit.participant.role}) — rejected`);
           recordAudit({
             event: 'verification-failed', roomId: hit.room.id, clientId: hit.participant.clientId,
@@ -2262,19 +2278,37 @@ wss.on('connection', (ws, request) => {
 
 /** Take a participant out of the room for good: their open credential requests, their verifier
  *  session and their runs end with them, and everyone still there is told. */
-function leaveRoom(room: Room, participant: Participant, closedAt = Date.now()): void {
-  if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
-  // Open in-call credential requests involving the leaver die with them.
+/**
+ * What a seat holds in the name of the person on it, beyond the identity itself: open in-call
+ * credential requests, action runs (their panel token redeems that person's claims) and a paired
+ * phone (it may request a certificate in that person's verified name). It ends when the person
+ * leaves — and when an invitation hands the seat to someone else, because the Participant object
+ * stays and all of these are keyed by it (security audit 2026-11-11).
+ */
+function endSeatAuthority(participant: Participant): void {
   for (const r of openRequestsInvolving(participant)) {
     finishRequest(r, 'expired');
     credentialAudit(r, 'credential-expired', []);
     const other = r.requester === participant ? r.target : r.requester;
     send(other.ws, { type: 'credential-expired', requestId: r.requestId, from: participant.peerId, label: r.credential.label });
   }
+  endRunsOf(participant);
+  const pairing = pairingOfOwner(participant);
+  if (pairing) {
+    endPairing(pairing);
+    if (pairing.phone) send(pairing.phone, { type: 'pair-closed', reason: 'ended' });
+  }
+}
+
+const joinsPerSocket = new WeakMap<WebSocket, number>();
+const MAX_JOINS_PER_SOCKET = 20;
+
+function leaveRoom(room: Room, participant: Participant, closedAt = Date.now()): void {
+  if (participant.graceTimer) { clearTimeout(participant.graceTimer); participant.graceTimer = undefined; }
+  endSeatAuthority(participant);
   const peers = ext.roomStore.peersOf(room, participant);
   purgeVerifierSession(participant.verifierSessionId, 'left');
   participant.verifierSessionId = undefined;
-  endRunsOf(participant);
   ext.roomStore.remove(room, participant);
   participantLeft(room, room.participants.length, closedAt);
   for (const peer of peers) send(peer.ws, { type: 'peer-left', from: participant.peerId });
@@ -2294,6 +2328,26 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
     return;
   }
   if (!clientId) clientId = randomUUID(); // fallback: no resume, but still works
+  // The client id is the only key for resuming a seat, and its first characters go into the log.
+  // Same rule as the room id, but without a minimum: our page sends a UUID (security audit
+  // 2026-11-11 — it was taken as any string up to the frame limit, line breaks included).
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(clientId)) {
+    send(ws, { type: 'error', message: 'invalid clientId' });
+    return;
+  }
+  // One socket, one seat. A socket that joins another room gives up the seat it held; otherwise
+  // only its first seat would be cleaned up on close and the others would stay for the life of the
+  // process — with their verifier sessions (security audit 2026-11-11).
+  const held = ext.roomStore.findByWs(ws);
+  if (held && held.room.id !== roomId) leaveRoom(held.room, held.participant);
+  // Every join may start a verifier session; renew-auth and new rooms are rate-limited, a join
+  // on an open socket was not. Our page joins once per socket and reconnects with a new one.
+  const joins = (joinsPerSocket.get(ws) ?? 0) + 1;
+  joinsPerSocket.set(ws, joins);
+  if (joins > MAX_JOINS_PER_SOCKET) {
+    send(ws, { type: 'error', message: 'too many joins on this connection' });
+    return;
+  }
 
   // Scheduled room: valid invitation required, without exception. Because the marker sits in
   // the room id, the rule applies statelessly and independently of arrival order — a truncated
@@ -2382,6 +2436,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   }
   if (result.reclaimed) {
     console.log(`[invite] ${participant.role} reclaimed their seat via the invitation room=${roomId.slice(0, 8)}`);
+    endSeatAuthority(participant);
   }
   if (invite) {
     // First join into this room: adopt the agreed scope and pin it.
@@ -2407,6 +2462,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
       if (participant.channelBound) {
         console.warn(`[channel-binding] ${participant.role} returns with a new key — binding lapses, another presentation required`);
         participant.verified = false;
+        participant.confirmed = false; // an agreement given while verified does not outlive it
         participant.channelBound = false;
       }
       participant.offer = undefined;
