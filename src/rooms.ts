@@ -228,11 +228,17 @@ export function joinRoom(
 
   if (room.participants.length >= maxParticipants) {
     // Evict a disconnected "ghost" still lingering in its grace window so a fresh
-    // person can take the slot instead of being wrongly told the room is full.
-    const ghost = room.participants.find((p) => !p.ws || p.ws.readyState !== 1);
+    // person can take the slot instead of being wrongly told the room is full. Never the host:
+    // their seat would go to the newcomer, and the host returning within the grace window would
+    // come back as a guest (security audit 2026-11-11). A room whose host dropped out briefly is
+    // full until the host is back or the grace window ends.
+    const ghost = room.participants.find((p) => p.role !== 'caller' && (!p.ws || p.ws.readyState !== 1));
     if (ghost) {
       if (ghost.graceTimer) clearTimeout(ghost.graceTimer);
       ghost.left = true;
+      // Like leaving: the verifier session still holds what they presented.
+      purgeVerifierSession(ghost.verifierSessionId, 'left');
+      ghost.verifierSessionId = undefined;
       room.participants.splice(room.participants.indexOf(ghost), 1);
     } else {
       return { error: 'full' };

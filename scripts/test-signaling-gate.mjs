@@ -126,6 +126,27 @@ try {
   guest.send({ type: 'offer', to: hostId, data: sdp('offer') });
   await sleep(500);
   check('no further offer from the guest', host.count('offer') === before, `${host.count('offer')} vs ${before}`);
+
+  console.log('\nA newcomer does not take the host seat of a host who dropped out briefly');
+  // Full ad-hoc room, the host's connection drops (grace window). A third person arrives: the
+  // seat that frees up must not make them the host, and the host returning must not be demoted.
+  const r2 = randomUUID(), hostCid = randomUUID();
+  const h2 = await socket(); clients.push(h2);
+  h2.send({ type: 'join', roomId: r2, clientId: hostCid });
+  await h2.wait('joined');
+  const g2 = await socket(); clients.push(g2);
+  g2.send({ type: 'join', roomId: r2, clientId: randomUUID() });
+  await g2.wait('joined');
+  h2.ws.terminate();
+  await sleep(300);
+  const n2 = await socket(); clients.push(n2);
+  n2.send({ type: 'join', roomId: r2, clientId: randomUUID() });
+  const n2r = await Promise.race([n2.wait('joined').catch(() => null), n2.wait('room-full').catch(() => null)]);
+  check('the newcomer is not seated as host', n2r?.type === 'room-full' || n2r?.role === 'callee', JSON.stringify(n2r));
+  const h2b = await socket(); clients.push(h2b);
+  h2b.send({ type: 'join', roomId: r2, clientId: hostCid });
+  const back = await h2b.wait('joined').catch(() => null);
+  check('the host comes back as host', back?.role === 'caller', JSON.stringify(back));
 } catch (e) {
   check('test aborted', false, `${e.message}\n${log.join('').slice(-800)}`);
 } finally {
