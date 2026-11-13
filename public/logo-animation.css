@@ -11,8 +11,11 @@
 .la-play .la .la-arcs { display: inline; }
 .la-play .la .la-ring-file { opacity: 0; }
 
-/* the ring builds up: each piece is hidden until its tone starts, then stays (a hard switch) */
-.la-play .la .la-arc { animation: la-on 1ms step-end var(--la-on) both; }
+/* the ring builds up: each piece is hidden until its tone starts, then stays. A 1 ms linear fade
+   is a hard switch to the eye. Not `step-end`: the end of a delay given in seconds is a float, so
+   for some pieces (1.096 s, 1.336 s, ...) a finished animation rests at progress 0.9999999999999,
+   which `step-end` rounds down to hidden, and those pieces never appear in real-time playback. */
+.la-play .la .la-arc { animation: la-on 1ms linear var(--la-on) both; }
 .la-play .la .la-star { animation: la-star 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) var(--la-flash) both; }
 .la-play .la .la-tick { animation: la-tick 0.5s ease-out var(--la-flash) both; }
 
