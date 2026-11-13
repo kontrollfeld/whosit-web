@@ -1010,7 +1010,7 @@ function refreshPlannedInvite() {
 // ---- calendar invite (.ics download / Google Calendar) ----
 // Used when the title field is left empty. Follows the brand for the same reason the field's
 // default does (see branding.js): the value ends up in a guest's calendar.
-const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'whosit – EUDI Verified Call';
+const CAL_TITLE_FALLBACK = (window.EUDI_BRANDING && window.EUDI_BRANDING.name) || 'whosit – EUDI Verified Contact';
 function calTitleValue() { return calTitle.value.trim() || CAL_TITLE_FALLBACK; }
 // Default the schedule to the next full quarter hour, today.
 (function initSchedule() {

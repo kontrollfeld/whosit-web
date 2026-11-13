@@ -1,7 +1,7 @@
 {
   "name": "whosit-web",
   "version": "2.1.1",
-  "description": "whosit (EUDI Verified Call) — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
+  "description": "whosit (EUDI Verified Contact) — identity-verified peer-to-peer calls (video, audio, chat). Both sides can identify themselves with an EUDI wallet and see which fields will be exchanged before connecting; the values only after both consent.",
   "keywords": [
     "eudi",
     "eudi-wallet",

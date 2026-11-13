@@ -19,7 +19,7 @@
 
 # whosit — Community Edition
 
-**EUDI Verified Call.** Until October 2026 this project was published under that name alone;
+**EUDI Verified Contact.** Until October 2026 this project was published as *EUDI Verified Call*;
 repositories, domain and packages now carry the name *whosit*.
 
 > **See it before you set it up:** [**whosit.eu**](https://www.whosit.eu) is our hosted instance of

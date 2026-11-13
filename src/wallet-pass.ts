@@ -172,7 +172,7 @@ const LABELS: Record<string, { date: string; time: string; link: string; open: s
 
 /** The host of the room link, shown under the QR code; the product name if the URL is unusable. */
 function passHost(roomUrl: string): string {
-  try { return new URL(roomUrl).host || 'EUDI Verified Call'; } catch { return 'EUDI Verified Call'; }
+  try { return new URL(roomUrl).host || 'EUDI Verified Contact'; } catch { return 'EUDI Verified Contact'; }
 }
 
 export function buildTerminPass(opts: TerminPassOptions): Buffer {
@@ -205,7 +205,7 @@ export function buildTerminPass(opts: TerminPassOptions): Buffer {
         // attributedValue renders as a TAPPABLE link in Wallet (universal link →
         // opens the app when installed, browser otherwise); value = copyable fallback.
         { key: 'link', label: L.link, attributedValue: `<a href="${opts.roomUrl}">${L.open}</a>`, value: opts.roomUrl },
-        { key: 'note', label: 'EUDI Verified Call', value: L.note },
+        { key: 'note', label: 'EUDI Verified Contact', value: L.note },
       ],
     },
   };

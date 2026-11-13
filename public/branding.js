@@ -20,7 +20,7 @@
     // three languages.
     var namen = document.querySelectorAll('[data-brand-name]');
     for (var i = 0; i < namen.length; i++) namen[i].textContent = b.name;
-    // Our claim under our name ("EUDI Verified Call") would read as part of the operator's brand.
+    // Our claim under our name ("EUDI Verified Contact") would read as part of the operator's brand.
     var claims = document.querySelectorAll('[data-brand-claim]');
     for (var c = 0; c < claims.length; c++) claims[c].hidden = true;
     // Carry along labels that contain the name — otherwise a screen reader keeps announcing the
@@ -60,7 +60,7 @@
       }
       var cal = document.getElementById('cal-title');
       // Only while untouched: overwriting what someone typed would be worse than the wrong default.
-      if (cal && cal.value === 'whosit – EUDI Verified Call') cal.value = b.name;
+      if (cal && cal.value === 'whosit – EUDI Verified Contact') cal.value = b.name;
     };
     brandProduct();
     if (typeof i18nReady !== 'undefined' && i18nReady && i18nReady.then) i18nReady.then(brandProduct);

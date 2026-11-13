@@ -636,7 +636,7 @@ app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
   if (inv) {
     const v = verifyInvite(inv);
     if (!v.ok) { res.status(400).json({ error: `invalid invite (${v.reason})` }); return; }
-    const title = String(req.query.title || 'whosit – EUDI Verified Call').slice(0, 120);
+    const title = String(req.query.title || 'whosit – EUDI Verified Contact').slice(0, 120);
     const lang = ['de', 'en', 'fr'].includes(String(req.query.lang)) ? String(req.query.lang) : 'de';
     const start = new Date(String(req.query.start || ''));
     const end = new Date(String(req.query.end || ''));
@@ -656,7 +656,7 @@ app.get('/wallet-pass', rateLimit(RATE_LIMIT_WALLET_PASS), (req, res) => {
     return;
   }
   const room = String(req.query.room || '');
-  const title = String(req.query.title || 'whosit – EUDI Verified Call').slice(0, 120);
+  const title = String(req.query.title || 'whosit – EUDI Verified Contact').slice(0, 120);
   const lang = ['de', 'en', 'fr'].includes(String(req.query.lang)) ? String(req.query.lang) : 'de';
   const start = new Date(String(req.query.start || ''));
   const end = new Date(String(req.query.end || ''));
