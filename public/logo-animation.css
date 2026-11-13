@@ -1,54 +1,25 @@
 /* SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH */
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* The whosit logo animation, see logo-animation.js. Trigger: `la-play` on any ancestor of the
-   svg.la. Times follow the sound mark: voice from 0.35 s, ME = 0.9 / 1.3 / 1.9 s. */
-.la { --la-t1: 0.9s; --la-t2: 1.3s; --la-t3: 1.9s; overflow: visible; }
-.la .la-bubble, .la .la-tick, .la .la-star { transform-box: fill-box; transform-origin: center; }
-.la .la-letter { transform-box: fill-box; }
-.la .la-dash { transform-box: fill-box; transform-origin: left center; }
+   svg.la. Times follow the sound mark: each ring piece appears with its tone (QRZ, --la-on set per
+   piece from 0.016 s to 2.176 s), star and tick flash at 2.36 s, 0.12 s after the last tone. */
+.la { --la-flash: 2.364s; overflow: visible; }
+.la .la-tick, .la .la-star { transform-box: fill-box; transform-origin: center; }
 
-/* resting state = the file: one ring path, no dashes */
-.la .la-arcs, .la .la-mrow { display: none; }
-.la-play .la .la-arcs, .la-play .la .la-mrow { display: inline; }
+/* resting state = the file: one ring path */
+.la .la-arcs { display: none; }
+.la-play .la .la-arcs { display: inline; }
 .la-play .la .la-ring-file { opacity: 0; }
 
-.la-play .la .la-bubble { animation: la-pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.la-play .la .la-tick { animation: la-pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both, la-tick 0.35s ease-out var(--la-t3) both; }
-/* the ring: faint and clockwise first, then lit with ME — 5 arcs, 4 arcs, 2 arcs */
-.la .la-arc { --la-lit: calc(var(--la-t1) + var(--k) * 0.04s); }
-.la .la-arc:nth-child(n+6) { --la-lit: calc(var(--la-t2) + (var(--k) - 5) * 0.04s); }
-.la .la-arc:nth-child(n+10) { --la-lit: calc(var(--la-t3) + (var(--k) - 9) * 0.04s); }
-.la-play .la .la-arc {
-  animation: la-arc-in 0.18s ease both, la-arc-lit 0.5s ease forwards;
-  animation-delay: calc(0.05s + var(--k) * 0.03s), var(--la-lit);
-}
-/* "whosit?" — the word slides in while the voice asks */
-.la-play .la .la-letter { animation: la-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.4s + var(--k) * 0.05s) both; }
-/* ME: two gold dashes above "o" and "s", then the star is the dot */
-.la-play .la .la-d1 { animation: la-dash 0.3s ease-out var(--la-t1) both, la-out 0.4s ease 2.4s forwards; }
-.la-play .la .la-d2 { animation: la-dash 0.3s ease-out var(--la-t2) both, la-out 0.4s ease 2.4s forwards; }
-.la-play .la .la-star { animation: la-star 0.4s cubic-bezier(0.3, 1.4, 0.5, 1) var(--la-t3) both; }
-.la-play .la .la-sub { animation: la-fade 0.5s ease 1.95s both; }
+/* the ring builds up: each piece is hidden until its tone starts, then stays (a hard switch) */
+.la-play .la .la-arc { animation: la-on 1ms step-end var(--la-on) both; }
+.la-play .la .la-star { animation: la-star 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) var(--la-flash) both; }
+.la-play .la .la-tick { animation: la-tick 0.5s ease-out var(--la-flash) both; }
 
-@keyframes la-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
-@keyframes la-tick { 0%, 100% { transform: none; } 40% { transform: scale(1.12); } }
-@keyframes la-arc-in { from { opacity: 0; } to { opacity: 0.22; } }
-@keyframes la-arc-lit {
-  0% { opacity: 0.22; filter: none; }
-  30% { opacity: 1; filter: drop-shadow(0 0 1.6px rgba(30, 127, 212, 0.9)); }
-  100% { opacity: 1; filter: none; }
-}
-@keyframes la-slide { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: none; } }
-@keyframes la-dash {
-  0% { opacity: 0; transform: scaleX(0); filter: none; }
-  40% { opacity: 1; transform: none; filter: drop-shadow(0 0 3px rgba(255, 204, 0, 0.9)); }
-  100% { opacity: 1; transform: none; filter: none; }
-}
+@keyframes la-on { from { opacity: 0; } to { opacity: 1; } }
 @keyframes la-star {
-  0% { opacity: 0; transform: scale(0); filter: none; }
-  45% { opacity: 1; transform: scale(1.4); filter: drop-shadow(0 0 7px rgba(255, 204, 0, 1)); }
-  75% { opacity: 1; transform: scale(0.94); filter: drop-shadow(0 0 3px rgba(255, 204, 0, 0.6)); }
-  100% { opacity: 1; transform: none; filter: none; }
+  0% { transform: scale(1); }
+  35% { transform: scale(1.7); filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.9)); }
+  100% { transform: scale(1); }
 }
-@keyframes la-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes la-out { to { opacity: 0; } }
+@keyframes la-tick { 0%, 100% { transform: none; } 40% { transform: scale(1.15); } }

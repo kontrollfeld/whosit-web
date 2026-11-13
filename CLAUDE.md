@@ -35,7 +35,8 @@ those rules.
 ## Logo: change it only when explicitly asked
 
 The whosit logo is approved (variant 2: the large "whosit" wordmark with the gold star as the dot
-on the i, above "EUDI VERIFIED CALL" at the same width). See `public/logo/README.md`.
+on the i, above "EUDI VERIFIED CONTACT" at the same width; since 2026-11-13 the ring is the Morse
+code QRZ). See `public/logo/README.md`.
 
 - **Change the logo only when the brand owner explicitly asks for it.** A task such as "add the
   logo", "rework the header" or "improve the design" is **not** a request to change or redesign it.
@@ -46,7 +47,7 @@ on the i, above "EUDI VERIFIED CALL" at the same width). See `public/logo/README
 - The mark-plus-name block (`.brand-operator`) exists only for operators' own branding
   (`EUDI_BRAND_*`). It is not a whosit logo and must not be shown for whosit itself.
 - If the logo does not fit somewhere: **ask**, do not adapt it.
-- **The one exception: the approved logo animation** (brand owner, 2026-10-29, variant "Morse über
-  osi"): `public/logo-animation.js` / `.css`, built at runtime from the unchanged colour file. Where
+- **The one exception: the approved logo animation** (brand owner, 2026-11-13, "QRZ": the ring
+  builds up with the tones of the sound mark): `public/logo-animation.js` / `.css`, built at runtime from the unchanged colour file. Where
   the logo is animated — the call, films, press — use exactly this, never another choreography or a
   variant, and nothing like "Who is it? / Wer ist dran?" above it. See `public/logo/README.md`.

@@ -1,22 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Kontrollfeld GmbH
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* The whosit logo animation — the ONE approved animation of the logo (brand owner, 2026-10-29,
-   variant "Morse über osi"). It runs in step with the sound mark (public/sounds/):
+/* The whosit logo animation — the ONE approved animation of the logo (brand owner, 2026-11-13,
+   "QRZ": the ring is the Morse code QRZ, "who is calling me?"). It runs in step with the sound
+   mark (public/sounds/), whose eleven tones are the eleven pieces of the ring:
 
-     0.0 s   speech bubble pops in, the ring builds up faintly clockwise
-     0.4 s   the word "whosit" slides in while the voice asks "whosit?"
-     0.9 s   first long tone (M): a gold dash appears above the "o", 5 ring arcs light up
-     1.3 s   second long tone: a dash above the "s", 4 more arcs
-     1.9 s   short tone (E): the STAR above the "i" pops in — the star is the dot; last 2 arcs,
-             the tick pulses
-     1.95 s  "EUDI VERIFIED CALL"; from 2.4 s the dashes fade, and what is left is the logo
+     0.0 s   the logo stands, without its ring
+     0.02 s  Q  − − · −   each ring piece appears, clockwise from the bubble's tail, the moment
+     0.98 s  R  · − ·     its tone starts
+     1.58 s  Z  − − · ·   (last tone ends at 2.24 s)
+     2.36 s  the star above the "i" flashes, the tick pulses; what is left is the logo
 
    Built at runtime from the unchanged file public/logo/logo-horizontal-colour.svg: every path
-   keeps its coordinates and colour. Only the ring (one path of 11 arcs) gets a copy split into its
-   11 arcs on top while it plays, so the arcs can light up one by one; the two dashes exist only
-   while it plays. When the animation has run, remove the trigger class (`la-play`) — then the
-   picture IS the file again, down to the pixel (held animations are rasterised on layers of their
-   own, slightly differently).
+   keeps its coordinates and colour. Only the ring (one path of 11 pieces) gets a copy split into its
+   11 pieces on top while it plays, so they can appear one by one. When the animation has run,
+   remove the trigger class (`la-play`) — then the picture IS the file again, down to the pixel
+   (held animations are rasterised on layers of their own, slightly differently).
 
    Usage:
      const svg = await whositLogoAnimation.load('logo/logo-horizontal-colour.svg');
@@ -28,6 +26,8 @@
 (function () {
   'use strict';
   var NS = 'http://www.w3.org/2000/svg';
+  // When each tone of the sound mark starts (seconds; measured in whosit-klangzeichen.mp3): Q R Z.
+  var TONES = [0.016, 0.256, 0.496, 0.616, 0.976, 1.096, 1.336, 1.576, 1.816, 2.056, 2.176];
 
   function el(name, attrs) {
     var e = document.createElementNS(NS, name);
@@ -39,35 +39,26 @@
     var doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
     var svg = doc.documentElement;
     var paths = svg.querySelectorAll('path');
-    if (paths.length !== 26) throw new Error('logo file changed: expected 26 paths, got ' + paths.length);
-    var ring = paths[0], bubble = paths[1], tick = paths[2], star = paths[9];
+    if (paths.length !== 29) throw new Error('logo file changed: expected 29 paths, got ' + paths.length);
+    var ring = paths[0], tick = paths[2], star = paths[9];
     svg.classList.add('la');
     svg.setAttribute('aria-hidden', 'true');
 
     ring.classList.add('la-ring-file');
+    var pieces = ring.getAttribute('d').match(/M[^M]+/g) || [];
+    if (pieces.length !== TONES.length) throw new Error('logo file changed: expected ' + TONES.length + ' ring pieces');
     var arcs = el('g', { 'class': 'la-arcs' });
-    (ring.getAttribute('d').match(/M[^M]+/g) || []).forEach(function (d, k) {
+    pieces.forEach(function (d, k) {
       var a = ring.cloneNode(false);
       a.setAttribute('d', d.trim());
       a.setAttribute('class', 'la-arc');
-      a.style.setProperty('--k', k);
+      a.style.setProperty('--la-on', TONES[k] + 's');
       arcs.appendChild(a);
     });
     ring.parentNode.insertBefore(arcs, ring.nextSibling);
 
-    bubble.classList.add('la-bubble');
     tick.classList.add('la-tick');
-    for (var i = 3; i <= 8; i++) { paths[i].classList.add('la-letter'); paths[i].style.setProperty('--k', i - 3); }
     star.classList.add('la-star');
-    var sub = el('g', { 'class': 'la-sub' });
-    svg.insertBefore(sub, paths[10]);
-    for (var j = 10; j < 26; j++) sub.appendChild(paths[j]);
-
-    // M = − − above "o" and "s", on the star's line (star centre 450 / −65.5; o 338–388, s 392–434).
-    var row = el('g', { 'class': 'la-mrow' });
-    row.appendChild(el('rect', { 'class': 'la-dash la-d1', x: 347.9, y: -69, width: 30, height: 7, rx: 3.5, fill: '#FFCC00' }));
-    row.appendChild(el('rect', { 'class': 'la-dash la-d2', x: 398, y: -69, width: 30, height: 7, rx: 3.5, fill: '#FFCC00' }));
-    svg.appendChild(row);
     return document.importNode(svg, true);
   }
 

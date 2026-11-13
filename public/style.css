@@ -2017,9 +2017,9 @@ html.dt-large .muted-hint button { white-space: normal; }
 /* App intro (app.js playAppIntro): at app start a page of its own — the logo animation with the
    sound mark on a sky whose colours move with the sound, then the app fades in underneath. Shown
    from the first paint by the head script (html.ai-on). Times follow the sound mark like the
-   logo animation (logo-animation.css): ME at 0.9 / 1.3 / 1.9 s. Nothing moves over the logo — no
-   waves, no glow (removed 2026-11-05, Jakob: only the Morse signal, long, long, short with the
-   star on the i, should be seen). The colour logo needs light ground: in dark mode a light halo
+   logo animation (logo-animation.css): QRZ from 0.0 to 2.2 s, the star at 2.36 s. Nothing moves
+   over the logo — no waves, no glow (removed 2026-11-05, Jakob: only the Morse signal should be
+   seen). The colour logo needs light ground: in dark mode a light halo
    carries it, the sky around stays dark. Only the logo file and the approved animation are shown
    — no text added (public/logo/README.md). */
 .app-intro { display: none; }
@@ -2061,8 +2061,8 @@ html[data-theme="dark"].ai-on .app-intro {
 /* until it plays: the picture waits for its sound (startIntroSound), not shown at rest first */
 .app-intro:not(.ai-run) .ai-logo { visibility: hidden; }
 .ai-logo .la { display: block; width: 100%; height: auto; }
-/* the colour journey: blue sweeps in with the bubble, turquoise swells with the two long tones,
-   gold rises with the star, then it settles into blue and a little gold */
+/* the colour journey: blue sweeps in, turquoise swells while the ring builds up, gold rises with
+   the star (2.36 s = 84 %), then it settles into blue and a little gold */
 .ai-run .ai-b1 { animation: ai-b1 2.8s cubic-bezier(0.3, 0.6, 0.3, 1) both; }
 .ai-run .ai-b2 { animation: ai-b2 2.8s ease-in-out both; }
 .ai-run .ai-b3 { animation: ai-b3 2.8s ease-in-out both; }
@@ -2085,8 +2085,8 @@ html[data-theme="dark"].ai-on .app-intro {
   100% { opacity: calc(var(--ai-blob-a) * 0.25); transform: translate(-16%, -22%) scale(1.1); }
 }
 @keyframes ai-b4 {
-  0%, 66% { opacity: 0; transform: translate(40%, 10%) scale(0.4); }
-  80% { opacity: calc(var(--ai-blob-a) * 0.6); }
+  0%, 82% { opacity: 0; transform: translate(40%, 10%) scale(0.4); }
+  94% { opacity: calc(var(--ai-blob-a) * 0.6); }
   100% { opacity: calc(var(--ai-blob-a) * 0.3); transform: translate(34%, 22%) scale(0.9); }
 }
 

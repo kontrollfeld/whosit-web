@@ -2,7 +2,7 @@
   <a href="https://www.whosit.eu">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://www.whosit.eu/operator/logo/logo-horizontal-white.svg">
-      <img src="https://www.whosit.eu/operator/logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Call" width="380">
+      <img src="https://www.whosit.eu/operator/logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Contact" width="380">
     </picture>
   </a>
 </p>
@@ -807,7 +807,7 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   when the page becomes visible again).
 - A new data channel learns the current mute/camera state, so "join muted" and late joiners show
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
-- **The whosit sound mark** (`public/sounds/`): "whosit?" and the Morse answer ME (− − ·). The
+- **The whosit sound mark** (`public/sounds/`): the Morse code QRZ ("who is calling me?"). The
   whole mark plays once for everyone when a call connects — and that is the only sound of a call
   (since 2026-11-02: no arrival sound any more, and the mark is never replayed when a call ends;
   a guest's arrival still shows in the tab title and as a system notification). The answer alone
@@ -828,8 +828,8 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   In the **app**, a page of its own greets once per launch (`#app-intro`, `playAppIntro`, since
   2026-10-31): the same logo animation with the sound mark 12 dB quieter
   (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file)
-  on a sky whose colours move with the sound — blue with the bubble, turquoise with the two long
-  tones, gold with the star; nothing moves over the logo itself (the waves and the glow were
+  on a sky whose colours move with the sound — blue first, turquoise while the ring builds up, gold
+  with the star; nothing moves over the logo itself (the waves and the glow were
   removed on 2026-11-05, so only the Morse signal reads) — then the app fades in underneath
   (about 3.5 s; a tap skips it, 8 s at most whatever happens). The sky and the logo both follow
   the sound's clock. The colour logo needs light ground, so in dark mode it sits in a light halo.

@@ -2,7 +2,9 @@
 
 `logo-horizontal-colour.svg` (light ground) and `logo-horizontal-white.svg` (dark ground) are
 copied **unchanged** from the whosit logo kit. The approved design: the large "whosit" wordmark
-with the gold star as the dot on the i, spanning the full width of the claim "EUDI VERIFIED CALL".
+with the gold star as the dot on the i, spanning the full width of the claim "EUDI VERIFIED
+CONTACT". The dashed ring around the speech bubble is the Morse code QRZ ("who is calling me?",
+− − · −  · − ·  − − · ·), its word gap at the bubble's tail (since 2026-11-13).
 
 - Do not edit these files, and do not rebuild the logo from the mark plus HTML text. A changed
   logo comes as new files from the kit, and only when the brand owner asks for it.
@@ -11,11 +13,11 @@ with the gold star as the dot on the i, spanning the full width of the claim "EU
 
 ## The logo animation
 
-There is exactly **one** approved animation of the logo (brand owner, 2026-10-29: the variant
-"Morse über osi"): `public/logo-animation.js` + `public/logo-animation.css`. In step with the sound
-mark, the word slides in to the spoken "whosit?", two gold dashes appear above "o" and "s", and the
-star above the "i" comes in as the dot: ME, − − ·. It is built at runtime from
-`logo-horizontal-colour.svg` without changing a path, and its resting picture is the file itself.
+There is exactly **one** approved animation of the logo (brand owner, 2026-11-13: "QRZ"):
+`public/logo-animation.js` + `public/logo-animation.css`. In step with the sound mark, whose eleven
+tones are QRZ, the eleven pieces of the ring appear one by one, each with its tone; then the star
+above the "i" flashes and the tick pulses. It is built at runtime from `logo-horizontal-colour.svg`
+without changing a path, and its resting picture is the file itself.
 
 - Animate the logo only with this, everywhere: in the call (once when it connects), in the media
   kit's films and the standalone animation. No other choreography, no variants.

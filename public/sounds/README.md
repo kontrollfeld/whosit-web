@@ -1,7 +1,9 @@
 # whosit sound mark
 
-`whosit-klangzeichen.mp3` (with voice: "whosit?", then the Morse answer **ME** − − ·, 4.6 s) and
-`whosit-klangzeichen-ohne-stimme.mp3` (the answer only, 2.6 s). Played in `public/app.js`:
+`whosit-klangzeichen.mp3`: the Morse code **QRZ** ("who is calling me?", − − · −  · − ·  − − · ·),
+eleven tones in 2.4 s, the same eleven as the pieces of the logo's ring (since 2026-11-13; there is
+no voice any more, so `whosit-klangzeichen-ohne-stimme.mp3` is the same sound under its old name).
+Played in `public/app.js`:
 the answer when the other side arrives, the full mark once when a call connects — only on
 instances without operator branding (an operator name); branded instances keep the neutral chime.
 `whosit-klangzeichen-leise.mp3` is the full mark 12 dB quieter, for the app's start (iOS ignores the

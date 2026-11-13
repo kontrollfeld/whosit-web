@@ -3684,8 +3684,8 @@ function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } ca
   i18nReady.then(render);
 })();
 
-/* The whosit sound mark: "whosit?" – and the answer ME in Morse (− − ·, "it's me"). The answer
-   alone when the other side arrives (a knock at the door), the whole mark once when a call
+/* The whosit sound mark: QRZ in Morse ("who is calling me?", public/sounds/README.md). The
+   "ohne Stimme" file when the other side arrives (a knock at the door), the whole mark once when a call
    connects. Only without operator branding: an operator's call should not carry our mark, there
    the neutral chime stays. Decoded once, after the first gesture (before it, nothing may sound).
    "Branded" means an operator NAME, exactly like the `branded` class (src/branding.ts): a logo
