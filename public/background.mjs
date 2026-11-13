@@ -39,7 +39,8 @@ function loadSegmenter() {
 
 /* Frames must keep flowing while the tab is in the background: the canvas IS the outgoing
    picture. requestAnimationFrame stops there and timers are throttled to 1 Hz, a dedicated
-   worker's timer is not (same reasoning as the SAS overlay in app.js). */
+   worker's timer is not. Measured over 12 s hidden (Chrome 152): rAF 0 fps, setTimeout 1 fps
+   (22 fps if the page is audible), worker 24 fps either way. */
 const CLOCK_SRC = 'let i=null;onmessage=(e)=>{clearInterval(i);i=null;if(e.data&&e.data.ms)i=setInterval(()=>postMessage(0),e.data.ms)};';
 
 /**

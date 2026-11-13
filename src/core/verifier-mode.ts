@@ -5,8 +5,8 @@
  *
  * For evaluating the software before one has a relying-party registration: every call is
  * anonymous, no wallet is ever asked for anything, and the whole instance says so. Video, audio,
- * chat, screen sharing, files, document sharing and the security code all work; nothing that
- * needs a verified identity is offered.
+ * chat, screen sharing, files and document sharing all work; nothing that needs a verified
+ * identity is offered.
  *
  * EXPLICIT, never inferred from missing verifier variables. A real deployment with a typo in
  * EUDIPLO_CLIENT_ID must still refuse to start (./startup-checks) — quietly degrading it into an

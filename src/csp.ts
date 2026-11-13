@@ -14,7 +14,7 @@
  *
  * Every source and why:
  *   script-src 'wasm-unsafe-eval'  background effects compile MediaPipe's WebAssembly
- *   worker-src blob:              the SAS overlay clock runs in a worker made from a Blob
+ *   worker-src blob:              the background effect's clock runs in a worker made from a Blob
  *   img-src data: blob:           QR codes (data URIs), shared images and PDFs (object URLs)
  *   media-src blob: data:         the generated tones
  *   style-src 'unsafe-inline'     style attributes in the markup; styles cannot run code

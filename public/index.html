@@ -420,7 +420,7 @@
       </button>
     </section>
 
-    <!-- Verified data and security code belong IN the right column: outside it they
+    <!-- Verified data belongs IN the right column: outside it, the card
          would run in the narrower main column, visibly offset from the status line and
          participant chips above. -->
     <!-- Verified data: values, visible only after mutual consent -->
@@ -433,25 +433,6 @@
       <div class="review-grid">
         <div class="review-col you"><span class="field-label"><span class="who self" aria-hidden="true" data-i18n>Du</span><span class="col-title" data-i18n>Du teilst</span></span><div class="result-list" id="result-self"></div></div>
         <div class="review-col guest"><span class="field-label"><span class="who peer" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="col-title" data-i18n>Dein Gegenüber teilt</span></span><div class="result-list" id="result-peer"></div></div>
-      </div>
-    </section>
-
-    <!-- SAS security code: MITM detection by verbal comparison -->
-    <section id="sas-card" class="card sas" hidden>
-      <div class="sas-row">
-        <svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
-        <div class="sas-text">
-          <span class="field-label"><span data-i18n>Sicherheitscode</span>
-            <span class="info-wrap">
-              <button type="button" class="info-btn" aria-label="Wie funktioniert der Sicherheitscode?" data-i18n-attr="aria-label" aria-describedby="sas-tip">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              </button>
-              <span class="tooltip" id="sas-tip" role="tooltip" data-i18n>Euer beider Browser verschlüsseln die Verbindung mit je einem eigenen Zertifikat. Aus den Fingerabdrücken beider Zertifikate berechnen beide Seiten denselben Code. Würde jemand heimlich in der Mitte mithören, gäbe es zwei getrennte Verbindungen — und eure Codes wären verschieden.</span>
-            </span>
-          </span>
-          <p class="hint" data-i18n>Vergleicht diesen Code — er wird auch klein in eurem Videobild eingeblendet und muss bei beiden gleich sein.</p>
-        </div>
-        <span id="sas-code" class="sas-code" aria-live="polite"></span>
       </div>
     </section>
 
@@ -497,13 +478,11 @@
 
     <!-- Video -->
     <!-- Native app in a call: collapsed trust bar — bundles status/chips/
-         verified data/security code; tapping expands the original cards.
+         verified data; tapping expands the original cards.
          Website: stays hidden (app.js initAppShell activates it only natively). -->
-    <button id="trust-bar" class="trust-bar" type="button" hidden aria-expanded="false" aria-controls="identities result sas-card">
+    <button id="trust-bar" class="trust-bar" type="button" hidden aria-expanded="false" aria-controls="identities result">
       <svg class="t-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
       <span id="trust-names" class="trust-names" data-i18n>Verifizierter Anruf</span>
-      <span id="trust-sas-label" class="sr-only" data-i18n hidden>Sicherheitscode</span>
-      <span id="trust-sas" class="trust-sas"></span>
       <svg class="trust-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </button>
 

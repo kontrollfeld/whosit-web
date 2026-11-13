@@ -397,7 +397,7 @@ levels, and you can move up one at a time:
 
 | | What works | What you need |
 |---|---|---|
-| **1. Anonymous test** | Video, audio, chat, screen sharing, files, document sharing, the security code | `EUDI_VERIFIER=none`, nothing else |
+| **1. Anonymous test** | Video, audio, chat, screen sharing, files, document sharing | `EUDI_VERIFIER=none`, nothing else |
 | **2. Verification flow with the mock** | Everything above, plus "share data": the review, the consent screen, names in the call | The bundled EUDIPLO mock (below) — no cryptography, it believes any name typed into it |
 | **3. Real operation** | Real wallets, real PID, the signature features | Your own EUDIPLO instance and an access certificate from a registration authority (usually a sandbox registration first), see [EUDIPLO](#eudiplo-the-verifier-you-run-yourself) |
 

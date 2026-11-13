@@ -1256,9 +1256,9 @@ async function ensureLocalCertificate() {
   }
 }
 
-/** Reads `a=fingerprint:sha-256` and nothing else. Deliberately stricter than sdpFingerprint()
- *  (which takes any algorithm for the SAS): only what is unambiguously SHA-256 may feed into a
- *  security guarantee — otherwise the binding could be defeated through a weaker algorithm. */
+/** Reads `a=fingerprint:sha-256` and nothing else: only what is unambiguously SHA-256 may feed
+ *  into a security guarantee — otherwise the binding could be defeated through a weaker
+ *  algorithm. */
 function sdpFingerprint256(desc) {
   const m = desc && desc.sdp && desc.sdp.match(/^a=fingerprint:sha-256\s+([0-9A-Fa-f:]+)\s*$/im);
   return m ? m[1].toUpperCase() : null;
@@ -2541,7 +2541,7 @@ function getPeer(peerId, meta) {
     }
     if (pc.connectionState === 'connected') {
       const cur = peers.get(peerId); if (cur) cur.iceRestarts = 0;
-      revealCall(); updateSas();
+      revealCall();
       // Connected, but the other side sends no picture (no camera, or none allowed): a tile all
       // the same, with name and badges — without one the host only saw themselves, with no hint
       // that anyone was there.
@@ -2665,7 +2665,6 @@ async function onRemoteOffer(from, offer) {
   const answer = await p.pc.createAnswer();
   await p.pc.setLocalDescription(answer);
   wsSend({ type: 'answer', to: from, data: answer });
-  updateSas();
 }
 async function onRemoteAnswer(from, answer) {
   const p = from && peers.get(from);
@@ -2673,7 +2672,6 @@ async function onRemoteAnswer(from, answer) {
   await p.pc.setRemoteDescription(answer);
   if (!verifyPeerBinding(from)) return;
   p.remoteDescSet = true; flushIce(from);
-  updateSas();
 }
 function onRemoteIce(from, candidate) {
   if (ended || !from) return;
@@ -2710,11 +2708,6 @@ async function startScreenShare() {
   catch (e) { return; } // user cancelled the picker
   const track = stream.getVideoTracks()[0];
   if (!track) { stream.getTracks().forEach((t) => t.stop()); return; }
-  // The SAS overlay also owns these senders (canvas track) — release them back to the
-  // real camera first, so the "camera track to restore later" below is the actual
-  // camera, not the composited canvas stream.
-  sasOverlayResumeAfterScreenShare = sasOverlayActive;
-  if (sasOverlayActive) await stopSasOverlay();
   cameraTrack = senders[0].track;          // remember camera track to restore later
   screenStream = stream;
   for (const s of senders) { try { await s.replaceTrack(track); } catch {} }
@@ -2733,7 +2726,6 @@ async function stopScreenShare() {
   if (localStream) localVideo.srcObject = localStream;
   setScreenBtn(false);
   localSharing = false; broadcast({ k: 'screen', on: false }); applyStage();
-  if (sasOverlayResumeAfterScreenShare) { sasOverlayResumeAfterScreenShare = false; startSasOverlay(); }
 }
 function toggleScreenShare() { if (screenStream) stopScreenShare(); else startScreenShare(); }
 
@@ -3185,204 +3177,15 @@ function appendSharedCredentialRows(container, shared) {
   }
 }
 
-// ---- SAS (short authentication string) ----
-// MITM detection for the DTLS key exchange: both sides derive the same short code from
-// BOTH DTLS certificate fingerprints (order-independent) and compare it verbally. A
-// signaling-server MITM terminates two different DTLS sessions → the codes differ.
-// v1: shown only for EXACTLY ONE peer (a group SAS is a separate design).
-// 36 bits (6 symbols × 64).
-const SAS_EMOJI = ['🦊','🐼','🐧','🦁','🐸','🐙','🦋','🐢','🦉','🐝','🐬','🦄','🌊','🌵','🌙','⭐','🌈','🍀','🌻','🍄','🍎','🍋','🍇','🍓','🥕','🍞','🧀','🍩','☕','🍯','🥨','🔑','🔔','🎈','🎁','🎲','🎯','🎸','🎨','📌','✂️','🧭','⏰','🔒','📎','🪁','🚗','🚲','✈️','🚀','⛵','🚦','⚓','🗼','🏠','⛺','🌋','🏔️','☂️','❄️','🔥','💧','⚡','🧊'];
-const sasCard = $('sas-card');
-const sasCode = $('sas-code');
-function sdpFingerprint(desc) {
-  const m = desc && desc.sdp && desc.sdp.match(/a=fingerprint:\S+\s+([0-9A-Fa-f:]+)/);
-  return m ? m[1].toUpperCase() : null;
-}
-async function updateSas() {
-  if (peers.size !== 1) { sasCard.hidden = true; stopSasOverlay(); return; } // 1:1 only in v1
-  const p = peers.values().next().value;
-  if (!p.pc.localDescription || !p.pc.remoteDescription) return;
-  const a = sdpFingerprint(p.pc.localDescription);
-  const b = sdpFingerprint(p.pc.remoteDescription);
-  if (!a || !b) return;
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode([a, b].sort().join('|'))));
-  let bits = 0n;
-  for (let i = 0; i < 5; i++) bits = (bits << 8n) | BigInt(digest[i]); // 40 bits, we use the top 36
-  const syms = [];
-  for (let i = 0; i < 6; i++) syms.push(SAS_EMOJI[Number((bits >> BigInt(40 - 6 * (i + 1))) & 63n)]);
-  sasCode.textContent = syms.join(' ');
-  sasCard.hidden = false;
-  startSasOverlay(); // no-op if unsupported (audio/chat mode, no camera) or already running
-}
-
-// ---- SAS burn-in overlay (Community): embed the code directly into the outgoing
-// video pixels so your counterpart can visually compare it against their own — the
-// SAME security check as reading it aloud, but through a channel (the actual video
-// frames, DTLS-SRTP-protected like everything else) a MITM cannot forge without
-// literally deepfaking your live video in real time.
-//
-// Deliberately NOT sent via the DataChannel or as a DOM-only overlay on your own tile:
-// either would ride the very transport SAS exists to authenticate — a MITM terminating
-// that transport could just relay/fake the value and defeat the whole check silently.
-// Compositing it into the actual camera frames (canvas → captureStream → replaceTrack,
-// same mechanism as screen-share) is the only path outside that trust boundary short
-// of speaking it aloud.
-let sasOverlayActive = false;
-let sasOverlayCanvas = null, sasOverlayCtx = null, sasOverlaySourceVideo = null;
-let sasOverlayTrack = null, sasOverlayFrameHandle = null, sasOverlayFrameIsRAF = false;
-let sasOverlayClock = null, sasOverlayClockUrl = null;
-let sasOverlayResumeAfterScreenShare = false;
-
-function sasOverlaySupported() {
-  return mode === 'video' && peers.size === 1 && !screenStream
-    && !!(localStream && localStream.getVideoTracks && localStream.getVideoTracks().length);
-}
-// Keeping the picture alive while the tab is in the background.
-// The composited canvas is the OUTGOING track, so whatever stops drawing it freezes the
-// picture for the other side: switch to another tab and your counterpart (and your own
-// tile, which shows the same stream) would see a still image.
-// requestAnimationFrame does not run at all in a hidden tab, and a main-thread setTimeout
-// is throttled there to 1 Hz unless the page happens to be audible — which it is not when
-// the other side has their microphone muted. A dedicated worker's timer is exempt from
-// that throttling, so it is what drives the frames while you are away.
-// Measured over 12 s hidden (Chrome 152): rAF 0 fps, setTimeout 1 fps (22 fps if audible),
-// worker 24 fps either way.
-const SAS_OVERLAY_HIDDEN_MS = 42; // ~24 fps — enough to stay a live picture, not a slideshow
-const SAS_OVERLAY_CLOCK_SRC =
-  'let i = null; onmessage = (e) => { clearInterval(i); i = null;' +
-  ' if (e.data && e.data.ms) i = setInterval(() => postMessage(0), e.data.ms); };';
-function startSasOverlayClock() {
-  if (sasOverlayClock) return;
-  try {
-    sasOverlayClockUrl = URL.createObjectURL(new Blob([SAS_OVERLAY_CLOCK_SRC], { type: 'text/javascript' }));
-    sasOverlayClock = new Worker(sasOverlayClockUrl);
-    sasOverlayClock.onmessage = () => { if (sasOverlayActive && document.hidden) drawSasOverlayFrame(); };
-  } catch (e) {
-    // A deployment may forbid blob: workers via CSP. Then the hidden tab falls back to the
-    // throttled timer below: a slow picture, but never a frozen one.
-    console.warn('SAS-Overlay-Taktgeber nicht verfügbar:', e && e.message);
-    stopSasOverlayClock();
-  }
-}
-function stopSasOverlayClock() {
-  if (sasOverlayClock) { try { sasOverlayClock.terminate(); } catch {} sasOverlayClock = null; }
-  if (sasOverlayClockUrl) { try { URL.revokeObjectURL(sasOverlayClockUrl); } catch {} sasOverlayClockUrl = null; }
-}
-// Let the worker tick only while it is actually needed.
-function syncSasOverlayClock() {
-  if (!sasOverlayClock) return;
-  sasOverlayClock.postMessage({ ms: sasOverlayActive && document.hidden ? SAS_OVERLAY_HIDDEN_MS : 0 });
-}
-function scheduleSasOverlayFrame() {
-  cancelSasOverlayFrame();
-  if (!sasOverlayActive) return;
-  if (!document.hidden) {
-    sasOverlayFrameIsRAF = true;
-    sasOverlayFrameHandle = requestAnimationFrame(drawSasOverlayFrame);
-    return;
-  }
-  if (sasOverlayClock) return; // hidden: the worker calls drawSasOverlayFrame() instead
-  sasOverlayFrameIsRAF = false;
-  sasOverlayFrameHandle = setTimeout(drawSasOverlayFrame, SAS_OVERLAY_HIDDEN_MS);
-}
-function cancelSasOverlayFrame() {
-  if (sasOverlayFrameHandle === null) return;
-  if (sasOverlayFrameIsRAF) cancelAnimationFrame(sasOverlayFrameHandle); else clearTimeout(sasOverlayFrameHandle);
-  sasOverlayFrameHandle = null;
-}
-function drawSasOverlayFrame() {
-  if (!sasOverlayActive) return;
-  // Some browsers pause a <video> while its tab is in the background. Drawing from a
-  // paused element would repeat one stale frame, which is the freeze we are avoiding.
-  if (sasOverlaySourceVideo && sasOverlaySourceVideo.paused) sasOverlaySourceVideo.play().catch(() => {});
-  const w = sasOverlayCanvas.width, h = sasOverlayCanvas.height;
-  try { sasOverlayCtx.drawImage(sasOverlaySourceVideo, 0, 0, w, h); } catch { /* frame not ready yet */ }
-  const text = sasCode.textContent;
-  if (text) {
-    const fontSize = Math.max(14, Math.round(h * 0.055));
-    sasOverlayCtx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-    const metrics = sasOverlayCtx.measureText(text);
-    const padX = fontSize * 0.55, padY = fontSize * 0.4, r = 10;
-    const boxW = metrics.width + padX * 2, boxH = fontSize + padY * 2;
-    const x = fontSize * 0.4, y = h - boxH - fontSize * 0.4;
-    sasOverlayCtx.fillStyle = 'rgba(7, 11, 22, 0.72)';
-    sasOverlayCtx.beginPath();
-    sasOverlayCtx.moveTo(x + r, y);
-    sasOverlayCtx.arcTo(x + boxW, y, x + boxW, y + boxH, r);
-    sasOverlayCtx.arcTo(x + boxW, y + boxH, x, y + boxH, r);
-    sasOverlayCtx.arcTo(x, y + boxH, x, y, r);
-    sasOverlayCtx.arcTo(x, y, x + boxW, y, r);
-    sasOverlayCtx.closePath();
-    sasOverlayCtx.fill();
-    sasOverlayCtx.fillStyle = '#fff';
-    sasOverlayCtx.textBaseline = 'middle';
-    sasOverlayCtx.fillText(text, x + padX, y + boxH / 2 + 1);
-  }
-  scheduleSasOverlayFrame();
-}
-function cleanupSasOverlayDom() {
-  if (sasOverlaySourceVideo) { try { sasOverlaySourceVideo.remove(); } catch {} sasOverlaySourceVideo = null; }
-  sasOverlayCanvas = null; sasOverlayCtx = null;
-}
-async function startSasOverlay() {
-  if (sasOverlayActive || !sasOverlaySupported()) return;
-  const camTrack = localStream.getVideoTracks()[0];
-  const settings = camTrack.getSettings ? camTrack.getSettings() : {};
-  const w = settings.width || 640, h = settings.height || 480;
-  // Hidden source <video>: drawImage needs a playing video element, but the VISIBLE
-  // local tile is about to show the composited canvas stream instead (WYSIWYG) — so
-  // the raw camera feed needs a separate, off-screen element to draw from.
-  sasOverlaySourceVideo = document.createElement('video');
-  sasOverlaySourceVideo.muted = true; sasOverlaySourceVideo.playsInline = true;
-  sasOverlaySourceVideo.style.cssText = 'position:fixed; width:1px; height:1px; opacity:0; pointer-events:none;';
-  sasOverlaySourceVideo.srcObject = localStream;
-  document.body.appendChild(sasOverlaySourceVideo);
-  try { await sasOverlaySourceVideo.play(); } catch { /* autoplay restrictions shouldn't apply (muted) */ }
-  sasOverlayCanvas = document.createElement('canvas');
-  sasOverlayCanvas.width = w; sasOverlayCanvas.height = h;
-  sasOverlayCtx = sasOverlayCanvas.getContext('2d');
-  let stream;
-  try { stream = sasOverlayCanvas.captureStream(30); } catch (e) { console.warn('SAS-Video-Overlay nicht unterstützt:', e && e.message); cleanupSasOverlayDom(); return; }
-  sasOverlayTrack = stream.getVideoTracks()[0];
-  if (!sasOverlayTrack) { cleanupSasOverlayDom(); return; }
-  sasOverlayActive = true;
-  startSasOverlayClock();
-  syncSasOverlayClock();
-  drawSasOverlayFrame();
-  for (const s of localVideoSenders()) { try { await s.replaceTrack(sasOverlayTrack); } catch {} }
-  enforceLocalMuteState();
-  localVideo.srcObject = stream; // your own tile shows exactly what's actually being sent
-}
-async function stopSasOverlay() {
-  if (!sasOverlayActive) return;
-  sasOverlayActive = false;
-  cancelSasOverlayFrame();
-  stopSasOverlayClock();
-  if (sasOverlayTrack) { try { sasOverlayTrack.stop(); } catch {} sasOverlayTrack = null; }
-  cleanupSasOverlayDom();
-  if (localStream && !screenStream) { // screen-share (if active) owns the senders instead
-    const camTrack = localStream.getVideoTracks()[0];
-    if (camTrack) for (const s of localVideoSenders()) { try { await s.replaceTrack(camTrack); } catch {} }
-    enforceLocalMuteState();
-    localVideo.srcObject = localStream;
-  }
-}
-
 // ---- coming back from another tab ----
-// Two things go stale while the tab is in the background, and neither repairs itself:
-// the overlay's frame loop (a pending requestAnimationFrame never fires once the page is
-// hidden, so the chain would end there), and the video tiles themselves — several
-// browsers pause a <video> in a background tab and leave it on its last frame even though
-// the track kept running. Re-arm the loop for whichever schedule now applies, and nudge
-// every call tile back into playback.
+// Several browsers pause a <video> in a background tab and leave it on its last frame even
+// though the track kept running, and it does not repair itself: nudge every call tile back
+// into playback.
 function resumeCallVideos() {
   const tiles = videosEl ? Array.from(videosEl.querySelectorAll('video')) : [];
-  if (sasOverlaySourceVideo) tiles.push(sasOverlaySourceVideo);
   for (const v of tiles) { if (v.paused && v.srcObject) v.play().catch(() => {}); }
 }
 document.addEventListener('visibilitychange', () => {
-  syncSasOverlayClock();
-  scheduleSasOverlayFrame(); // both no-ops unless the overlay is running
   if (!document.hidden) resumeCallVideos();
 });
 
@@ -3446,7 +3249,6 @@ function onPeerGone(from) {
   peerMicMuted.delete(from);
   peerCamOff.delete(from);
   if (stagePeer === from) { stagePeer = null; stageAuto = false; }
-  updateSas();
   if (peers.size === 0) { ended = true; teardownCall(); markRoomEnded(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : goneAnon); }
   else { setStatus(goneName ? t('{name} hat den Anruf verlassen.', { name: goneName }) : 'Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
 }
@@ -3462,7 +3264,6 @@ function teardownCall() {
   stopPreview();
   if (qesShare) qesShare.teardown(true); // drop any document ceremony (no abort message — call is over)
   handsUp.clear(); handRaised = false;
-  stopSasOverlay();
   for (const id of [...peers.keys()]) removePeer(id);
   for (const p of loopbackPeers) { try { p.close(); } catch {} }
   loopbackPeers = [];
@@ -3484,7 +3285,7 @@ function showEnded(message) {
   hideStepper();
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
-  peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; sasCard.hidden = true; startBar.hidden = true;
+  peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; startBar.hidden = true;
   // The PREPARATORY surfaces too. Otherwise a refused sign-in shows "not authorised" above a
   // still-visible QR code — an invitation to a second attempt with a dead offer — and a
   // taken-over session leaves the old setup on screen.
@@ -5033,22 +4834,22 @@ function applyDynamicType() {
   }
 })();
 
-// ---- in-call trust bar: shield + names + SAS code, expandable ------------
+// ---- in-call trust bar: shield + names, expandable ------------------------
 // In the app AND on the website (since 2026-10-28): before, a phone browser stacked status,
-// participant chips, verified data and the security code above the video, which then started
-// below the fold. The bar keeps them one tap away.
-// Data is mirrored from the existing UI (chips + #sas-code) via observers, so
-// there is no second source of truth; chip prefixes/checkmarks are stripped.
+// participant chips and verified data above the video, which then started below the fold.
+// The bar keeps them one tap away.
+// Data is mirrored from the existing UI (the identity chips) via an observer, so there is no
+// second source of truth.
 (function initTrustBar() {
-  const trustBar = $('trust-bar'), trustNames = $('trust-names'), trustSas = $('trust-sas');
-  if (!trustBar || !trustNames || !trustSas) return;
+  const trustBar = $('trust-bar'), trustNames = $('trust-names');
+  if (!trustBar || !trustNames) return;
   const refreshTrust = () => {
     const inCall = document.body.classList.contains('in-call');
     trustBar.hidden = !inCall;
     if (!inCall) return;
-    // The other side only: who you are is no news to you, and on a phone two names next to the
-    // security code left room for neither. Straight from the status, not read back out of the chip
-    // text: cutting "Gastgeber:in: Erika M." at the first colon left every guest with "in: Erika M.".
+    // The other side only: who you are is no news to you, and on a phone two names left room
+    // for neither. Straight from the status, not read back out of the chip text: cutting
+    // "Gastgeber:in: Erika M." at the first colon left every guest with "in: Erika M.".
     const m = lastStatusMsg;
     const clean = ((m && m.peers) || []).filter((p) => p.name).map((p) => titleCase(p.name));
     // Without names, say whether anyone is verified at all — "Verifizierter Anruf" over a call
@@ -5056,10 +4857,6 @@ function applyDynamicType() {
     const anyVerified = !!(m && (presentedOf(m.self) || (m.peers || []).some(presentedOf)));
     trustBar.classList.toggle('unverified', !anyVerified);
     trustNames.textContent = clean.length ? clean.join(' ↔ ') : t(anyVerified ? 'Verifizierter Anruf' : 'Anruf ohne Ausweisprüfung');
-    trustSas.textContent = (sasCode.textContent || '').trim();
-    // Screen readers hear "Sicherheitscode" before the symbols — without a code (group call) not at all.
-    const sasLabel = $('trust-sas-label');
-    if (sasLabel) sasLabel.hidden = !trustSas.textContent;
   };
   trustBar.addEventListener('click', () => {
     const open = document.body.classList.toggle('trust-open');
@@ -5068,7 +4865,6 @@ function applyDynamicType() {
   const obs = new MutationObserver(refreshTrust);
   const idsBox = $('identities');
   if (idsBox) obs.observe(idsBox, { subtree: true, childList: true, characterData: true });
-  obs.observe(sasCode, { subtree: true, childList: true, characterData: true });
   obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   refreshTrust();
 })();

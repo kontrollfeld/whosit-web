@@ -83,7 +83,7 @@
  * Applies (a) automatically via OS preference unless the user forced light,
  * (b) when the user forced dark (html[data-theme] set by theme.js).
  * The video stage keeps its own always-dark literals: a bright stage would wash out the
- * video and the SAS overlay, so it does not follow the light theme. */
+ * video, so it does not follow the light theme. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b1220;
@@ -908,27 +908,6 @@ details.policy-note .policy-official { font-style: italic; }
 .info-btn:focus-visible + .tooltip,
 .info-wrap:focus-within .tooltip { opacity: 1; visibility: visible; }
 
-/* ---- SAS security code ---- */
-.sas-row { display: flex; align-items: center; gap: 14px; }
-.sas-row .h-ic { flex: none; width: 22px; height: 22px; }
-.sas-text { flex: 1; min-width: 0; }
-.sas-text .field-label { margin: 0 0 2px; }
-.sas-text .hint { margin: 0; }
-.sas-code {
-  flex: none;
-  font-size: 1.35rem;
-  letter-spacing: 0.18em;
-  padding: 8px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  user-select: all;
-}
-@media (max-width: 560px) {
-  .sas-row { flex-wrap: wrap; }
-  .sas-code { flex-basis: 100%; text-align: center; }
-}
-
 /* ---- call banner (audio / chat) ---- */
 .banner { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 600; color: var(--navy); }
 .banner-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); animation: pulse 2s ease-in-out infinite; }
@@ -1494,8 +1473,8 @@ body.in-call .app-tabbar { display: none; }
 .settings-state { font-size: 0.86rem; color: var(--text-muted); }
 
 /* ---- in-call trust bar (app and website) ---------------------------------
- * During a call the pre-call blocks (participant chips, verified data, SAS card) collapse into
- * one slim bar: shield + names + SAS code. Tapping toggles body.trust-open which brings the
+ * During a call the pre-call blocks (participant chips, verified data) collapse into one slim
+ * bar: shield + names. Tapping toggles body.trust-open which brings the
  * original cards back. Until 2026-10-28 only the app had it; on a phone browser those cards
  * pushed the video below the fold. The status line stays: it is where a failing connection
  * explains itself. */
@@ -1516,16 +1495,8 @@ body.in-call .trust-bar:hover:not(:disabled) { transform: none; filter: none; ba
 /* The connection is stuttering (see onconnectionstatechange): no green while it recovers. */
 body.link-shaky .trust-bar .t-ic { color: var(--warn-text); }
 .trust-bar .trust-names { flex: 1 1 0; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trust-bar .trust-sas { flex: none; margin-left: auto; font-size: 0.95rem; letter-spacing: 2px; }
-/* Large text (Dynamic Type): the code moves to a second row rather than squeezing the name to "E…". */
-body.in-call .trust-bar { flex-wrap: wrap; }
 /* --text-muted, not --text-faint: a control's icon needs 3:1 against its surface (WCAG 1.4.11). */
 .trust-bar .trust-chev { width: 16px; height: 16px; flex: none; color: var(--text-muted); transition: transform var(--t); }
-/* Read by screen readers, not shown: "Sicherheitscode" before the symbols in the bar. */
-.sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-}
 .trust-bar[aria-expanded="true"] .trust-chev { transform: rotate(180deg); }
 /* Phone, in a call: the trust bar already says who and how; a status line repeating "Verbunden ✓"
    above it pushed the video down. It comes back for anything that needs attention. */
@@ -1542,8 +1513,7 @@ html.native-app body.in-call #stepper { display: none; }
 /* the informational blocks collapse behind the bar; body.trust-open restores them */
 body.in-call:not(.trust-open) #identities,
 body.in-call:not(.trust-open) #call-banner,
-body.in-call:not(.trust-open) #result,
-body.in-call:not(.trust-open) #sas-card { display: none; }
+body.in-call:not(.trust-open) #result { display: none; }
 
 /* ---- setup wizard (mobile/app) ------------------------------------------
  * On small screens / in the native app the host setup becomes a 4-step flow:

@@ -4,9 +4,7 @@
 #
 # Why at all: without TURN every call fails where no direct connection can be established —
 # typically on mobile networks (5G/LTE), because carrier NAT is usually symmetric. The symptom:
-# both sides see their own picture, neither sees the other. The security code still appears,
-# because it is computed from the DTLS fingerprints in the SDP and proves nothing about media
-# actually flowing.
+# both sides see their own picture, neither sees the other.
 #
 # Difference from ../../docker-compose.yml: the self-host stack mounts
 # `deploy/coturn/turnserver.conf`. Here EVERYTHING is a CLI flag, so this file works as a Coolify
