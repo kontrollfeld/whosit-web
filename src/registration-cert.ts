@@ -28,8 +28,14 @@
  * apps/backend/src/registrar/registration-certificate.service.ts
  * (`validateRegistrationCertificate`, `dcqlCredentialFingerprint`, `canonicalJson`).
  * EUDIPLO 9 compares `{ format, claims: [{ path }], meta }` only — still exact and in order, but
- * it ignores `intent_to_retain`. This mirror keeps the stricter 8.0.2 rule: whatever passes here
- * passes there too, and a certificate that works today keeps working against either version.
+ * it ignores `intent_to_retain`. This mirror follows EUDIPLO 9: certificates from the EUDI Hub
+ * list claims by path alone, so the 8.0.2 rule would refuse every mdoc query against them. With
+ * EUDIPLO 8.0.2 an mdoc query then passes here and fails there — use EUDIPLO 9 with Hub
+ * certificates.
+ *
+ * A certificate may list several entries per format — one per combination of claims an instance
+ * asks for. Every requested credential must match ONE of them exactly; the certificate may hold
+ * more.
  */
 import { readFileSync } from 'node:fs';
 import type { DcqlQuery } from './credential-profiles';
@@ -107,10 +113,11 @@ export function canonicalJson(value: unknown): string {
   return `{${Object.keys(obj).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(',')}}`;
 }
 
-/** The part of a credential entry EUDIPLO compares. DCQL-only fields (`id`,
+/** The part of a credential entry EUDIPLO 9 compares: format, meta and the claims' paths. DCQL-only fields (`id`,
  *  `trusted_authorities`, …) are not part of a registration and drop out. */
 export function registrableShape(cred: any): { format: unknown; claims: unknown; meta: unknown } {
-  const claims = Array.isArray(cred?.claims) ? cred.claims : Array.isArray(cred?.claim) ? cred.claim : undefined;
+  const raw = Array.isArray(cred?.claims) ? cred.claims : Array.isArray(cred?.claim) ? cred.claim : undefined;
+  const claims = raw?.map((c: any) => ({ path: c?.path }));
   return { format: cred?.format, claims, meta: cred?.meta && typeof cred.meta === 'object' ? cred.meta : {} };
 }
 

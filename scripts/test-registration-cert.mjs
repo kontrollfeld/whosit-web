@@ -49,7 +49,7 @@ console.log('1. coverage check');
   let j = {};
   try { j = JSON.parse(r.out); } catch {}
   check('key order irrelevant, DCQL-only fields ignored', j.same === 0, r.out || r.err);
-  check('a missing intent_to_retain is a mismatch (EUDIPLO 8.0.2 compares exactly)', j.noRetainFlag === 1, r.out);
+  check('a missing intent_to_retain still matches (EUDIPLO 9 compares paths; Hub certificates carry no flag)', j.noRetainFlag === 0, r.out);
   check('no credentials claim covers nothing', j.none === 1, r.out);
   check('an empty query needs no coverage', j.empty === 0, r.out);
 }
@@ -93,28 +93,41 @@ console.log('3. helper output covers what is sent');
     const res = {};
     try { await ensureVerifierConfig('pid1', buildDcql(selectedProfiles(), ['given_name', 'family_name']), 'pid'); res.pid = 'ok'; } catch (e) { res.pid = 'threw:' + e.message; }
     try { await ensureVerifierConfig('cat1', { credentials: [{ id: 'w', format: 'dc+sd-jwt', meta: { vct_values: ['x'] }, claims: [{ path: ['a'] }] }] }, 'catalog'); res.cat = 'ok'; } catch (e) { res.cat = 'threw:' + e.message; }
-    res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body }));
+    res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body, access: b.accessKeyChainId }));
     console.log(JSON.stringify(res));
     })();`;
   const egressEnv = { EUDIPLO_BASE_URL: 'http://verifier.test', EUDIPLO_CLIENT_ID: 'tenant', EUDIPLO_CLIENT_SECRET: 's' };
   const covered = tsx(code, { ...egressEnv, EUDI_REGISTRATION_CERT: cert });
   let c = {};
   try { c = JSON.parse(covered.out.split('\n').pop()); } catch {}
-  check('covered PID config carries the certificate', c.pid === 'ok' && c.bodies?.find((b) => b.id === 'pid1')?.cert === true, covered.out || covered.err);
-  check('uncovered catalog config goes out without it', c.cat === 'ok' && c.bodies?.find((b) => b.id === 'cat1')?.cert === false, covered.out);
+  check('covered PID config carries the certificate', c.pid === 'ok' && c.bodies?.find((b) => b.id.startsWith('pid1_'))?.cert === true, covered.out || covered.err);
+  check('uncovered catalog config goes out without it', c.cat === 'ok' && c.bodies?.find((b) => b.id.startsWith('cat1_'))?.cert === false, covered.out);
   const narrow = tsx(code, { ...egressEnv, EUDI_REGISTRATION_CERT: jwtFor({ credentials: [] }) });
   let n = {};
   try { n = JSON.parse(narrow.out.split('\n').pop()); } catch {}
-  check('uncovered PID config is refused before EUDIPLO sees it', String(n.pid).startsWith('threw:') && !n.bodies?.some((b) => b.id === 'pid1'), narrow.out || narrow.err);
+  check('uncovered PID config is refused before EUDIPLO sees it', String(n.pid).startsWith('threw:') && !n.bodies?.some((b) => b.id.startsWith('pid1')), narrow.out || narrow.err);
   const none = tsx(code, egressEnv);
   let z = {};
   try { z = JSON.parse(none.out.split('\n').pop()); } catch {}
   const zp = z.bodies?.find((b) => b.id === 'pid1');
   check('without a JWT the PID config asks EUDIPLO to issue one (purpose only)', z.pid === 'ok' && !zp?.cert && zp?.body?.purpose?.[0]?.content?.length > 0 && !('credentials' in (zp?.body ?? {})), none.out || none.err);
   check('…and a catalog config carries no spec', !z.bodies?.find((b) => b.id === 'cat1')?.body, none.out);
+  check('without an own certificate the config id is the shared one', z.bodies?.some((b) => b.id === 'pid1') && !z.bodies?.some((b) => b.access), none.out);
+
+  console.log('4b. access certificate per instance');
+  const own = tsx(code, { ...egressEnv, EUDIPLO_ACCESS_KEY_CHAIN_ID: 'hub-sandbox' });
+  let o = {};
+  try { o = JSON.parse(own.out.split('\n').pop()); } catch {}
+  const op = o.bodies?.find((b) => b.id.startsWith('pid1_'));
+  check('EUDIPLO_ACCESS_KEY_CHAIN_ID goes into the config', op?.access === 'hub-sandbox' && o.bodies?.every((b) => b.access === 'hub-sandbox'), own.out || own.err);
+  check('…under an id of its own, so instances signing differently do not overwrite each other', !!op && !o.bodies?.some((b) => b.id === 'pid1'), own.out);
+  const bad = tsx(code, { ...egressEnv, EUDIPLO_ACCESS_KEY_CHAIN_ID: 'no spaces allowed' });
+  let x = {};
+  try { x = JSON.parse(bad.out.split('\n').pop()); } catch {}
+  check('an invalid key chain id is refused', String(x.pid).startsWith('threw:'), bad.out || bad.err);
 
   // statusCheckMode: omitted by default, sent on every config when set, dropped when invalid.
-  const modeCode = code.replace("res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body }));",
+  const modeCode = code.replace("res.bodies = bodies.map((b) => ({ id: b.id, cert: !!b.registration_cert?.jwt, body: b.registration_cert?.body, access: b.accessKeyChainId }));",
     "res.modes = bodies.map((b) => b.statusCheckMode ?? null);");
   const modes = (env) => { const r = tsx(modeCode, { ...egressEnv, ...env }); try { return JSON.parse(r.out.split('\n').pop()).modes; } catch { return r.out || r.err; } };
   check('statusCheckMode is omitted by default', JSON.stringify(modes({})) === '[null,null]', JSON.stringify(modes({})));

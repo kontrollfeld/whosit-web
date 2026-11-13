@@ -35,6 +35,7 @@ import { X509Certificate } from 'node:crypto';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { decodeJwtPayload, registrationCert } from './registration-cert';
+import { accessKeyChainId } from './eudiplo';
 import type { RelyingPartyDisclosure } from './relying-party';
 
 export interface CertificateInfo {
@@ -188,7 +189,11 @@ export async function collectVerifierStatus(s: StatusSources): Promise<VerifierS
     const chains = await s.get('/api/key-chain?usageType=access');
     const list = Array.isArray(chains) ? chains : [];
     status.accessCertificates = list.length;
-    const first = list.find((c: any) => c?.activeCertificate) ?? list[0];
+    // The one this instance signs with: the configured key chain, else the tenant's first.
+    const wanted = (() => { try { return accessKeyChainId(); } catch { return null; } })();
+    const first = (wanted ? list.find((c: any) => c?.id === wanted) : undefined)
+      ?? list.find((c: any) => c?.activeCertificate) ?? list[0];
+    if (wanted && !list.some((c: any) => c?.id === wanted)) status.problems.push(`access certificate: EUDIPLO_ACCESS_KEY_CHAIN_ID=${wanted} is not a key chain of type "access" in this tenant`);
     status.accessCertificate = first ? certificateInfo(first.activeCertificate?.pem, first.activeCertificate ?? {}) : null;
     if (!list.length) status.problems.push('no access certificate: the tenant has no key chain of type "access"');
   } catch (e) { status.problems.push(why('access certificate', e)); }

@@ -24,7 +24,7 @@ import { readOperatorPages, resolveOperatorPage, resolveOperatorHome, availableM
   readImprint, renderImprint, resolveOperatorSitePath, resolveOperatorRedirect, resolveOperatorNotFound } from './operator-pages';
 import { readOperatorUi } from './operator-ui';
 import { readPrivacy, renderPrivacy, type PrivacyFacts } from './privacy-notice';
-import { createVerifierOffer, confirmedPresentation, extractNames, ensureVerifierConfig, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
+import { createVerifierOffer, confirmedPresentation, extractNames, ensureVerifierConfig, verifierConfigId, isVerificationSuccess, failureLogSuffix, verifierTenantId, isDefaultVerifierTenant, verifierHost, verifierGet, registeredPidConfigIds } from './eudiplo';
 import { refreshVerifierStatus, type StatusSources } from './verifier-status';
 
 import { relyingParty, relyingPartyWarning } from './relying-party';
@@ -146,7 +146,7 @@ async function registerScopeConfig(): Promise<void> {
   const profiles = selectedProfiles();
   const id = configId(profiles.map((p) => p.id), attrs);
   await ensureVerifierConfig(id, buildDcql(profiles, attrs), 'pid');
-  scopeConfigId = id;
+  scopeConfigId = verifierConfigId(id);
 }
 
 function verifierStatusSources(): StatusSources {

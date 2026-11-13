@@ -14,6 +14,7 @@
 import type { DcqlQuery } from './credential-profiles';
 import { normalizeClaims, permittedPidClaimPaths } from './credential-profiles';
 import { PolicyViolationError, WRP_PURPOSE_ID, WRP_PURPOSE_TEXT } from './wrp-policy';
+import { createHash } from 'crypto';
 import { registrationCert, uncoveredCredentials } from './registration-cert';
 
 /**
@@ -217,6 +218,33 @@ function extractOffer(data: any): Offer {
   return { uri, crossDeviceUri, ...(typeof sessionId === 'string' && sessionId ? { sessionId } : {}) };
 }
 
+/**
+ * Which access certificate signs this instance's requests: the id of an EUDIPLO key chain of type
+ * `access` (EUDIPLO_ACCESS_KEY_CHAIN_ID). Unset, EUDIPLO uses the tenant's default. Set it when the
+ * tenant holds more than one — for instance one per registrar environment, or the certificate of
+ * a new registrar next to the old one while instances move over one by one.
+ */
+export function accessKeyChainId(): string | null {
+  const v = (process.env.EUDIPLO_ACCESS_KEY_CHAIN_ID || '').trim();
+  if (!v) return null;
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(v)) throw new Error('EUDIPLO_ACCESS_KEY_CHAIN_ID: only letters, digits, . _ - (max 128)');
+  return v;
+}
+
+/**
+ * The id under which a config is registered at EUDIPLO. Configs are shared by every instance of
+ * a tenant that asks for the same thing (see credential-profiles' pidConfigId) — fine while they
+ * also sign alike. An instance with its own access certificate or its own imported registration
+ * certificate gets its own config: otherwise the instance registering last would set both for
+ * all the others.
+ */
+export function verifierConfigId(id: string): string {
+  const access = accessKeyChainId();
+  const reg = (() => { try { return registrationCert()?.jwt ?? null; } catch { return null; } })();
+  if (!access && !reg) return id;
+  return `${id}_${createHash('sha1').update(`${access ?? ''}|${reg ?? ''}`).digest('hex').slice(0, 8)}`;
+}
+
 const registeredConfigs = new Set<string>();
 /** The PID configs this process registered, in order — what ./verifier-status reads back. */
 const registeredPidConfigs: string[] = [];
@@ -349,12 +377,14 @@ async function warnIfRegistrarMissing(token: string): Promise<void> {
  *  built profile-aware by `credential-profiles.buildDcql` (mdoc and/or SD-JWT etc.).
  *  `kind: 'pid'` additionally enforces the WRP whitelist — see assertPidQueryWithinPolicy.
  *  The check runs BEFORE the registration cache, so a cached id can't skip it. */
-export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: VerifierConfigKind): Promise<void> {
+export async function ensureVerifierConfig(logicalId: string, dcql: DcqlQuery, kind: VerifierConfigKind): Promise<void> {
   if (kind === 'pid') assertPidQueryWithinPolicy(dcql);
+  const id = verifierConfigId(logicalId);
+  const access = accessKeyChainId();
   if (registeredConfigs.has(id)) return;
   const formats = [...new Set(dcql.credentials.map((c) => c.format))].join('+');
   const purpose = kind === 'pid' ? ` purpose=${WRP_PURPOSE_ID}` : '';
-  const regCert = registrationCertFor(id, dcql, kind);
+  const regCert = registrationCertFor(logicalId, dcql, kind);
   const statusMode = statusCheckMode();
   const body = {
     id,
@@ -365,6 +395,7 @@ export async function ensureVerifierConfig(id: string, dcql: DcqlQuery, kind: Ve
     dcql_query: dcql,
     // EUDIPLO puts it into the request object as `verifier_info` — see ./registration-cert.
     ...(regCert ? { registration_cert: regCert } : {}),
+    ...(access ? { accessKeyChainId: access } : {}),
   };
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(attempt === 1);
@@ -467,7 +498,7 @@ export async function createVerifierOffer(
 ): Promise<Offer> {
   const payload: Record<string, unknown> = {
     response_type: 'uri',
-    requestId,
+    requestId: verifierConfigId(requestId),
     // Channel binding (see ./channel-binding). PER SESSION, not per configuration — the
     // fingerprint belongs to this one call, whereas the configuration is shared. EUDIPLO
     // prefers the session value over the configured one (oid4vp.service.ts).
