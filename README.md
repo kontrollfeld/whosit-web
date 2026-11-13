@@ -295,9 +295,12 @@ config until the query changes or the certificate expires. You need:
 **Alternative: import a certificate.** If you already have a JWT from the registrar, set
 `EUDI_REGISTRATION_CERT_FILE` (path) or `EUDI_REGISTRATION_CERT` (the JWT itself). This route
 still needs the registrar configuration from point 1, and the certificate must list **every**
-query exactly. EUDIPLO 8.0.2 compares the canonical JSON of `{ format, claims, meta }`, claims in
-order, including `intent_to_retain: false` on mdoc; 9.x compares only the claim paths, still in
-order. The app checks the stricter rule, so a certificate it accepts works with both. `npm run wrprc:credentials` prints the list to
+query exactly. EUDIPLO 9.x compares `{ format, claims, meta }` by the claims' paths, in order;
+8.0.2 also compares `intent_to_retain: false` on mdoc. The app checks the 9.x rule — certificates
+from the German EUDI Hub (eudi-hub.gov.de, web interface only) list paths alone — so use EUDIPLO 9
+with imported certificates. A room may ask for any non-empty subset of the attributes, and each
+subset is its own entry: one certificate can hold all of them (one credential entry per subset and
+format in the Hub's credential request). `npm run wrprc:credentials` prints the list to
 apply for (run it on the server, because profiles and policy change it), and
 `npm run wrprc:credentials -- --check` names what is missing. The app refuses an uncovered PID
 query with a clear message instead of letting EUDIPLO answer the wallet with a bare 400. At
@@ -665,6 +668,7 @@ Full template: [`.env.selfhost.example`](.env.selfhost.example).
 | `VERIFIER_REQUEST_ID` | Fallback verifier ID (normally computed per attribute set) |
 | `EUDI_PRIVACY_POLICY_URL` / `EUDI_SUPPORT_URI` | *(optional)* Privacy policy and support contact for the registration certificate; otherwise the tenant's registrar defaults apply. See [Registration certificate](#registration-certificate-wrprc) |
 | `EUDI_REGISTRATION_CERT_FILE` / `EUDI_REGISTRATION_CERT` | *(optional)* Import a registration certificate (JWT) instead of having EUDIPLO issue one |
+| `EUDIPLO_ACCESS_KEY_CHAIN_ID` | *(optional)* The EUDIPLO key chain (type `access`) that signs this instance's requests; unset, the tenant's default. With it, or with an imported registration certificate, the instance registers its verifier configs under ids of its own |
 | `EUDI_TRUST_LIST_IDS` | Id(s) of the trust list(s) on your EUDIPLO instance that decide which PID issuers are accepted — the last path segment of `…/issuers/<tenant>/trust-list/<id>` |
 | `EUDI_STATUS_CHECK_MODE` | *(optional, EUDIPLO 9.1)* `strict` (default), `best_effort` or `disabled`: what happens when the issuer's status list cannot be fetched. Under `strict`, a status list that returns 404 rejects every PID, reported by EUDIPLO as `trust_list_unavailable`. Sent with every verifier config; relax it only against a sandbox, and a start warns while it is relaxed |
 | `ALLOWED_ORIGINS` | *(optional)* permitted WebSocket origins (CSWSH protection); default: same host |
