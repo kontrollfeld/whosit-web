@@ -3783,9 +3783,9 @@ async function lightLetter(ctl, letter, { flash = false, clock } = {}) {
 function updateRing(active) {
   ring.active = active;
   if (!ringAllowed() || !roomId) return;
-  const sw = $('ring-sound');
-  if (sw && !ended) sw.hidden = false;
   if (!ring.ctl) { const p = loadHeaderRing(); if (p) p.then((c) => { if (c) updateRing(ring.active); }); return; }
+  const sw = $('ring-sound');
+  if (sw && !ended) sw.hidden = false; // with the ring, not before (no ring if the file failed to load)
   if (ended) return restRing();
   const want = {
     Q: true,
