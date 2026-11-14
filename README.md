@@ -807,22 +807,30 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   when the page becomes visible again).
 - A new data channel learns the current mute/camera state, so "join muted" and late joiners show
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
-- **The whosit sound mark** (`public/sounds/`): the Morse code QRZ ("who is calling me?"). The
-  whole mark plays once for everyone when a call connects — and that is the only sound of a call
-  (since 2026-11-02: no arrival sound any more, and the mark is never replayed when a call ends;
-  a guest's arrival still shows in the tab title and as a system notification). The answer alone
-  is what the "Töne" switch plays when turned on.
+- **The whosit sound mark** (`public/sounds/`): the Morse code QRZ ("who is calling me?"). Since
+  2026-11-14 it is heard letter by letter along the steps of a call, together with the logo's ring
+  (below): Q, R and Z each with its own tones, 26 dB under the mark's full level — a hint, not a
+  signal. Whoever goes through the whole flow has heard the mark once; during the call nothing
+  else sounds (since 2026-11-02: no arrival sound any more, and nothing when a call ends; a guest's
+  arrival still shows in the tab title and as a system notification). Turning the "Töne" switch on
+  plays the Q at the same level.
   Instances with operator branding keep a neutral two-tone chime and never play the mark.
   "Branding" means an operator NAME (`EUDI_BRAND_NAME`), as for the `branded` class: a logo alone
   is not one (www.whosit.eu sets `EUDI_BRAND_LOGO` to our own mark — until 2026-10-29 that silenced
   the mark there and hid the whosit background). Brand assets like the logo: copied unchanged from the media kit, see the README there.
 - **The logo animation** (`public/logo-animation.js` / `.css`, the one approved animation of the
-  logo, see `public/logo/README.md`): once when a call connects, in step with the sound mark, as a
-  light card in the middle that lets taps through and fades after about 3 s. Only on unbranded
-  instances, not with "reduce motion", independent of the "Töne" switch (it is silent). The logo
-  file is fetched on the first gesture together with the sound mark, so picture and sound start
-  together.
-  The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`): Web Audio's
+  logo, see `public/logo/README.md`) along the steps of a call: the ring's three letters are the
+  three steps. Q lights when the call is being set up, R when everyone has identified and only
+  "Verbinden" is left, Z when it connects; a letter not reached yet stays faint. In a call where
+  nobody presented anything the R stays faint and silent, and star and tick do not flash — the gap
+  says that nobody was checked. Shown in the header logo (light theme; the animation uses the
+  colour file) and, for the Z, as a light card in the middle that lets taps through and fades
+  after about 3 s. Only on unbranded instances; with "reduce motion" the letters change without
+  moving and there is no card. After the call the logo is the file again. The logo file is fetched
+  on the first gesture together with the sound mark, so picture and sound start together; a Q
+  that came before any gesture is heard at the first tap.
+  The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`, for the ring
+  `steps(svg).light(letter, { clock })`): Web Audio's
   start time minus the output latency in the call, the media element's `currentTime` at app start
   (it loads first, then plays) — a late sound no longer leaves the picture ahead.
   In the **app**, a page of its own greets once per launch (`#app-intro`, `playAppIntro`, since

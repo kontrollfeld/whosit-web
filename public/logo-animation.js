@@ -20,6 +20,9 @@
      const svg = await whositLogoAnimation.load('logo/logo-horizontal-colour.svg');
      box.appendChild(svg); box.classList.add('la-play');     // CSS: logo-animation.css
 
+   Along the steps of a call the same pieces and tones are split into the three letters, Q R Z
+   (steps(), below; brand owner, 2026-11-14).
+
    The media kit renders its films and the standalone animation from this file too — change the
    choreography here, not there. Never anything but the colour file on light ground (see
    public/logo/README.md). */
@@ -92,9 +95,82 @@
     });
   }
 
+  /* ---- the same animation along the steps of a call (brand owner, 2026-11-14) ----
+     The three letters of the ring are the three steps: Q when the call is set up, R when
+     everyone has identified, Z when it connects. A letter not reached yet stays faint; each
+     letter lights piece by piece with its own tones of the sound mark, so whoever goes through
+     the whole flow has heard the whole mark once. Star and tick flash only after the Z of a
+     verified call. The resting picture outside a call is still the file (rest()). */
+  var LETTERS = {
+    Q: { pieces: [0, 1, 2, 3], from: 0.0, to: 0.93 },
+    R: { pieces: [4, 5, 6], from: 0.93, to: 1.53 },
+    Z: { pieces: [7, 8, 9, 10], from: 1.53, to: 2.45 },
+  };
+  var FLASH_AT = 2.364;
+
+  /** A controller for one built svg: set() shows which letters are reached, without motion;
+   *  light() lights one letter tone by tone (opts.clock as in play()), opts.flash adds star and
+   *  tick after the Z; rest() returns to the file. */
+  function steps(svg) {
+    var arcs = Array.prototype.slice.call(svg.querySelectorAll('.la-arc'));
+    var run = 0;
+    function mark(letter, on) {
+      LETTERS[letter].pieces.forEach(function (k) { arcs[k].classList.toggle('la-lit', on); });
+    }
+    function flash() {
+      svg.classList.remove('la-flash');
+      void svg.getBoundingClientRect();
+      svg.classList.add('la-flash');
+      setTimeout(function () { svg.classList.remove('la-flash'); }, 900);
+    }
+    return {
+      letters: LETTERS,
+      set: function (state) {
+        run++;
+        svg.classList.add('la-steps');
+        Object.keys(LETTERS).forEach(function (l) { mark(l, !!state[l]); });
+      },
+      light: function (letter, opts) {
+        var L = LETTERS[letter], clock = opts && opts.clock, withFlash = !!(opts && opts.flash);
+        var mine = ++run, t0 = performance.now(), done = {}, flashed = !withFlash;
+        svg.classList.add('la-steps');
+        var end = (withFlash ? FLASH_AT : L.to) - L.from;
+        return new Promise(function (resolve) {
+          var finish = function () {
+            if (mine !== run) return resolve();
+            mark(letter, true);
+            if (!flashed) { flashed = true; flash(); }
+            resolve();
+          };
+          var tick = function () {
+            if (mine !== run) return resolve();
+            var t = clock ? clock() : L.from + (performance.now() - t0) / 1000;
+            if (typeof t !== 'number' || !isFinite(t)) t = L.from + (performance.now() - t0) / 1000;
+            L.pieces.forEach(function (k) {
+              if (!done[k] && t >= TONES[k]) { done[k] = true; arcs[k].classList.add('la-lit'); }
+            });
+            if (!flashed && t >= FLASH_AT) { flashed = true; flash(); }
+            if (Object.keys(done).length === L.pieces.length && flashed) return resolve();
+            requestAnimationFrame(tick);
+          };
+          // A hidden tab runs no animation frames: whatever has not lit by the end lights then.
+          setTimeout(finish, (end + 0.6) * 1000);
+          requestAnimationFrame(tick);
+        });
+      },
+      rest: function () {
+        run++;
+        svg.classList.remove('la-steps', 'la-flash');
+        arcs.forEach(function (a) { a.classList.remove('la-lit'); });
+      },
+    };
+  }
+
   window.whositLogoAnimation = {
     build: build,
     play: play,
+    steps: steps,
+    letters: LETTERS,
     load: function (url) { return fetch(url).then(function (r) { return r.text(); }).then(build); },
   };
 })();

@@ -1794,6 +1794,7 @@ const stepperEl = $('stepper');
 const STEPS_HOST = ['Einrichten & einladen', 'Ausweisen & zustimmen', 'Verbunden'];
 const STEPS_GUEST = ['Ausweisen', 'Zustimmen', 'Verbunden'];
 function updateStepper(active) {
+  updateRing(active);
   if (!stepperEl || soloMode || isEmbedded) return;
   const labels = myRole === 'callee' ? STEPS_GUEST : STEPS_HOST;
   stepperEl.innerHTML = '';
@@ -3200,7 +3201,7 @@ function revealCall() {
   syncMutedWatch();
   updateStepper(2);
   if (anyConnected()) callConnectedOnce = true;
-  if (!soundMarkPlayed && !ended && anyConnected()) { soundMarkPlayed = true; showLogoMoment({ sound: () => playSoundMark('connected', 0.45) }); }
+  if (!soundMarkPlayed && !ended && anyConnected()) { soundMarkPlayed = true; showLogoMoment(); }
   if (!embedConnectedSent) { embedConnectedSent = true; postToParent('connected', { mode }); }
   screenBtn.hidden = !screenShareSupported();
   handBtn.hidden = !capOn('hand-raise');
@@ -3283,6 +3284,7 @@ function showEnded(message) {
   document.body.classList.remove('in-call', 'trust-open', 'pre-start');
   document.body.classList.add('call-ended');
   hideStepper();
+  restRing();
   updateDocBtn();
   credreqPanel.hidden = true; credModal.hidden = true; credreqBtn.hidden = true; activeCredRequest = null;
   peersBox.hidden = true; chatBox.hidden = true; callBanner.hidden = true; callControls.hidden = true; reviewBox.hidden = true; resultBox.hidden = true; startBar.hidden = true;
@@ -3652,7 +3654,7 @@ function getAudioCtx() {
   return audioCtx;
 }
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
-for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); }, { passive: true, capture: true });
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); playPendingRingQ(); }, { passive: true, capture: true });
 
 /* "Töne" switch (footer on the website, a row in the app's settings): off silences the arrival
    chime and the sound mark, nothing else — the device check's test tone is asked for explicitly,
@@ -3684,14 +3686,14 @@ function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } ca
   i18nReady.then(render);
 })();
 
-/* The whosit sound mark: QRZ in Morse ("who is calling me?", public/sounds/README.md). The
-   "ohne Stimme" file when the other side arrives (a knock at the door), the whole mark once when a call
-   connects. Only without operator branding: an operator's call should not carry our mark, there
+/* The whosit sound mark: QRZ in Morse ("who is calling me?", public/sounds/README.md), heard letter
+   by letter with the logo's ring along the steps of a call (updateRing, showLogoMoment), and its Q
+   when the "Töne" switch is turned on. Only without operator branding: an operator's call should not carry our mark, there
    the neutral chime stays. Decoded once, after the first gesture (before it, nothing may sound).
    "Branded" means an operator NAME, exactly like the `branded` class (src/branding.ts): a logo
    alone is no operator brand — www.whosit.eu sets EUDI_BRAND_LOGO to our own mark. */
 const OPERATOR_BRANDED = !!(window.EUDI_BRANDING && window.EUDI_BRANDING.name);
-const SOUND_MARK = { arrival: 'sounds/whosit-klangzeichen-ohne-stimme.mp3', connected: 'sounds/whosit-klangzeichen.mp3' };
+const SOUND_MARK = { connected: 'sounds/whosit-klangzeichen.mp3' };
 const soundMarkBufs = {};
 let soundMarkLoad = null, soundMarkPlayed = false;
 function loadSoundMarks() {
@@ -3703,11 +3705,20 @@ function loadSoundMarks() {
   }));
   return soundMarkLoad;
 }
-/* The logo animation (public/logo-animation.js, the one approved animation of the logo) once when
-   a call connects, in step with the sound mark: a light card in the middle of the screen that lets
-   taps through and is gone after about 3 s. Only on unbranded instances (it is our logo), not with
-   "reduce motion". Independent of the "Töne" switch — it makes no sound. The logo file is fetched
-   with the sound mark (first gesture), so the picture does not lag behind the sound. */
+/* The logo animation (public/logo-animation.js, the one approved animation of the logo) along
+   the steps of a call (brand owner, 2026-11-14): the ring's three letters are the three steps.
+   Q lights when this side is in a call being set up, R when everyone has identified and only
+   "Verbinden" is left (it stays faint in a call where nobody presented anything: the gap says that
+   nobody was checked), Z when the call connects; star and tick flash after the Z of a verified call. Each letter lights with
+   its own tones of the sound mark, very quietly (RING_GAIN): a hint, not a signal. A letter not
+   reached yet is faint; outside a call, and after it, the logo is the file again.
+   Where: the header logo (light theme only — the animation uses the colour file) and, when the
+   call connects, a light card in the middle of the screen that lets taps through and is gone after
+   about 3 s (on a phone the header is hidden in a call). Only on unbranded instances (it is our
+   logo); with "reduce motion" the letters change without moving and there is no card. The tones
+   follow the "Töne" switch. The logo file is fetched with the sound mark (first gesture), so the
+   picture does not lag behind the sound. */
+const RING_GAIN = 0.025; // 26 dB under the sound mark's 0.5
 let logoMomentShown = false, logoMomentSvg = null;
 function loadLogoMoment() {
   if (OPERATOR_BRANDED || logoMomentSvg || !window.whositLogoAnimation) return logoMomentSvg;
@@ -3715,36 +3726,132 @@ function loadLogoMoment() {
   return logoMomentSvg;
 }
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-/** `sound`: starts the sound mark and returns its clock (seconds audible, see playSoundMark) or
- *  a promise of one, or a falsy value when nothing plays. The sound plays even when the picture
- *  does not (reduced motion); the picture follows the sound's clock, so a sound that starts late
- *  — a media element still loading, Bluetooth — does not leave the picture ahead of it. */
-async function showLogoMoment({ sound = null } = {}) {
-  const box = $('logo-moment');
-  const soundOnly = () => { if (sound) sound(); };
-  if (!box || OPERATOR_BRANDED || reducedMotion()) return soundOnly();
-  if (logoMomentShown) return soundOnly();
+const ring = { ctl: null, ready: null, state: { Q: false, R: false, Z: false }, active: 0, pendingQ: false };
+function ringAllowed() { return !OPERATOR_BRANDED && !soloMode && !isEmbedded && !!window.whositLogoAnimation; }
+/** Puts a built copy of the colour file in place of the header's <img>, once. */
+function loadHeaderRing() {
+  if (ring.ready || !ringAllowed()) return ring.ready;
+  const img = document.querySelector('.brand-official img.logo-hell');
+  if (!img) return null;
+  ring.ready = whositLogoAnimation.load('logo/logo-horizontal-colour.svg').then((svg) => {
+    const box = document.createElement('span');
+    box.className = 'logo-lockup logo-hell logo-ring';
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', img.alt);
+    box.appendChild(svg);
+    img.replaceWith(box);
+    ring.ctl = whositLogoAnimation.steps(svg);
+    if (ring.state.Q) ring.ctl.set(ring.state); // the call got ahead of the file
+    return ring.ctl;
+  }).catch(() => null);
+  return ring.ready;
+}
+/** Everyone present has done what the call asks of them, so the review is open and "Verbinden"
+ *  is all that is left — or the call is already past that point. */
+function everyoneIdentified(active) {
+  const m = lastStatusMsg;
+  if (active >= 2 || callStarted) return true;
+  const peersNow = (m && m.peers) || [];
+  return !!(m && m.self && m.self.verified && peersNow.length > 0 && peersNow.every((p) => p.verified));
+}
+/** Anyone in the call presented something — the same test as the trust bar's. */
+function callVerified() {
+  const m = lastStatusMsg;
+  return !!(m && (presentedOf(m.self) || (m.peers || []).some(presentedOf)));
+}
+/** Lights one letter of `ctl` with its tones; the picture follows the sound's clock. Without
+ *  sound (switched off, nothing decoded yet, no gesture yet) it lights on its own time, and a Q
+ *  keeps its tones for the next tap. */
+async function lightLetter(ctl, letter, { flash = false, clock } = {}) {
+  if (clock === undefined) {
+    if (soundMarkLoad) await soundMarkLoad;
+    clock = playSoundMark('connected', RING_GAIN, whositLogoAnimation.letters[letter]) || null;
+    if (!clock && letter === 'Q') ring.pendingQ = true;
+  }
+  const before = { ...ring.state, [letter]: false };
+  ctl.set(before);
+  if (reducedMotion()) { ctl.set({ ...before, [letter]: true }); return clock; }
+  await ctl.light(letter, { clock, flash });
+  return clock;
+}
+/** The header ring follows the stepper. Lighting is animated with tones; going back (agreement
+ *  withdrawn, call torn down) happens silently. Z is the logo moment's (showLogoMoment), here it
+ *  is only kept in step afterwards — on again after a renewed agreement, off when the call drops. */
+function updateRing(active) {
+  ring.active = active;
+  if (!ringAllowed() || !roomId) return;
+  if (!ring.ctl) { const p = loadHeaderRing(); if (p) p.then((c) => { if (c) updateRing(ring.active); }); return; }
+  if (ended) return restRing();
+  const want = {
+    Q: true,
+    R: everyoneIdentified(active) && callVerified(),
+    Z: logoMomentShown && callStarted && (ring.state.Z || anyConnected()),
+  };
+  const prev = ring.state;
+  if (want.Q === prev.Q && want.R === prev.R && want.Z === prev.Z) return;
+  ring.state = want;
+  if (want.R) ring.pendingQ = false;
+  const lit = ['Q', 'R'].filter((l) => want[l] && !prev[l]);
+  // Going back, keeping Z in step, or a page loaded in the middle of the flow: without motion.
+  if (!lit.length || (!prev.Q && want.R)) { ring.ctl.set(want); return; }
+  lightLetter(ring.ctl, lit[0]);
+}
+/** After the call: the logo is the file again. */
+function restRing() {
+  if (ring.ctl) ring.ctl.rest();
+  ring.state = { Q: false, R: false, Z: false };
+  ring.pendingQ = false;
+}
+/** A Q that came before any gesture is heard at the first tap — as long as R has not come yet. */
+function playPendingRingQ() {
+  if (!ring.pendingQ || ring.state.R || ended) return;
+  Promise.resolve(loadSoundMarks()).then(() => {
+    if (!ring.pendingQ || ring.state.R || ended) return;
+    if (playSoundMark('connected', RING_GAIN, whositLogoAnimation.letters.Q)) ring.pendingQ = false;
+  });
+}
+/** The call connected: the Z, in the header and on the card, once per page. */
+async function showLogoMoment() {
+  if (logoMomentShown || OPERATOR_BRANDED || !window.whositLogoAnimation) return;
   logoMomentShown = true;
+  ring.pendingQ = false;
+  const verified = callVerified();
+  if (soundMarkLoad) await soundMarkLoad;
+  const clock = playSoundMark('connected', RING_GAIN, whositLogoAnimation.letters.Z) || null;
+  ring.state = { Q: true, R: verified, Z: true };
+  if (ring.ctl && ringAllowed() && !ended) {
+    ring.ctl.set({ Q: true, R: verified, Z: false });
+    lightLetter(ring.ctl, 'Z', { flash: verified, clock });
+  }
+  const box = $('logo-moment');
+  if (!box || reducedMotion()) return;
   const svg = await loadLogoMoment();
-  if (!svg || box.classList.contains('la-play')) return soundOnly();
+  if (!svg || ended) return;
   if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
-  const clock = sound ? await Promise.resolve(sound()).catch(() => null) : null;
+  const card = whositLogoAnimation.steps(svg);
+  card.set({ Q: true, R: verified, Z: false });
   box.hidden = false; box.classList.remove('out');
-  await whositLogoAnimation.play(box, { clock: typeof clock === 'function' ? clock : null });
+  await card.light('Z', { clock, flash: verified });
+  await new Promise((r) => setTimeout(r, verified ? 700 : 400)); // the flash takes 0.7 s
   box.classList.add('out');
   setTimeout(() => { box.hidden = true; box.classList.remove('out'); }, 450);
 }
 
-function playSoundMark(kind, gain = 0.5) {
+/** `span`: only this part of the mark ({ from, to } in seconds — one letter of QRZ), faded out at
+ *  its end so the cut does not click. */
+function playSoundMark(kind, gain = 0.5, span = null) {
   const ctx = getAudioCtx(), buf = soundMarkBufs[kind];
   if (!soundsOn() || OPERATOR_BRANDED || !ctx || ctx.state !== 'running' || !buf) return false;
   const src = ctx.createBufferSource(), g = ctx.createGain();
-  g.gain.value = gain; src.buffer = buf;
-  const at = ctx.currentTime;
-  src.connect(g).connect(ctx.destination); src.start(at);
-  // The clock of this sound for the logo animation: seconds audible now, the output latency
-  // (Bluetooth, CarPlay: a lot) taken off.
-  return () => ctx.currentTime - at - (ctx.outputLatency || ctx.baseLatency || 0);
+  src.buffer = buf;
+  const at = ctx.currentTime, from = span ? span.from : 0;
+  const dur = span ? Math.min(span.to, buf.duration) - from : buf.duration;
+  g.gain.setValueAtTime(gain, at);
+  if (span) { g.gain.setValueAtTime(gain, at + Math.max(0, dur - 0.03)); g.gain.linearRampToValueAtTime(0.0001, at + dur); }
+  src.connect(g).connect(ctx.destination); src.start(at, from, dur);
+  // The clock of this sound for the logo animation: seconds of the mark audible now, the output
+  // latency (Bluetooth, CarPlay: a lot) taken off.
+  return () => from + ctx.currentTime - at - (ctx.outputLatency || ctx.baseLatency || 0);
 }
 
 /* Level of a microphone track. A disabled (muted) track reads as silence, so that one is measured
@@ -4216,7 +4323,9 @@ if (notifyBtn) {
 
 function playChime() {
   if (!soundsOn()) return;
-  if (playSoundMark('arrival', 0.6)) return;
+  // What "on" sounds like: the Q of the ring, at the ring's level — the switch promises no more.
+  const q = window.whositLogoAnimation && whositLogoAnimation.letters.Q;
+  if (q && playSoundMark('connected', RING_GAIN, q)) return;
   const ctx = getAudioCtx();
   if (!ctx || ctx.state !== 'running') return;
   const now = ctx.currentTime;

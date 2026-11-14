@@ -26,3 +26,16 @@
   100% { transform: scale(1); }
 }
 @keyframes la-tick { 0%, 100% { transform: none; } 40% { transform: scale(1.15); } }
+
+/* Along the steps of a call (steps() in logo-animation.js): the ring as its 11 pieces, a letter
+   not reached yet faint, a reached one in full. Star and tick flash after the Z of a verified call. */
+.la.la-steps .la-arcs { display: inline; }
+.la.la-steps .la-ring-file { opacity: 0; }
+.la.la-steps .la-arc { opacity: 0.2; transition: opacity 90ms linear; }
+.la.la-steps .la-arc.la-lit { opacity: 1; }
+.la.la-flash .la-star { animation: la-star 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+.la.la-flash .la-tick { animation: la-tick 0.5s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .la.la-steps .la-arc { transition: none; }
+  .la.la-flash .la-star, .la.la-flash .la-tick { animation: none; }
+}

@@ -48,6 +48,7 @@ code QRZ). See `public/logo/README.md`.
   (`EUDI_BRAND_*`). It is not a whosit logo and must not be shown for whosit itself.
 - If the logo does not fit somewhere: **ask**, do not adapt it.
 - **The one exception: the approved logo animation** (brand owner, 2026-11-13, "QRZ": the ring
-  builds up with the tones of the sound mark): `public/logo-animation.js` / `.css`, built at runtime from the unchanged colour file. Where
-  the logo is animated — the call, films, press — use exactly this, never another choreography or a
+  builds up with the tones of the sound mark): `public/logo-animation.js` / `.css`, built at runtime from the unchanged colour file. It is
+  played whole (app start, films, press) or, since 2026-11-14, along the steps of a call, one
+  letter per step. Where the logo is animated, use exactly this, never another choreography or a
   variant, and nothing like "Who is it? / Wer ist dran?" above it. See `public/logo/README.md`.
