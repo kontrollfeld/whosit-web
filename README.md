@@ -809,7 +809,8 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   the right badges. Audio calls play the remote sound from a hidden `<audio>` element.
 - **The whosit sound mark** (`public/sounds/`): the Morse code QRZ ("who is calling me?"). Since
   2026-11-14 it is heard letter by letter along the steps of a call, together with the logo's ring
-  (below): Q, R and Z each with its own tones, 26 dB under the mark's full level — a hint, not a
+  (below): Q, R and Z each with its own tones, 32 dB under the file (26 dB under its usual
+  playback level) — a hint, not a
   signal. Whoever goes through the whole flow has heard the mark once; during the call nothing
   else sounds (since 2026-11-02: no arrival sound any more, and nothing when a call ends; a guest's
   arrival still shows in the tab title and as a system notification). Turning the "Töne" switch on

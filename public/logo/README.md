@@ -24,7 +24,8 @@ It is played in exactly two ways (brand owner, 2026-11-14):
 - **Whole**, as above: at the app's start, in the media kit's films and the standalone animation.
 - **Along the steps of a call**, split into its three letters: Q when the call is being set up, R
   when everyone has identified and only "Verbinden" is left, Z when it connects; each letter
-  lights piece by piece with its own tones, 26 dB under the mark's full level, and a letter not
+  lights piece by piece with its own tones, 32 dB under the file (26 dB under the mark's
+  usual playback level), and a letter not
   reached yet stays faint (20 % opacity). Star and tick flash after the Z of a verified call only;
   in a call where nobody presented anything the R stays faint and silent. In the header logo and,
   for the Z, on the card in the middle of the screen. Outside a call the logo is the file.
