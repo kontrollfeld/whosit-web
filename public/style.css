@@ -291,6 +291,9 @@ header { margin-bottom: 22px; }
 /* The header logo during a call: a built copy of the colour file whose ring follows the steps
    (logo-animation.js steps(), app.js updateRing). */
 .logo-ring svg { display: block; width: 100%; height: auto; }
+/* "Töne" on/off next to it, only while the ring follows the call (app.js updateRing). */
+.ring-sound { flex: none; min-height: 32px; width: 32px; align-self: center; }
+.ring-sound[aria-pressed="false"] { color: var(--text-muted); }
 /* The whosit logo is the file from public/logo/, never rebuilt from mark plus text. The white
    version on dark ground, switched like the theme. On an instance with a name of its own
    (html.branded, set by the branding snippet in <head> before first paint) the operator's mark and

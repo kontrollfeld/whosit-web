@@ -3656,27 +3656,30 @@ function getAudioCtx() {
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
 for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); playPendingRingQ(); }, { passive: true, capture: true });
 
-/* "Töne" switch (footer on the website, a row in the app's settings): off silences the arrival
+/* "Töne" switch (footer on the website, a row in the app's settings, and next to the header logo
+   while its ring follows the steps of a call — the same setting in all places): off silences the
    chime and the sound mark, nothing else — the device check's test tone is asked for explicitly,
    the tab title and the system notification still say who arrived. Remembered per browser
    (`eudi_sounds`, like `eudi_theme`: a choice the visitor made, nothing leaves the device). */
 const SOUND_KEY = 'eudi_sounds';
 function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } catch { return true; } }
 (function initSoundToggle() {
-  const btn = $('sound-toggle');
-  if (!btn) return;
+  const btns = ['sound-toggle', 'ring-sound'].map($).filter(Boolean);
+  if (!btns.length) return;
   const ICON = {
     on: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/></svg>',
     off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>',
   };
   const render = () => {
     const on = soundsOn(), label = t(on ? 'Töne: an' : 'Töne: aus');
-    btn.innerHTML = ICON[on ? 'on' : 'off'];
-    btn.setAttribute('aria-pressed', String(on));
-    btn.setAttribute('aria-label', label);
-    btn.title = label;
+    for (const btn of btns) {
+      btn.innerHTML = ICON[on ? 'on' : 'off'];
+      btn.setAttribute('aria-pressed', String(on));
+      btn.setAttribute('aria-label', label);
+      btn.title = label;
+    }
   };
-  btn.addEventListener('click', async () => {
+  for (const btn of btns) btn.addEventListener('click', async () => {
     const on = !soundsOn();
     try { if (on) localStorage.removeItem(SOUND_KEY); else localStorage.setItem(SOUND_KEY, '0'); } catch {}
     render();
@@ -3780,6 +3783,8 @@ async function lightLetter(ctl, letter, { flash = false, clock } = {}) {
 function updateRing(active) {
   ring.active = active;
   if (!ringAllowed() || !roomId) return;
+  const sw = $('ring-sound');
+  if (sw && !ended) sw.hidden = false;
   if (!ring.ctl) { const p = loadHeaderRing(); if (p) p.then((c) => { if (c) updateRing(ring.active); }); return; }
   if (ended) return restRing();
   const want = {
@@ -3801,6 +3806,8 @@ function restRing() {
   if (ring.ctl) ring.ctl.rest();
   ring.state = { Q: false, R: false, Z: false };
   ring.pendingQ = false;
+  const sw = $('ring-sound');
+  if (sw) sw.hidden = true;
 }
 /** A Q that came before any gesture is heard at the first tap — as long as R has not come yet. */
 function playPendingRingQ() {
