@@ -835,12 +835,16 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   "Töne" switch, where the call stands (step name, "Schritt n von 3", who has identified) and the
   ONE thing to do next: "Verbinden ✓", "Anruf starten", the wallet or "Link kopieren". That button
   is a copy that presses the page's own button, which keeps its place, its checks and its label.
+  "Verbinden ✓" is the consent, so it is given with the review in view: pressed while the review
+  is out of view, it first scrolls the review up, and the next press connects.
   In the call it shows who is on the other side (the trust bar's names, whose tap it takes over:
   it opens what was verified), the call's duration and "Ende-zu-Ende verschlüsselt" (or that the
   connection is stalling), and every chat line except your own for 4 s — hand raised, screen or
   file shared, someone joined, a credential requested, a message —, with a count while the chat is
   out of view. Light ground in both themes, because the ring is the colour file. With the head,
-  the header's logo, the stepper, the trust bar and the status line's "Verbunden ✓" step back; in
+  the header's logo, the stepper, the trust bar and the status line's "Verbunden ✓" step back
+  (messages that need attention still show in the status line); a call without identification
+  shows its name line in the trust bar's warning colour; in
   the app the whole header row does. Only where the ring is: branded, embedded and solo calls keep
   the page as before.
   The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`, for the ring

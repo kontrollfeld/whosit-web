@@ -329,6 +329,9 @@ header { margin-bottom: 22px; }
 .ch-title { display: flex; align-items: center; gap: 7px; max-width: 100%; font-weight: 600; font-size: 0.95rem; color: var(--ch-text); }
 .ch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ch-ok { flex: none; width: 17px; height: 17px; border-radius: 50%; background: var(--ch-ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 11px no-repeat; }
+/* a call where nobody is verified says so in the trust bar's warning colour */
+.ch-title.unverified { color: #7a5200; }
+.ch-warn { flex: none; width: 17px; height: 17px; border-radius: 50%; background: #f0c36d url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a5200' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 7v6M12 17h.01'/%3E%3C/svg%3E") center / 12px no-repeat; }
 .ch-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.8rem; color: var(--ch-muted); font-weight: 400; }
 .ch-chip { display: inline-flex; padding: 1px 9px; border-radius: 999px; background: #f1f5f9; color: var(--ch-muted); font-size: 0.76rem; white-space: nowrap; }
 .ch-chip.ok { background: var(--ch-ok-soft); color: var(--ch-ok); }
@@ -343,7 +346,7 @@ header { margin-bottom: 22px; }
   animation: ch-drop 0.22s ease-out;
 }
 .ch-notice[hidden] { display: none; }
-.ch-notice-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ch-notice-text { flex: 1; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .ch-notice-btn { flex: none; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; color: var(--ch-accent); font-weight: 600; font-size: 0.84rem; }
 .ch-notice-btn:hover:not(:disabled) { background: none; transform: none; filter: none; text-decoration: underline; }
 @keyframes ch-drop { from { opacity: 0; transform: translateY(-6px); } }
@@ -352,8 +355,7 @@ header { margin-bottom: 22px; }
 body.has-head header .logo,
 body.has-head #stepper,
 body.has-head.in-call #trust-bar,
-body.has-head.in-call #status-bar[data-state="ok"],
-body.has-head.in-call #status-bar[data-state="info"] { display: none !important; }
+body.has-head.in-call #status-bar[data-state="ok"] { display: none !important; }
 /* the app names the stage in the status card's kicker; the head names it now */
 body.has-head .status-kicker { display: none !important; }
 /* Phone: logo and switch on top, where the call stands and the action below. */

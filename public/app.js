@@ -3821,7 +3821,13 @@ function restRing() {
    is out of view). Only where the ring is (ringAllowed): branded, embedded and solo instances
    keep their page as it was. Built on first use (callHead()), so calls made while the script is
    still loading find it. */
-function callHead() { return callHead.api || (callHead.api = initCallHead()); }
+function callHead() {
+  if (callHead.api) return callHead.api;
+  // Not built where it never shows (branded, embedded, solo) — asked again later, as solo mode and
+  // the branding are only known after the start.
+  if (!ringAllowed()) return { show() {}, step() {}, notice() {}, refresh() {} };
+  return (callHead.api = initCallHead());
+}
 function initCallHead() {
   const box = $('call-head');
   const none = { show() {}, step() {}, notice() {}, refresh() {} };
@@ -3857,6 +3863,8 @@ function initCallHead() {
       if (!t0) t0 = Date.now();
       const tb = $('trust-bar'), names = $('trust-names');
       const verified = !!tb && !tb.classList.contains('unverified');
+      title.classList.toggle('unverified', !verified);
+      if (!verified) { const b = document.createElement('span'); b.className = 'ch-warn'; b.setAttribute('aria-hidden', 'true'); title.appendChild(b); }
       if (verified) { const b = document.createElement('span'); b.className = 'ch-ok'; b.setAttribute('aria-hidden', 'true'); title.appendChild(b); }
       const n = document.createElement('span'); n.className = 'ch-name'; n.textContent = names ? names.textContent : '';
       title.appendChild(n);
@@ -3869,6 +3877,7 @@ function initCallHead() {
       logoBtn.setAttribute('aria-expanded', String(open));
     } else {
       t0 = 0;
+      title.classList.remove('unverified');
       status.removeAttribute('aria-expanded'); logoBtn.removeAttribute('aria-expanded');
       title.textContent = step.label;
       sub.appendChild(chip(t('Schritt {n} von {m}', { n: Math.min(step.i + 1, step.n), m: step.n })));
@@ -3892,7 +3901,18 @@ function initCallHead() {
 
   act.addEventListener('click', () => {
     if (inCall()) return toChat();
-    if (source && shown(source)) source.click();
+    if (!source || !shown(source)) return later();
+    // "Verbinden" is the consent: it is given with what will be shared in view. Out of view, the
+    // first press brings the review up; the next one, with the review there, connects.
+    const review = $('review');
+    if (source.id === 'confirm-btn' && review) {
+      const r = review.getBoundingClientRect(), bottom = window.innerHeight || document.documentElement.clientHeight;
+      if (r.bottom < box.getBoundingClientRect().bottom + 40 || r.top > bottom - 40) {
+        review.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
+        return;
+      }
+    }
+    source.click();
     later();
   });
   const toggleTrust = () => { const tb = $('trust-bar'); if (tb && inCall()) tb.click(); later(); };
@@ -3904,7 +3924,7 @@ function initCallHead() {
   obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-wkind'] });
   for (const id of ['review', 'review-actions', 'review-wait', 'confirm-btn', 'start-bar', 'auth', 'share', 'setup', 'trust-names', 'trust-bar', 'copy-label']) {
     const el = $(id);
-    if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden', 'disabled', 'class'], childList: true, characterData: true, subtree: id === 'copy-label' || id === 'trust-names' });
+    if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden', 'disabled', 'class'], childList: true, characterData: true, subtree: ['copy-label', 'trust-names', 'start-bar', 'auth'].includes(id) });
   }
   // Web: the logo shrinks to its smallest width (160 px) once the page has moved.
   // The setup wizard moves between its steps by classes inside its cards: a click is when that happens.
