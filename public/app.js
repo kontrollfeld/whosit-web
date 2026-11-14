@@ -4759,8 +4759,8 @@ function startPairedSigner(token) {
 }
 
 /* App start: a page of its own once per launch (index.html #app-intro, style.css "App intro") —
-   the logo animation with the sound mark played quietly (a −12 dB copy, see
-   public/sounds/README.md) on a sky whose colours move with the sound, then the app fades in
+   the logo animation with the sound mark played as quietly as the ring in a call (a −32 dB
+   copy, see public/sounds/README.md; −12 dB until 2026-11-14) on a sky whose colours move with the sound, then the app fades in
    underneath. A tap skips it. Not when the app opens on an invitation or comes back from the
    wallet (then the person wants the call, not a greeting), not on branded instances, not with
    "reduce motion"; silent when "Töne" is off. The head script shows the page from the first paint
@@ -4819,7 +4819,7 @@ function playAppIntro() {
    picture started at once and the sound came noticeably later on the phone). */
 async function startIntroSound() {
   if (!soundsOn()) return null;
-  const a = new Audio('sounds/whosit-klangzeichen-leise.mp3');
+  const a = new Audio('sounds/whosit-klangzeichen-hauch.mp3');
   a.preload = 'auto';
   await new Promise((r) => { a.addEventListener('canplaythrough', r, { once: true }); a.addEventListener('error', r, { once: true }); setTimeout(r, 1500); a.load(); });
   try { await a.play(); } catch { return null; }

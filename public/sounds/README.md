@@ -7,8 +7,9 @@ Played in `public/app.js`:
 letter by letter along the steps of a call, with the logo's ring (Q, R and Z, 26 dB under the
 file's level), and the Q when the "Töne" switch is turned on — only on instances without operator
 branding (an operator name); branded instances keep the neutral chime.
-`whosit-klangzeichen-leise.mp3` is the full mark 12 dB quieter, for the app's start (iOS ignores the
-volume of media elements, so the level is in the file).
+`whosit-klangzeichen-hauch.mp3` is the full mark 32 dB quieter, for the app's start: the same level
+as the ring in a call (since 2026-11-14; before, a copy 12 dB quieter). iOS ignores the volume of
+media elements, so the level is in the file.
 
 Like the logo, these are brand assets: copied unchanged from the media kit
 (`media-kit/klang/`, where the source scripts and the WAV originals live). The licence covers the

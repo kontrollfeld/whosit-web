@@ -834,8 +834,9 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   start time minus the output latency in the call, the media element's `currentTime` at app start
   (it loads first, then plays) — a late sound no longer leaves the picture ahead.
   In the **app**, a page of its own greets once per launch (`#app-intro`, `playAppIntro`, since
-  2026-10-31): the same logo animation with the sound mark 12 dB quieter
-  (`sounds/whosit-klangzeichen-leise.mp3`; iOS ignores media volume, so the level is in the file)
+  2026-10-31): the same logo animation with the sound mark 32 dB quieter, as quiet as the ring in a call
+  (`sounds/whosit-klangzeichen-hauch.mp3`, since 2026-11-14; until then 12 dB; iOS ignores media
+  volume, so the level is in the file)
   on a sky whose colours move with the sound — blue first, turquoise while the ring builds up, gold
   with the star; nothing moves over the logo itself (the waves and the glow were
   removed on 2026-11-05, so only the Morse signal reads) — then the app fades in underneath
