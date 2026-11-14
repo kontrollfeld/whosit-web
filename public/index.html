@@ -33,6 +33,29 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M8 2h8"/><path d="M7 15h10"/></svg>
       <span data-i18n-html><strong>Testbetrieb ohne Ausweisprüfung.</strong> Niemand in diesem Anruf ist per EUDI-Wallet verifiziert — Namen und Angaben werden nicht geprüft.</span>
     </div>
+    <!-- The call's head (since 2026-11-14): stays at the top while the page scrolls, from the
+         first step of a call to its end. The logo with its ring as the progress, the "Töne" switch,
+         where the call stands, and the one thing to do next — a copy of the page's own button, which
+         stays where it is (app.js initCallHead). In the call: who is on the other side, how long,
+         and what just happened. On light ground in both themes: the ring is the colour file. -->
+    <div id="call-head" class="call-head" hidden>
+      <div class="ch-card">
+        <div class="ch-logo">
+          <button type="button" id="ch-logo-btn" class="ch-logo-btn" aria-label="whosit — EUDI Verified Contact"></button>
+          <button id="ring-sound" class="theme-toggle ring-sound" type="button" aria-pressed="true" aria-label="Töne: an" hidden></button>
+        </div>
+        <button type="button" id="ch-status" class="ch-status" disabled>
+          <span id="ch-title" class="ch-title"></span>
+          <span id="ch-sub" class="ch-sub"></span>
+        </button>
+        <div class="ch-action"><button type="button" id="ch-action" hidden></button></div>
+        <div id="ch-notice" class="ch-notice" role="status" aria-live="polite" hidden>
+          <span id="ch-notice-text" class="ch-notice-text"></span>
+          <button type="button" id="ch-notice-btn" class="ch-notice-btn" data-i18n>Zum Chat</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Setup phase on wide screens in two columns: explainer text left (sticky), the
          actual forms/displays right. Collapses below the setup-columns breakpoint
          to the usual single column (see CSS). -->
@@ -46,9 +69,6 @@
           <img class="logo-lockup logo-hell" src="logo/logo-horizontal-colour.svg" alt="whosit — EUDI Verified Contact" width="506" height="176">
           <img class="logo-lockup logo-dunkel" src="logo/logo-horizontal-white.svg" alt="whosit — EUDI Verified Contact" width="506" height="176">
         </h1>
-        <!-- Next to the ring while it follows the steps of a call: the "Töne" switch once more, on/off,
-             where the tones come from (app.js initSoundToggle, updateRing). -->
-        <button id="ring-sound" class="theme-toggle ring-sound" type="button" aria-pressed="true" aria-label="Töne: an" hidden></button>
         <!-- Only on a branded instance (html.branded): the operator's logo and name, applied by
              branding.js. whosit itself is shown by the logo above and nothing else. -->
         <div class="brand-operator">

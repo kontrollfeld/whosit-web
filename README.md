@@ -824,12 +824,25 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   three steps. Q lights when the call is being set up, R when everyone has identified and only
   "Verbinden" is left, Z when it connects; a letter not reached yet stays faint. In a call where
   nobody presented anything the R stays faint and silent, and star and tick do not flash — the gap
-  says that nobody was checked. Shown in the header logo (light theme; the animation uses the
-  colour file) and, for the Z, as a light card in the middle that lets taps through and fades
+  says that nobody was checked. Shown in the call's head (below) and, for the Z, as a light card in the middle that lets taps through and fades
   after about 3 s. Only on unbranded instances; with "reduce motion" the letters change without
   moving and there is no card. After the call the logo is the file again. The logo file is fetched
   on the first gesture together with the sound mark, so picture and sound start together; a Q
   that came before any gesture is heard at the first tap.
+- **The call's head** (`#call-head`, `initCallHead`, since 2026-11-14): an island at the top that
+  stays while the page scrolls, from the first step of a call to its end. It holds the logo with
+  its ring as the progress (220 px, 160 px once the page has moved; 160 px in the app), the
+  "Töne" switch, where the call stands (step name, "Schritt n von 3", who has identified) and the
+  ONE thing to do next: "Verbinden ✓", "Anruf starten", the wallet or "Link kopieren". That button
+  is a copy that presses the page's own button, which keeps its place, its checks and its label.
+  In the call it shows who is on the other side (the trust bar's names, whose tap it takes over:
+  it opens what was verified), the call's duration and "Ende-zu-Ende verschlüsselt" (or that the
+  connection is stalling), and every chat line except your own for 4 s — hand raised, screen or
+  file shared, someone joined, a credential requested, a message —, with a count while the chat is
+  out of view. Light ground in both themes, because the ring is the colour file. With the head,
+  the header's logo, the stepper, the trust bar and the status line's "Verbunden ✓" step back; in
+  the app the whole header row does. Only where the ring is: branded, embedded and solo calls keep
+  the page as before.
   The picture follows the sound's clock (`whositLogoAnimation.play(box, { clock })`, for the ring
   `steps(svg).light(letter, { clock })`): Web Audio's
   start time minus the output latency in the call, the media element's `currentTime` at app start
@@ -852,7 +865,7 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   launch address is kept in `LAUNCH_QUERY`, because boot adds `?room=` for a new call.
 - **"Töne" switch** (`#sound-toggle`): a speaker button in the footer on the website, the row
   "Töne" in the app's settings (moved there like the theme button). Since 2026-11-14 the same
-  switch, on/off only, also sits next to the header logo while its ring follows the steps of a
+  switch, on/off only, also sits next to the logo in the call's head while its ring follows the steps of a
   call (`#ring-sound`, shown from the first step, hidden again after the call), so the tones can
   be turned off where they come from, without muting oneself. Off silences the sound mark — not the device check's test tone, not the tab title or the system
   notification. Stored per browser as `eudi_sounds` = `0` (unset = on); switching it back on plays

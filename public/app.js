@@ -1814,6 +1814,7 @@ function updateStepper(active) {
   });
   stepperEl.hidden = false;
   if (statusKicker) statusKicker.textContent = labels[active] ? t(labels[active]) : '';
+  callHead().step(active, labels.length, labels[active] ? t(labels[active]) : '');
 }
 function hideStepper() {
   if (stepperEl) stepperEl.hidden = true;
@@ -3530,7 +3531,7 @@ function wireChat(channel, peerId) {
       if (mode !== 'chat' && !has('audio')) channel.send(JSON.stringify({ k: 'mic', on: false, none: true }));
       if (mode === 'video' && !has('video')) channel.send(JSON.stringify({ k: 'cam', on: false, none: true }));
     } catch {}
-    if (!chatOpenedShown) { chatOpenedShown = true; addChat('System', soloMode ? 'Loopback-Kanal offen.' : 'Sichere Verbindung steht – Chat ist aktiv.'); }
+    if (!chatOpenedShown) { chatOpenedShown = true; addChat('System', soloMode ? 'Loopback-Kanal offen.' : 'Sichere Verbindung steht – Chat ist aktiv.', true); }
   };
   channel.onmessage = (e) => handleChatData(peerId, e.data);
   channel.onclose = () => { if (![...peers.values()].some((p) => p.dc && p.dc.readyState === 'open')) { chatInput.disabled = true; chatSend.disabled = true; emojiBtn.disabled = true; fileBtn.disabled = true; } };
@@ -3550,11 +3551,14 @@ function handleChatData(peerId, data) {
   else if (m && m.k === 'file-del') removeSharedFile(m.id, false);
   else addChat(who, data);
 }
-function addChat(who, text) {
+/** `quiet`: a line that is no news to anyone (your own message, "chat is open") — everything else
+ *  is also shown for a moment in the call's head, so it is seen while the chat is out of view. */
+function addChat(who, text, quiet = false) {
   const div = document.createElement('div'); div.className = 'msg' + (who === 'System' ? ' system' : '');
   const w = document.createElement('span'); w.className = 'who'; w.textContent = who + ': ';
   const tx = document.createElement('span'); tx.textContent = text;
   div.append(w, tx); chatLog.appendChild(div); chatLog.scrollTop = chatLog.scrollHeight;
+  if (!quiet) callHead().notice(who === 'System' ? text : who + ': ' + text);
 }
 // Open, ready-to-send DataChannels across all peers (+ the solo-demo loopback channel).
 function openChannels() {
@@ -3568,7 +3572,7 @@ function sendChat() {
   const text = chatInput.value.trim();
   if (!text || !openChannels().length) return;
   broadcast({ k: 'msg', text });
-  addChat(localNameTag.textContent || t('Du'), text); chatInput.value = '';
+  addChat(localNameTag.textContent || t('Du'), text, true); chatInput.value = '';
   emojiPalette.hidden = true;
 }
 // ---- meeting controls: mute / camera ----
@@ -3656,8 +3660,8 @@ function getAudioCtx() {
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
 for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); playPendingRingQ(); }, { passive: true, capture: true });
 
-/* "Töne" switch (footer on the website, a row in the app's settings, and next to the header logo
-   while its ring follows the steps of a call — the same setting in all places): off silences the
+/* "Töne" switch (footer on the website, a row in the app's settings, and next to the logo in the
+   call's head while its ring follows the steps of a call — the same setting in all places): off silences the
    chime and the sound mark, nothing else — the device check's test tone is asked for explicitly,
    the tab title and the system notification still say who arrived. Remembered per browser
    (`eudi_sounds`, like `eudi_theme`: a choice the visitor made, nothing leaves the device). */
@@ -3715,9 +3719,9 @@ function loadSoundMarks() {
    nobody was checked), Z when the call connects; star and tick flash after the Z of a verified call. Each letter lights with
    its own tones of the sound mark, very quietly (RING_GAIN): a hint, not a signal. A letter not
    reached yet is faint; outside a call, and after it, the logo is the file again.
-   Where: the header logo (light theme only — the animation uses the colour file) and, when the
-   call connects, a light card in the middle of the screen that lets taps through and is gone after
-   about 3 s (on a phone the header is hidden in a call). Only on unbranded instances (it is our
+   Where: the call's head (initCallHead; light ground in both themes — the animation uses the
+   colour file) and, when the call connects, a light card in the middle of the screen that lets
+   taps through and is gone after about 3 s. Only on unbranded instances (it is our
    logo); with "reduce motion" the letters change without moving and there is no card. The tones
    follow the "Töne" switch. The logo file is fetched with the sound mark (first gesture), so the
    picture does not lag behind the sound. */
@@ -3731,18 +3735,14 @@ function loadLogoMoment() {
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const ring = { ctl: null, ready: null, state: { Q: false, R: false, Z: false }, active: 0, pendingQ: false };
 function ringAllowed() { return !OPERATOR_BRANDED && !soloMode && !isEmbedded && !!window.whositLogoAnimation; }
-/** Puts a built copy of the colour file in place of the header's <img>, once. */
+/** Puts a built copy of the colour file into the call's head (#call-head), once. The header's
+ *  <img> stays the file for the page outside a call. */
 function loadHeaderRing() {
   if (ring.ready || !ringAllowed()) return ring.ready;
-  const img = document.querySelector('.brand-official img.logo-hell');
-  if (!img) return null;
+  const slot = $('ch-logo-btn');
+  if (!slot) return null;
   ring.ready = whositLogoAnimation.load('logo/logo-horizontal-colour.svg').then((svg) => {
-    const box = document.createElement('span');
-    box.className = 'logo-lockup logo-hell logo-ring';
-    box.setAttribute('role', 'img');
-    box.setAttribute('aria-label', img.alt);
-    box.appendChild(svg);
-    img.replaceWith(box);
+    slot.appendChild(svg);
     ring.ctl = whositLogoAnimation.steps(svg);
     if (ring.state.Q) ring.ctl.set(ring.state); // the call got ahead of the file
     return ring.ctl;
@@ -3786,6 +3786,7 @@ function updateRing(active) {
   if (!ring.ctl) { const p = loadHeaderRing(); if (p) p.then((c) => { if (c) updateRing(ring.active); }); return; }
   const sw = $('ring-sound');
   if (sw && !ended) sw.hidden = false; // with the ring, not before (no ring if the file failed to load)
+  if (!ended) callHead().show(true);
   if (ended) return restRing();
   const want = {
     Q: true,
@@ -3808,6 +3809,142 @@ function restRing() {
   ring.pendingQ = false;
   const sw = $('ring-sound');
   if (sw) sw.hidden = true;
+  callHead().show(false);
+}
+/* ---- the call's head (index.html #call-head; since 2026-11-14) ----
+   Sticky at the top from the first step of a call to its end: the logo whose ring is the
+   progress, where the call stands, and the ONE thing to do next. That action is the page's own
+   button, pressed through a copy (it keeps its place, its checks and its label; the copy follows
+   it): "Verbinden ✓" first, then "Anruf starten", the wallet, the invitation link. In the call:
+   who is on the other side (the trust bar's names — a tap opens what was verified), how long, and
+   what just happened (every chat line except your own, shown for a moment; a count while the chat
+   is out of view). Only where the ring is (ringAllowed): branded, embedded and solo instances
+   keep their page as it was. Built on first use (callHead()), so calls made while the script is
+   still loading find it. */
+function callHead() { return callHead.api || (callHead.api = initCallHead()); }
+function initCallHead() {
+  const box = $('call-head');
+  const none = { show() {}, step() {}, notice() {}, refresh() {} };
+  if (!box) return none;
+  const title = $('ch-title'), sub = $('ch-sub'), status = $('ch-status'), act = $('ch-action'), logoBtn = $('ch-logo-btn');
+  const noticeBox = $('ch-notice'), noticeText = $('ch-notice-text'), noticeBtn = $('ch-notice-btn');
+  let step = { i: 0, n: 3, label: '' }, t0 = 0, unread = 0, noticeTimer = 0, chatInView = false, source = null, queued = false;
+  const inCall = () => document.body.classList.contains('in-call');
+  const shown = (el) => !!el && !el.disabled && el.getClientRects().length > 0;
+  const m = () => lastStatusMsg || {};
+  // The one next thing, in this order. `when` narrows it further.
+  const ACTIONS = [
+    { id: 'confirm-btn', cls: 'ch-go', label: (el) => el.textContent.trim() },
+    { id: 'start-btn', cls: 'ch-go', label: () => ($('start-btn-label') || {}).textContent || t('Anruf starten') },
+    { id: 'dyou-open', cls: '', label: () => t('Mit Wallet ausweisen'), when: () => !(m().self && m().self.verified) },
+    { id: 'copy-btn', cls: 'ch-soft', label: () => (copyLabel && copyLabel.textContent) || t('Link kopieren'), when: () => !(m().peers || []).length },
+  ];
+  const chip = (text, ok) => { const s = document.createElement('span'); s.className = 'ch-chip' + (ok ? ' ok' : ''); s.textContent = text; return s; };
+  const clock = () => { const s = Math.max(0, Math.floor((Date.now() - t0) / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  const toChat = () => {
+    const c = $('chat');
+    if (c) c.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    unread = 0; noticeBox.hidden = true; refresh();
+  };
+
+  function refresh() {
+    queued = false;
+    if (box.hidden) return;
+    const call = inCall();
+    title.textContent = ''; sub.textContent = '';
+    status.disabled = !call; logoBtn.disabled = !call;
+    if (call) {
+      if (!t0) t0 = Date.now();
+      const tb = $('trust-bar'), names = $('trust-names');
+      const verified = !!tb && !tb.classList.contains('unverified');
+      if (verified) { const b = document.createElement('span'); b.className = 'ch-ok'; b.setAttribute('aria-hidden', 'true'); title.appendChild(b); }
+      const n = document.createElement('span'); n.className = 'ch-name'; n.textContent = names ? names.textContent : '';
+      title.appendChild(n);
+      const tm = document.createElement('span'); tm.className = 'ch-time'; tm.textContent = clock();
+      const lk = document.createElement('span'); lk.className = 'ch-lock';
+      lk.textContent = document.body.classList.contains('link-shaky') ? t('Verbindung stockt …') : t('Ende-zu-Ende verschlüsselt');
+      sub.append(tm, lk);
+      const open = document.body.classList.contains('trust-open');
+      status.setAttribute('aria-expanded', String(open));
+      logoBtn.setAttribute('aria-expanded', String(open));
+    } else {
+      t0 = 0;
+      status.removeAttribute('aria-expanded'); logoBtn.removeAttribute('aria-expanded');
+      title.textContent = step.label;
+      sub.appendChild(chip(t('Schritt {n} von {m}', { n: Math.min(step.i + 1, step.n), m: step.n })));
+      const s = m().self, peersNow = m().peers || [];
+      if (s && s.verified) sub.appendChild(chip(t('Du') + ' ✓', true));
+      peersNow.filter((p) => p.verified).forEach((p) => sub.appendChild(chip((p.name ? titleCase(p.name) : p.role ? roleLabelFor(p.role) : t('Gegenüber')) + ' ✓', true)));
+    }
+    // the action
+    source = null;
+    if (call) {
+      act.hidden = !(unread > 0 && !chatInView);
+      act.className = 'ch-soft';
+      act.textContent = t('{n} neu im Chat', { n: unread });
+    } else {
+      const a = ACTIONS.find((x) => shown($(x.id)) && (!x.when || x.when()));
+      act.hidden = !a;
+      if (a) { source = $(a.id); act.className = a.cls; act.textContent = a.label(source); }
+    }
+  }
+  const later = () => { if (!queued) { queued = true; requestAnimationFrame(refresh); } };
+
+  act.addEventListener('click', () => {
+    if (inCall()) return toChat();
+    if (source && shown(source)) source.click();
+    later();
+  });
+  const toggleTrust = () => { const tb = $('trust-bar'); if (tb && inCall()) tb.click(); later(); };
+  status.addEventListener('click', toggleTrust);
+  logoBtn.addEventListener('click', toggleTrust);
+  noticeBtn.addEventListener('click', toChat);
+  // What the action copies changes outside this code: watch it instead of hooking every place.
+  const obs = new MutationObserver(later);
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-wkind'] });
+  for (const id of ['review', 'review-actions', 'review-wait', 'confirm-btn', 'start-bar', 'auth', 'share', 'setup', 'trust-names', 'trust-bar', 'copy-label']) {
+    const el = $(id);
+    if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden', 'disabled', 'class'], childList: true, characterData: true, subtree: id === 'copy-label' || id === 'trust-names' });
+  }
+  // Web: the logo shrinks to its smallest width (160 px) once the page has moved.
+  // The setup wizard moves between its steps by classes inside its cards: a click is when that happens.
+  document.addEventListener('click', later, true);
+  const onScroll = () => box.classList.toggle('ch-compact', window.scrollY > 24);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  if ('IntersectionObserver' in window && chatLog) {
+    new IntersectionObserver((es) => {
+      chatInView = es[es.length - 1].isIntersecting;
+      if (chatInView) { unread = 0; noticeBtn.hidden = true; }
+      later();
+    }, { threshold: 0.2 }).observe(chatLog);
+  }
+  setInterval(() => {
+    if (box.hidden || !inCall() || !t0) return;
+    const tm = sub.querySelector('.ch-time');
+    if (tm) tm.textContent = clock();
+  }, 1000);
+
+  return {
+    show(on) {
+      if (box.hidden === !on) return;
+      box.hidden = !on;
+      document.body.classList.toggle('has-head', on);
+      if (!on) { t0 = 0; unread = 0; noticeBox.hidden = true; clearTimeout(noticeTimer); }
+      onScroll(); refresh();
+    },
+    step(i, n, label) { step = { i, n, label }; later(); },
+    notice(text) {
+      if (box.hidden || !inCall() || !text) return;
+      noticeText.textContent = text;
+      noticeBtn.hidden = chatInView || !$('chat') || $('chat').hidden;
+      noticeBox.hidden = false;
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(() => { noticeBox.hidden = true; }, 4000);
+      if (!chatInView) unread++;
+      later();
+    },
+    refresh: later,
+  };
 }
 /** A Q that came before any gesture is heard at the first tap — as long as R has not come yet. */
 function playPendingRingQ() {
@@ -4550,6 +4687,7 @@ function onFileMeta(peerId, who, m) {
   const size = Number(m.size);
   if (!Number.isFinite(size) || size < 0 || size > MAX_INCOMING_FILE_BYTES) return;
   const ui = addFileRow('in', m.name, m.size);
+  callHead().notice(t('{name} schickt eine Datei:', { name: who || t('Gegenüber') }) + ' ' + m.name);
   incoming.set(key, { id: m.id, name: m.name, size, mime: m.mime, chunks: [], received: 0, ui, who });
 }
 function onFileChunk(peerId, data) {

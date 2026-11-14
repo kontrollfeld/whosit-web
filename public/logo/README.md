@@ -27,8 +27,8 @@ It is played in exactly two ways (brand owner, 2026-11-14):
   lights piece by piece with its own tones, 32 dB under the file (26 dB under the mark's
   usual playback level), and a letter not
   reached yet stays faint (20 % opacity). Star and tick flash after the Z of a verified call only;
-  in a call where nobody presented anything the R stays faint and silent. In the header logo and,
-  for the Z, on the card in the middle of the screen. Outside a call the logo is the file.
+  in a call where nobody presented anything the R stays faint and silent. In the call's head (the
+  sticky island at the top of a call, since 2026-11-14) and, for the Z, on the card in the middle of the screen. Outside a call the logo is the file.
 
 - Animate the logo only with this, everywhere. No other choreography, no variants.
 - Only on light ground (it uses the colour file), and never on operator-branded instances.

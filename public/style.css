@@ -288,12 +288,85 @@ header { margin-bottom: 22px; }
 }
 /* 220 px wide; never below 160 px, the minimum for the logo with claim. */
 .logo-lockup { display: block; width: 220px; height: auto; }
-/* The header logo during a call: a built copy of the colour file whose ring follows the steps
-   (logo-animation.js steps(), app.js updateRing). */
-.logo-ring svg { display: block; width: 100%; height: auto; }
-/* "Töne" on/off next to it, only while the ring follows the call (app.js updateRing). */
-.ring-sound { flex: none; min-height: 32px; width: 32px; align-self: center; }
-.ring-sound[aria-pressed="false"] { color: var(--text-muted); }
+/* ---- the call's head (index.html #call-head, app.js initCallHead; since 2026-11-14) ----
+   An island at the top, sticky from the first step of a call to its end. Light ground in both
+   themes: the logo in it is the colour file with its ring (as on the logo moment's card). The
+   logo is 220 px and shrinks to 160 px, its smallest width with claim, once the page has moved;
+   in the app it is 160 px throughout. */
+.call-head {
+  position: sticky; top: max(8px, env(safe-area-inset-top)); z-index: 30;
+  margin: 0 auto 16px; max-width: 760px;
+  /* fixed light values, not the theme's tokens: the ground has to stay light for the colour logo */
+  --ch-text: #1b2433; --ch-muted: #5d6b85; --ch-faint: #94a3b8; --ch-line: #e3e9f2;
+  --ch-ok: #047857; --ch-ok-soft: #e2f5ee; --ch-accent: #0369a1; --ch-accent-soft: #e3f0f9;
+}
+.ch-card {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "logo status action" "notice notice notice";
+  align-items: center; gap: 4px 16px; padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.96); color: var(--ch-text);
+  border: 1px solid var(--ch-line); border-radius: 20px;
+  box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.4);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: padding var(--t);
+}
+.ch-logo { grid-area: logo; display: flex; align-items: center; gap: 6px; }
+.ch-logo-btn { display: block; width: 220px; padding: 0; border: 0; background: none; box-shadow: none; line-height: 0; border-radius: 8px; transition: width var(--t); }
+.ch-logo-btn:disabled { cursor: default; opacity: 1; }
+.ch-logo-btn svg { display: block; width: 100%; height: auto; }
+.call-head.ch-compact .ch-logo-btn { width: 160px; }
+.call-head.ch-compact .ch-card { padding-block: 8px; }
+.ring-sound { flex: none; min-height: 30px; width: 30px; align-self: center; background: #f1f5f9; border-color: var(--ch-line); color: var(--ch-faint); }
+.ring-sound:hover:not(:disabled) { background: #f1f5f9; color: var(--ch-muted); border-color: #cfd8e6; }
+.ring-sound[aria-pressed="false"] { color: var(--ch-muted); }
+.ch-status {
+  grid-area: status; min-width: 0; display: grid; gap: 3px; justify-items: start; justify-content: start; align-content: center; text-align: left;
+  padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; min-height: 0; white-space: normal;
+}
+.ch-status:disabled { cursor: default; opacity: 1; }
+.ch-status:hover:not(:disabled) { background: none; transform: none; filter: none; }
+.ch-status:focus-visible, .ch-logo-btn:focus-visible { outline: 2px solid var(--ch-accent); outline-offset: 3px; }
+.ch-title { display: flex; align-items: center; gap: 7px; max-width: 100%; font-weight: 600; font-size: 0.95rem; color: var(--ch-text); }
+.ch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ch-ok { flex: none; width: 17px; height: 17px; border-radius: 50%; background: var(--ch-ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 11px no-repeat; }
+.ch-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.8rem; color: var(--ch-muted); font-weight: 400; }
+.ch-chip { display: inline-flex; padding: 1px 9px; border-radius: 999px; background: #f1f5f9; color: var(--ch-muted); font-size: 0.76rem; white-space: nowrap; }
+.ch-chip.ok { background: var(--ch-ok-soft); color: var(--ch-ok); }
+.ch-time { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ch-text); }
+.ch-action { grid-area: action; display: flex; }
+.ch-action button { white-space: nowrap; min-height: 40px; padding: 8px 16px; font-size: 0.9rem; }
+.ch-action button.ch-go { background: var(--ch-ok); border-color: var(--ch-ok); color: #fff; box-shadow: 0 8px 18px -8px rgba(4, 120, 87, 0.6); }
+.ch-action button.ch-soft { background: var(--ch-accent-soft); border-color: transparent; color: var(--ch-accent); box-shadow: none; }
+.ch-notice {
+  grid-area: notice; display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 12px;
+  border-radius: 11px; background: #eef5fb; color: var(--ch-text); font-size: 0.86rem;
+  animation: ch-drop 0.22s ease-out;
+}
+.ch-notice[hidden] { display: none; }
+.ch-notice-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ch-notice-btn { flex: none; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; color: var(--ch-accent); font-weight: 600; font-size: 0.84rem; }
+.ch-notice-btn:hover:not(:disabled) { background: none; transform: none; filter: none; text-decoration: underline; }
+@keyframes ch-drop { from { opacity: 0; transform: translateY(-6px); } }
+/* With the head, the ring and the step name are up there: no second logo, no second stepper, and
+   in the call no trust bar (the head's names open what it opened). */
+body.has-head header .logo,
+body.has-head #stepper,
+body.has-head.in-call #trust-bar,
+body.has-head.in-call #status-bar[data-state="ok"],
+body.has-head.in-call #status-bar[data-state="info"] { display: none !important; }
+/* the app names the stage in the status card's kicker; the head names it now */
+body.has-head .status-kicker { display: none !important; }
+/* Phone: logo and switch on top, where the call stands and the action below. */
+@media (max-width: 640px) {
+  .call-head { margin-inline: -8px; }
+  .ch-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "logo logo" "status action" "notice notice"; gap: 8px 10px; padding: 10px 14px; }
+  .ch-logo-btn, .call-head.ch-compact .ch-logo-btn { width: 160px; }
+  .ch-action button { min-height: 38px; padding: 7px 13px; font-size: 0.86rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-card, .ch-logo-btn { transition: none; }
+  .ch-notice { animation: none; }
+}
 /* The whosit logo is the file from public/logo/, never rebuilt from mark plus text. The white
    version on dark ground, switched like the theme. On an instance with a name of its own
    (html.branded, set by the branding snippet in <head> before first paint) the operator's mark and
@@ -1511,7 +1584,9 @@ body.link-shaky .trust-bar .t-ic { color: var(--warn-text); }
 }
 /* header + stepper are done once connected — collapsed in-call in the app and on phones */
 html.native-app body.in-call header,
-html.native-app body.in-call #stepper { display: none; }
+html.native-app body.in-call #stepper,
+html.native-app body.has-head header { display: none; }
+html.native-app .ch-logo-btn, html.native-app .call-head.ch-compact .ch-logo-btn { width: 160px; }
 @media (max-width: 640px) {
   body.in-call header,
   body.in-call #stepper { display: none; }
