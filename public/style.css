@@ -1149,6 +1149,21 @@ details.policy-note .policy-official { font-style: italic; }
   body:not(.wizard) .setup-columns-right .setup-zone:has(> #setup:not([hidden])):has(> #auth:not([hidden])) {
     width: auto; margin-left: 0; transform: none;
   }
+  /* With the call's head (2026-11-15): the head spans both columns, as wide as they are, and
+     its own columns follow theirs — the logo above the side column, the step and its button
+     above the form. Centred on its own, at reading width, it sat between the two. The side
+     column's header is empty then (logo and lead are in the head or hidden), so the arguments
+     move up to the top of the column. */
+  body.has-head:not(.in-call):not(.call-ended) .call-head {
+    max-width: none; width: min(94vw, 1180px); margin-left: 50%; transform: translateX(-50%);
+  }
+  body.has-head:not(.in-call):not(.call-ended) .ch-card {
+    /* 320px side column + 28px gap, less the card's padding (18px) and its column gap (16px) */
+    grid-template-columns: 314px minmax(0, 1fr) auto;
+  }
+  body.has-head:not(.in-call):not(.call-ended) .setup-columns-left { display: none; }
+  body.has-head:not(.in-call):not(.call-ended) .setup-columns > #app-strengths { grid-row: 1; }
+  body.has-head:not(.in-call):not(.call-ended) .setup-columns-right > #status-bar { margin-top: 0; }
 }
 
 /* setup zone: on wide screens, when the host both configures AND identifies, the two
