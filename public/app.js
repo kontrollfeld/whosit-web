@@ -4092,6 +4092,15 @@ function initCallHead() {
   const laterSight = () => { if (!sightQueued) { sightQueued = true; requestAnimationFrame(() => { sightQueued = false; sight(); }); } };
   const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); laterSight(); };
   window.addEventListener('scroll', onScroll, { passive: true });
+  // What the page scrolls into view (the wizard's next step, a card that opens) lands below the
+  // head, not under it (since 2026-11-15): the root's scroll padding is the head's height plus
+  // its sticky offset. It follows the head as it grows, wraps or shrinks to compact.
+  const pad = () => {
+    const root = document.documentElement;
+    if (box.hidden) { root.style.scrollPaddingTop = ''; return; }
+    root.style.scrollPaddingTop = Math.round((parseFloat(getComputedStyle(box).top) || 0) + box.offsetHeight + 12) + 'px';
+  };
+  if (window.ResizeObserver) new ResizeObserver(pad).observe(box);
   // a rotation or a breakpoint can change which button of the page is there at all
   window.addEventListener('resize', later, { passive: true });
   act.addEventListener('blur', laterSight);
@@ -4119,7 +4128,7 @@ function initCallHead() {
         const mc = $('media-check');
         if (mc) mc.classList.remove('mc-fold', 'mc-off');
       }
-      onScroll(); refresh();
+      onScroll(); pad(); refresh();
     },
     step(i, n, label) { step = { i, n, label }; later(); },
     notice(text) {
