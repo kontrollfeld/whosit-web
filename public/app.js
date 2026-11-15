@@ -3868,20 +3868,28 @@ function initCallHead() {
   const m = () => lastStatusMsg || {};
   // Half of it on screen, below the head: then the page's own button is in sight, and a copy of it
   // up here would be a second identical button (since 2026-11-15: one main button per screen).
-  const inSight = (el) => {
-    const r = el.getBoundingClientRect(), top = box.getBoundingClientRect().bottom;
+  /** The part of the screen that shows the page: below the head, above the app's tab bar (which
+   *  covers the bottom of the screen before the call). One measure for "in sight" and for the
+   *  consent check below. */
+  const area = () => {
     let bottom = window.innerHeight || document.documentElement.clientHeight;
-    // the app's tab bar covers the bottom of the screen before the call
     const tabs = document.querySelector('.app-tabbar');
     if (tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
-    return r.height > 0 && Math.min(r.bottom, bottom) - Math.max(r.top, top) >= r.height / 2;
+    return { top: box.getBoundingClientRect().bottom, bottom };
+  };
+  const inSight = (el) => {
+    const r = el.getBoundingClientRect(), a = area();
+    return r.height > 0 && Math.min(r.bottom, a.bottom) - Math.max(r.top, a.top) >= r.height / 2;
   };
   /** Shows the head's button unless the page's own one is in sight — but never takes it away while
    *  it has the focus: after a first "Verbinden" that brought the review up, the next press there
    *  connects. Cheap enough for every scroll frame (the rest of the head is left alone). */
   const sight = () => {
     if (box.hidden || inCall()) return;
-    act.hidden = !source || (inSight(source) && document.activeElement !== act);
+    const hide = !source || (inSight(source) && document.activeElement !== act);
+    // Taken away under the focus (the call connected, say): the focus goes to the head, not to <body>.
+    if (hide && document.activeElement === act) { box.tabIndex = -1; box.focus({ preventScroll: true }); }
+    act.hidden = hide;
   };
   // The one next thing, in this order. `when` narrows it further.
   const ACTIONS = [
@@ -3915,8 +3923,9 @@ function initCallHead() {
     const notAgreed = others.find((c) => !c.dataset.agreed);
     if (cs[0].dataset.agreed && notAgreed) return notAgreed.dataset.who;
     // a guest with everyone identified, before the host starts a call with several people
-    const rv = $('review');
-    if (!isHost() && finished(cs[0]) && others.length && (!rv || rv.hidden)) return roleLabelFor('caller');
+    const g = m();
+    // (as renderStatus tells it: a group of more than two, not an open room, not started yet)
+    if (!isHost() && finished(cs[0]) && g.multiParty && !g.openRoom && !g.starting && (g.peers || []).length > 1) return roleLabelFor('caller');
     return '';
   }
   let peopleKey = '';
@@ -3931,7 +3940,7 @@ function initCallHead() {
       ? c.dataset.state === 'turn' && (myRole === 'callee' || someoneThere)
       : (c.dataset.state === 'open' && selfDone) || (finished(c) && selfAgreed && !c.dataset.agreed));
     // Rebuilt only when something changed: a rebuild under a focused pill would drop the focus.
-    const key = cs.map((c, i) => [c.dataset.who, c.dataset.state, c.dataset.agreed, turnOf(c, i), (c.querySelector('.chip-label') || c).textContent].join('|')).join('/');
+    const key = (document.documentElement.lang || '') + cs.map((c, i) => [c.dataset.who, c.dataset.state, c.dataset.agreed, turnOf(c, i), (c.querySelector('.chip-label') || c).textContent].join('|')).join('/');
     if (key === peopleKey) {
       people.querySelectorAll('.ch-person').forEach((b) => b.setAttribute('aria-expanded', String(whoOpen)));
       people.hidden = !cs.length; who.hidden = !whoOpen || !cs.length;
@@ -4046,11 +4055,13 @@ function initCallHead() {
     if (!source || !shown(source)) return later();
     // "Verbinden" is the consent: it is given with what will be shared in view. Out of view, the
     // first press brings the review up; the next one, with the review there, connects.
+    // "In view" means its start — the heading, what it is for — just below the head, with room
+    // below it, and the move there finished (a double click mid-scroll only scrolls again).
     const review = $('review');
     if (source.id === 'confirm-btn' && review) {
-      const r = review.getBoundingClientRect(), bottom = window.innerHeight || document.documentElement.clientHeight;
-      if (r.bottom < box.getBoundingClientRect().bottom + 40 || r.top > bottom - 40) {
-        review.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
+      const r = review.getBoundingClientRect(), a = area();
+      if (r.top < a.top - 4 || r.top > a.bottom - 120) {
+        window.scrollTo({ top: Math.max(0, window.scrollY + r.top - a.top - 8), behavior: reducedMotion() ? 'auto' : 'smooth' });
         return;
       }
     }
@@ -4081,7 +4092,8 @@ function initCallHead() {
   const laterSight = () => { if (!sightQueued) { sightQueued = true; requestAnimationFrame(() => { sightQueued = false; sight(); }); } };
   const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); laterSight(); };
   window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', laterSight, { passive: true });
+  // a rotation or a breakpoint can change which button of the page is there at all
+  window.addEventListener('resize', later, { passive: true });
   act.addEventListener('blur', laterSight);
   if ('IntersectionObserver' in window && chatLog) {
     new IntersectionObserver((es) => {

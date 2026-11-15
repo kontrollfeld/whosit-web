@@ -842,7 +842,8 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   below the head) and one pill per participant — dashed: not joined, outlined: still open, pulsing:
   whose move it is, ticked: identified, faint: anonymous; a tap lists the participants card's own
   lines. The participants card and, on the web, the introduction above the call step back
-  meanwhile; the status line is hidden only from sight, so screen readers still hear all of it. The device check is a single line (its heading and its button), open while you wait and gone
+  meanwhile; the status line is hidden only from sight, so screen readers still hear all of it.
+  The device check is a single line (its heading and its button), open while you wait and gone
   on the review; "Warum whosit?" folds to its heading on one column and is not shown in the app's
   call; a guest's "Das brauchst du" is one line with "Mehr" (what they give and get stays open);
   the setup steps count in dots, and "Alles auf einer Seite zeigen" sits at the card's foot.
