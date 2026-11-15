@@ -1915,7 +1915,7 @@ function peerMark(name) {
 }
 
 /** `state`: turn (yours to do) · open (theirs to do) · away (not joined) · done · anon. */
-function personOf(chip, who, state) { chip.dataset.who = who; chip.dataset.state = state; }
+function personOf(chip, who, state, agreed) { chip.dataset.who = who; chip.dataset.state = state; chip.dataset.agreed = agreed ? '1' : ''; }
 function updateChips(msg) {
   const hostDiscloses = isHost() && msg.disclosedAttrs && msg.disclosedAttrs.length;
   // Anonymous host: „Gastgeber:in" is the whole truth here — there is nothing to do, so no
@@ -1929,7 +1929,7 @@ function updateChips(msg) {
   selfChip.className = `id-chip ${SELF_CHIP}${self.identified ? ' is-identified' : ' pending'}`;
   selfLabel.textContent = `${t('Du')}: ${self.text}`;
   // For the call's head, which shows the chips as small pills (initCallHead): who, and how far.
-  personOf(selfChip, t('Du'), anonymousHost || self.anon ? 'anon' : self.identified ? 'done' : 'turn');
+  personOf(selfChip, t('Du'), anonymousHost || self.anon ? 'anon' : self.identified ? 'done' : 'turn', !!msg.self.confirmed);
   if (handRaised) selfLabel.textContent += ' ✋';
   renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, anyConnected()));
 
@@ -1959,7 +1959,7 @@ function updateChips(msg) {
     s.textContent = `${roleLabelFor(peer.role)}: ${st.text}`;
     if (peer.peerId && handsUp.has(peer.peerId)) s.textContent += ' ✋';
     chip.appendChild(s);
-    personOf(chip, roleLabelFor(peer.role), st.anon ? 'anon' : st.identified ? 'done' : 'open');
+    personOf(chip, roleLabelFor(peer.role), st.anon ? 'anon' : st.identified ? 'done' : 'open', !!peer.confirmed);
     const lp = peer.peerId ? peers.get(peer.peerId) : null;
     renderSteps(chip, stepFlags(
       !!peer.verified, !!peer.confirmed, !!(lp && lp.pc.connectionState === 'connected')));
@@ -3683,10 +3683,11 @@ function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } ca
   const d = $('app-strengths');
   if (!d || d.tagName !== 'DETAILS' || !window.matchMedia) return;
   const wide = window.matchMedia('(min-width: 1020px)');
-  const set = () => { d.open = wide.matches; };
+  const sum = d.querySelector('summary');
+  // wide: open for good, and its heading no toggle to tab to
+  const set = () => { d.open = wide.matches; if (sum) { if (wide.matches) sum.tabIndex = -1; else sum.removeAttribute('tabindex'); } };
   set();
   if (wide.addEventListener) wide.addEventListener('change', set);
-  const sum = d.querySelector('summary');
   if (sum) sum.addEventListener('click', (e) => { if (wide.matches) e.preventDefault(); });
 })();
 (function initSoundToggle() {
@@ -3869,8 +3870,18 @@ function initCallHead() {
   // up here would be a second identical button (since 2026-11-15: one main button per screen).
   const inSight = (el) => {
     const r = el.getBoundingClientRect(), top = box.getBoundingClientRect().bottom;
-    const bottom = window.innerHeight || document.documentElement.clientHeight;
+    let bottom = window.innerHeight || document.documentElement.clientHeight;
+    // the app's tab bar covers the bottom of the screen before the call
+    const tabs = document.querySelector('.app-tabbar');
+    if (tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
     return r.height > 0 && Math.min(r.bottom, bottom) - Math.max(r.top, top) >= r.height / 2;
+  };
+  /** Shows the head's button unless the page's own one is in sight — but never takes it away while
+   *  it has the focus: after a first "Verbinden" that brought the review up, the next press there
+   *  connects. Cheap enough for every scroll frame (the rest of the head is left alone). */
+  const sight = () => {
+    if (box.hidden || inCall()) return;
+    act.hidden = !source || (inSight(source) && document.activeElement !== act);
   };
   // The one next thing, in this order. `when` narrows it further.
   const ACTIONS = [
@@ -3897,23 +3908,43 @@ function initCallHead() {
     if (step.i < 1) return '';
     const cs = chips();
     if (!cs.length) return '';
-    const other = cs.slice(1).find((c) => !finished(c));
+    const others = cs.slice(1);
+    const other = others.find((c) => !finished(c));
     if (finished(cs[0]) && other) return other.dataset.who;
-    const s = m().self, p = (m().peers || []).find((x) => !x.confirmed);
-    if (s && s.confirmed && p) return roleLabelFor(p.role);
+    // agreed, the others not yet
+    const notAgreed = others.find((c) => !c.dataset.agreed);
+    if (cs[0].dataset.agreed && notAgreed) return notAgreed.dataset.who;
+    // a guest with everyone identified, before the host starts a call with several people
+    const rv = $('review');
+    if (!isHost() && finished(cs[0]) && others.length && (!rv || rv.hidden)) return roleLabelFor('caller');
     return '';
   }
+  let peopleKey = '';
   function renderPeople() {
     const cs = chips();
-    people.textContent = ''; who.textContent = '';
     const selfDone = !!cs[0] && finished(cs[0]);
+    const selfAgreed = !!cs[0] && !!cs[0].dataset.agreed;
     const someoneThere = cs.slice(1).some((c) => c.dataset.state !== 'away');
+    // Pulsing: whose move it is — yours once someone is there (or as a guest), theirs once yours is
+    // done (identifying, then agreeing).
+    const turnOf = (c, i) => (i === 0
+      ? c.dataset.state === 'turn' && (myRole === 'callee' || someoneThere)
+      : (c.dataset.state === 'open' && selfDone) || (finished(c) && selfAgreed && !c.dataset.agreed));
+    // Rebuilt only when something changed: a rebuild under a focused pill would drop the focus.
+    const key = cs.map((c, i) => [c.dataset.who, c.dataset.state, c.dataset.agreed, turnOf(c, i), (c.querySelector('.chip-label') || c).textContent].join('|')).join('/');
+    if (key === peopleKey) {
+      people.querySelectorAll('.ch-person').forEach((b) => b.setAttribute('aria-expanded', String(whoOpen)));
+      people.hidden = !cs.length; who.hidden = !whoOpen || !cs.length;
+      return;
+    }
+    peopleKey = key;
+    const focused = [...people.children].indexOf(document.activeElement);
+    people.textContent = ''; who.textContent = '';
     cs.forEach((c, i) => {
       const st = c.dataset.state, label = (c.querySelector('.chip-label') || c).textContent;
       const b = document.createElement('button');
       b.type = 'button';
-      // Pulsing: whose move it is — yours once someone is there (or as a guest), theirs once yours is done.
-      const turn = i === 0 ? st === 'turn' && (myRole === 'callee' || someoneThere) : st === 'open' && selfDone;
+      const turn = turnOf(c, i);
       b.className = `ch-person ${i ? 'peer' : 'self'} st-${st}${turn ? ' is-turn' : ''}`;
       b.setAttribute('aria-expanded', String(whoOpen));
       b.setAttribute('aria-controls', 'ch-who');
@@ -3926,17 +3957,21 @@ function initCallHead() {
       people.appendChild(b);
       const line = document.createElement('span'); line.textContent = label; who.appendChild(line);
     });
+    if (focused >= 0 && people.children[Math.min(focused, people.children.length - 1)]) people.children[Math.min(focused, people.children.length - 1)].focus();
     people.hidden = !cs.length;
     who.hidden = !whoOpen || !cs.length;
   }
   /** The status line, as the head's second line: its first sentence, the rest behind ⓘ. Errors keep
-   *  their own coloured band below the head (style.css), so they are not repeated here. */
+   *  their own coloured band below the head (style.css), so they are not repeated here. Screen
+   *  readers keep hearing the whole line from the status bar itself, which is only hidden from
+   *  sight (style.css) — the head's copy is not a live region. */
   function renderSay() {
     const text = (statusText && statusText.textContent || '').trim();
     if (!text || statusBar.dataset.state === 'error') { say.hidden = true; more.hidden = true; return; }
     const split = text.match(/^(.+?[.!?])\s+(\S[\s\S]*)$/);
-    sayText.textContent = split ? split[1] : text;
-    more.textContent = split ? split[2] : '';
+    const first = split ? split[1] : text, rest = split ? split[2] : '';
+    if (sayText.textContent !== first) sayText.textContent = first;
+    if (more.textContent !== rest) more.textContent = rest;
     info.hidden = !split;
     if (!split) moreOpen = false;
     info.setAttribute('aria-expanded', String(moreOpen));
@@ -3944,8 +3979,9 @@ function initCallHead() {
     say.hidden = false;
   }
   /** While the head is there it also keeps the page calm (since 2026-11-15): the device check is a
-   *  single line until it is wanted — open while waiting, where it is the one useful thing to do, and
-   *  gone on the review, where the call is about to start. */
+   *  single line, its heading and its button, until it is wanted — open while waiting for the other
+   *  side, where it is the one useful thing to do, and gone on the review, where the call is about
+   *  to start. */
   function arrange(call) {
     const mc = $('media-check');
     if (!mc) return;
@@ -3954,11 +3990,6 @@ function initCallHead() {
     const fold = !call && !live && !reviewing && !mcOpened && !waitingFor();
     mc.classList.toggle('mc-off', !call && !live && reviewing);
     mc.classList.toggle('mc-fold', fold);
-    const h = mc.querySelector('h2');
-    if (h) {
-      if (fold) { h.setAttribute('role', 'button'); h.tabIndex = 0; h.setAttribute('aria-expanded', 'false'); }
-      else { h.removeAttribute('role'); h.removeAttribute('tabindex'); h.removeAttribute('aria-expanded'); }
-    }
   }
 
   function refresh() {
@@ -4005,7 +4036,7 @@ function initCallHead() {
     } else {
       const a = ACTIONS.find((x) => shown($(x.id)) && (!x.when || x.when()));
       if (a) { source = $(a.id); act.className = a.cls; act.textContent = a.label(source); }
-      act.hidden = !a || inSight(source);
+      sight();
     }
   }
   const later = () => { if (!queued) { queued = true; requestAnimationFrame(refresh); } };
@@ -4032,12 +4063,9 @@ function initCallHead() {
   noticeBtn.addEventListener('click', toChat);
   info.addEventListener('click', () => { moreOpen = !moreOpen; refresh(); });
   people.addEventListener('click', (e) => { if (e.target.closest('.ch-person')) { whoOpen = !whoOpen; refresh(); } });
+  // The folded line opens on a tap on its heading too (the keyboard has the card's own button).
   const mcHead = $('media-check') && $('media-check').querySelector('h2');
-  const openMc = () => { if (!$('media-check').classList.contains('mc-fold')) return; mcOpened = true; refresh(); };
-  if (mcHead) {
-    mcHead.addEventListener('click', openMc);
-    mcHead.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMc(); } });
-  }
+  if (mcHead) mcHead.addEventListener('click', () => { if (!$('media-check').classList.contains('mc-fold')) return; mcOpened = true; refresh(); });
   // What the action copies changes outside this code: watch it instead of hooking every place.
   const obs = new MutationObserver(later);
   obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-wkind'] });
@@ -4049,9 +4077,12 @@ function initCallHead() {
   document.addEventListener('click', later, true);
   // Web: the logo shrinks to its smallest width (160 px) once the page has moved. Scrolling also
   // decides whether the page's own button is in sight (see inSight).
-  const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); later(); };
+  let sightQueued = false;
+  const laterSight = () => { if (!sightQueued) { sightQueued = true; requestAnimationFrame(() => { sightQueued = false; sight(); }); } };
+  const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); laterSight(); };
   window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', later, { passive: true });
+  window.addEventListener('resize', laterSight, { passive: true });
+  act.addEventListener('blur', laterSight);
   if ('IntersectionObserver' in window && chatLog) {
     new IntersectionObserver((es) => {
       chatInView = es[es.length - 1].isIntersecting;
@@ -4072,7 +4103,7 @@ function initCallHead() {
       document.body.classList.toggle('has-head', on);
       if (!on) {
         t0 = 0; unread = 0; noticeBox.hidden = true; clearTimeout(noticeTimer);
-        moreOpen = false; whoOpen = false;
+        moreOpen = false; whoOpen = false; mcOpened = false; peopleKey = '';
         const mc = $('media-check');
         if (mc) mc.classList.remove('mc-fold', 'mc-off');
       }
@@ -5332,14 +5363,17 @@ function applyDynamicType() {
     if (idx < 0) idx = 0;
     const kind = st[idx];
     document.body.dataset.wkind = kind;
-    // Dots again since 2026-11-15, the current one drawn long: in words ("Schritt 2 von 5") it
-    // stood right below the call's head and its "1 von 3", two counters that did not agree. The
-    // words stay for screen readers. What the step is about, its own heading says.
-    dots.className = 'wiz-dots';
+    // In words ("Schritt 2 von 5"): five bare dots were easy to miscount. Beside the call's head
+    // (since 2026-11-15) the words are only for screen readers and dots show instead, the current
+    // one long — the head's "1 von 3" right above is the one counter in words (style.css .wiz-pips).
+    // What the step is about, its own heading says.
+    dots.className = 'wiz-dots wiz-step';
     dots.textContent = '';
-    dots.setAttribute('role', 'img');
-    dots.setAttribute('aria-label', t('Schritt {n} von {m}', { n: idx + 1, m: st.length }));
-    st.forEach((_, i) => { const d = document.createElement('i'); d.className = 'dot' + (i < idx ? ' done' : i === idx ? ' active' : ''); dots.appendChild(d); });
+    const words = document.createElement('span'); words.className = 'wiz-words';
+    words.textContent = t('Schritt {n} von {m}', { n: idx + 1, m: st.length });
+    const pips = document.createElement('span'); pips.className = 'wiz-pips'; pips.setAttribute('aria-hidden', 'true');
+    st.forEach((_, i) => { const d = document.createElement('i'); d.className = 'dot' + (i < idx ? ' done' : i === idx ? ' active' : ''); pips.appendChild(d); });
+    dots.append(words, pips);
     back.disabled = idx === 0;
     // From the invite step on the card is the summary of the choices — going back means changing them.
     back.textContent = t(kind === 'invite' ? 'Ändern' : 'Zurück');

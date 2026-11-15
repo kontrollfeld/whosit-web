@@ -400,18 +400,20 @@ header { margin-bottom: 22px; }
    the call (in the call it is what the names open), the status line unless it reports an error,
    and on the web the introduction above the call. */
 body.has-head:not(.in-call) #identities,
-body.has-head:not(.in-call) #status-bar:not([data-state="error"]),
 body.has-head header .sub { display: none !important; }
+/* The status line only out of sight: it stays the live region screen readers hear, with its whole
+   text — the head shows its first sentence, and an error brings the band itself back. */
+body.has-head:not(.in-call) #status-bar:not([data-state="error"]) {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 /* The device check as one line until it is wanted (app.js initCallHead → arrange). */
 #media-check.mc-off { display: none !important; }
-#media-check.mc-fold { padding-block: 12px; }
-#media-check.mc-fold > :not(h2) { display: none !important; }
-#media-check.mc-fold h2 { margin: 0; cursor: pointer; font-size: 0.95rem; }
-#media-check.mc-fold h2::after {
-  content: ""; margin-left: auto; width: 16px; height: 16px; flex: none; opacity: 0.6;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6b85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
-}
-#media-check.mc-fold h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+/* folded: the heading and its own button on one row */
+#media-check.mc-fold { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+#media-check.mc-fold > :not(h2):not(#mc-start) { display: none !important; }
+#media-check.mc-fold h2 { flex: 1; min-width: 0; margin: 0; cursor: pointer; font-size: 0.95rem; }
+#media-check.mc-fold #mc-start { flex: none; min-height: 36px; padding: 6px 14px; font-size: 0.86rem; }
 /* In the app "Warum whosit?" is not part of the call: whoever has the app has chosen it. */
 html.native-app body.has-head .app-strengths { display: none !important; }
 /* With the head, the ring and the step name are up there: no second logo, no second stepper, and
@@ -1276,7 +1278,6 @@ details.policy-note .policy-official { font-style: italic; }
 /* Pinned first, explicitly: it must stand before the wallet button on every screen width. */
 .auth-cta .rp-disclosure { order: -1; }
 .auth-cta .wallet-need { margin: 0 0 12px; }
-.auth-cta .wallet-alt { margin: 12px 0 0; }
 
 /* Guest: what it takes, at the top of the identify card. */
 .need-box {
@@ -1688,6 +1689,15 @@ body.wizard #wiz-nav button { min-width: 108px; }
 .wiz-dots { display: inline-flex; gap: 7px; }
 /* "Schritt 2 von 5" in words instead of five dots — the dots did not say what the step is. */
 .wiz-dots.wiz-step { display: block; flex: 1 1 auto; text-align: center; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+/* Since 2026-11-15, beside the call's head ("1 von 3"): dots, the current one long, so there is one
+   counter in words on screen. The words stay for screen readers (and are the live text). Without
+   the head (operator-branded, embedded) the words stay as they were. */
+.wiz-pips { display: none; gap: 6px; align-items: center; vertical-align: middle; }
+body.has-head .wiz-pips { display: inline-flex; }
+body.has-head .wiz-words {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 /* Large text (Dynamic Type): "Schritt 2 von 5" gets its own row above the buttons, which no longer fit beside it. */
 html.dt-large body.wizard #wiz-nav { flex-wrap: wrap; }
 html.dt-large .wiz-dots.wiz-step { order: -1; flex-basis: 100%; }

@@ -52,7 +52,7 @@
             <span id="ch-sub" class="ch-sub"></span>
           </button>
           <div id="ch-say" class="ch-say" hidden>
-            <span id="ch-say-text" aria-live="polite"></span>
+            <span id="ch-say-text"></span>
             <button type="button" id="ch-info" class="ch-info" aria-expanded="false" aria-controls="ch-more" aria-label="Mehr dazu" data-i18n-attr="aria-label" hidden>i</button>
           </div>
           <p id="ch-more" class="ch-more" hidden></p>
@@ -483,7 +483,7 @@
          .setup-columns `display: contents`) hinter dem Formular landet und nicht davor. -->
     <!-- App-Staerken: nur auf Wizard-Schritt 1 (mobil/App), unter "Anruf einrichten" -->
     <!-- A <details> since 2026-11-15: on one column it starts folded to its heading (app.js
-         initCalmFlow), in the side column of wide screens open. -->
+         initStrengthsFold), in the side column of wide screens open. -->
     <details id="app-strengths" class="app-strengths" open>
       <summary><h2 data-i18n data-brand-product>Warum whosit?</h2></summary>
       <div class="strength">
