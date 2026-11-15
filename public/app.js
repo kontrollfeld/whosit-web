@@ -1738,6 +1738,9 @@ function renderAuthCard(role, attrs, opts) {
     $('need-media-text').textContent = t(mode === 'audio' ? 'Ein Mikrofon an diesem Gerät.' : 'Kamera und Mikrofon an diesem Gerät.');
   }
   if (walletNeed) walletNeed.hidden = guestBox;
+  // The folded box links to the set-up guide itself; a second link below the button said the same.
+  const infoLink = $('wallet-info-link');
+  if (infoLink) infoLink.hidden = guestBox;
   // Sign-in rather than disclosure: on an instance with a host gate this is the proof THAT you
   // may host — not the choice of WHAT you share. The label has to say so, otherwise people look
   // for a selection that does not exist.
@@ -1877,7 +1880,7 @@ function chipState(name, verified, confirmed, presented = verified) {
   if (name) return { text: `${titleCase(name)} ✓`, identified: true };
   // Nothing to present (anonymous, or no verifier at all): "verified" only means "nothing to
   // present" — "ausgewiesen ✓" or a bare "zugestimmt ✓" would read as an ID check that never happened.
-  if (verified && (!presented || verifierOff)) return { text: t(confirmed ? 'anonym — zugestimmt' : 'anonym — ungeprüft'), identified: true };
+  if (verified && (!presented || verifierOff)) return { text: t(confirmed ? 'anonym — zugestimmt' : 'anonym — ungeprüft'), identified: true, anon: true };
   if (confirmed) return { text: t('zugestimmt ✓'), identified: true };
   if (verified) return { text: t('ausgewiesen ✓'), identified: true };
   return { text: t('noch nicht ausgewiesen'), identified: false };
@@ -1911,6 +1914,8 @@ function peerMark(name) {
   return el;
 }
 
+/** `state`: turn (yours to do) · open (theirs to do) · away (not joined) · done · anon. */
+function personOf(chip, who, state) { chip.dataset.who = who; chip.dataset.state = state; }
 function updateChips(msg) {
   const hostDiscloses = isHost() && msg.disclosedAttrs && msg.disclosedAttrs.length;
   // Anonymous host: „Gastgeber:in" is the whole truth here — there is nothing to do, so no
@@ -1923,6 +1928,8 @@ function updateChips(msg) {
   // but visible. Only an open identification pulses — a finished participant has nothing to do.
   selfChip.className = `id-chip ${SELF_CHIP}${self.identified ? ' is-identified' : ' pending'}`;
   selfLabel.textContent = `${t('Du')}: ${self.text}`;
+  // For the call's head, which shows the chips as small pills (initCallHead): who, and how far.
+  personOf(selfChip, t('Du'), anonymousHost || self.anon ? 'anon' : self.identified ? 'done' : 'turn');
   if (handRaised) selfLabel.textContent += ' ✋';
   renderSteps(selfChip, stepFlags(!!msg.self.verified, !!msg.self.confirmed, anyConnected()));
 
@@ -1938,6 +1945,7 @@ function updateChips(msg) {
     const s = document.createElement('span'); s.className = 'chip-label';
     s.textContent = `${roleLabelFor(otherRole)}: ${t('noch nicht beigetreten')}`;
     chip.appendChild(s); peerChipsEl.appendChild(chip);
+    personOf(chip, roleLabelFor(otherRole), 'away');
     return;
   }
   for (const peer of list) {
@@ -1951,6 +1959,7 @@ function updateChips(msg) {
     s.textContent = `${roleLabelFor(peer.role)}: ${st.text}`;
     if (peer.peerId && handsUp.has(peer.peerId)) s.textContent += ' ✋';
     chip.appendChild(s);
+    personOf(chip, roleLabelFor(peer.role), st.anon ? 'anon' : st.identified ? 'done' : 'open');
     const lp = peer.peerId ? peers.get(peer.peerId) : null;
     renderSteps(chip, stepFlags(
       !!peer.verified, !!peer.confirmed, !!(lp && lp.pc.connectionState === 'connected')));
@@ -3667,6 +3676,19 @@ for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEv
    (`eudi_sounds`, like `eudi_theme`: a choice the visitor made, nothing leaves the device). */
 const SOUND_KEY = 'eudi_sounds';
 function soundsOn() { try { return localStorage.getItem(SOUND_KEY) !== '0'; } catch { return true; } }
+/* "Warum whosit?" (index.html #app-strengths, a <details> since 2026-11-15): folded to its heading
+   where it stands in the one column below the form, open in the side column of wide screens,
+   where it takes nothing away — and there it stays open. */
+(function initStrengthsFold() {
+  const d = $('app-strengths');
+  if (!d || d.tagName !== 'DETAILS' || !window.matchMedia) return;
+  const wide = window.matchMedia('(min-width: 1020px)');
+  const set = () => { d.open = wide.matches; };
+  set();
+  if (wide.addEventListener) wide.addEventListener('change', set);
+  const sum = d.querySelector('summary');
+  if (sum) sum.addEventListener('click', (e) => { if (wide.matches) e.preventDefault(); });
+})();
 (function initSoundToggle() {
   const btns = ['sound-toggle', 'ring-sound'].map($).filter(Boolean);
   if (!btns.length) return;
@@ -3815,7 +3837,10 @@ function restRing() {
    Sticky at the top from the first step of a call to its end: the logo whose ring is the
    progress, where the call stands, and the ONE thing to do next. That action is the page's own
    button, pressed through a copy (it keeps its place, its checks and its label; the copy follows
-   it): "Verbinden ✓" first, then "Anruf starten", the wallet, the invitation link. In the call:
+   it): "Verbinden ✓" first, then "Anruf starten", the wallet, the invitation link — shown only
+   while that button is out of sight. Before the call also the step's sentence and who is how far
+   (pills read from the participants card, which steps back), and the device check kept to one
+   line (since 2026-11-15, see arrange). In the call:
    who is on the other side (the trust bar's names — a tap opens what was verified), how long, and
    what just happened (every chat line except your own, shown for a moment; a count while the chat
    is out of view). Only where the ring is (ringAllowed): branded, embedded and solo instances
@@ -3833,11 +3858,20 @@ function initCallHead() {
   const none = { show() {}, step() {}, notice() {}, refresh() {} };
   if (!box) return none;
   const title = $('ch-title'), sub = $('ch-sub'), status = $('ch-status'), act = $('ch-action'), logoBtn = $('ch-logo-btn');
+  const say = $('ch-say'), sayText = $('ch-say-text'), info = $('ch-info'), more = $('ch-more'), people = $('ch-people'), who = $('ch-who');
   const noticeBox = $('ch-notice'), noticeText = $('ch-notice-text'), noticeBtn = $('ch-notice-btn');
   let step = { i: 0, n: 3, label: '' }, t0 = 0, unread = 0, noticeTimer = 0, chatInView = false, source = null, queued = false;
+  let moreOpen = false, whoOpen = false, mcOpened = false;
   const inCall = () => document.body.classList.contains('in-call');
   const shown = (el) => !!el && !el.disabled && el.getClientRects().length > 0;
   const m = () => lastStatusMsg || {};
+  // Half of it on screen, below the head: then the page's own button is in sight, and a copy of it
+  // up here would be a second identical button (since 2026-11-15: one main button per screen).
+  const inSight = (el) => {
+    const r = el.getBoundingClientRect(), top = box.getBoundingClientRect().bottom;
+    const bottom = window.innerHeight || document.documentElement.clientHeight;
+    return r.height > 0 && Math.min(r.bottom, bottom) - Math.max(r.top, top) >= r.height / 2;
+  };
   // The one next thing, in this order. `when` narrows it further.
   const ACTIONS = [
     { id: 'confirm-btn', cls: 'ch-go', label: (el) => el.textContent.trim() },
@@ -3845,6 +3879,8 @@ function initCallHead() {
     { id: 'dyou-open', cls: '', label: () => t('Mit Wallet ausweisen'), when: () => !(m().self && m().self.verified) },
     { id: 'copy-btn', cls: 'ch-soft', label: () => (copyLabel && copyLabel.textContent) || t('Link kopieren'), when: () => !(m().peers || []).length },
   ];
+  // What a person pill says next to the role; a finished one shows only its tick.
+  const TAG = { turn: 'noch offen', open: 'noch offen', away: 'noch nicht da', anon: 'anonym' };
   const chip = (text, ok) => { const s = document.createElement('span'); s.className = 'ch-chip' + (ok ? ' ok' : ''); s.textContent = text; return s; };
   const clock = () => { const s = Math.max(0, Math.floor((Date.now() - t0) / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
   const toChat = () => {
@@ -3852,6 +3888,78 @@ function initCallHead() {
     if (c) c.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
     unread = 0; noticeBox.hidden = true; refresh();
   };
+  // The participants card's chips (updateChips tags them with who and how far), read back here.
+  const chips = () => [...document.querySelectorAll('#identities .id-chip[data-state]')];
+  const finished = (c) => c.dataset.state === 'done' || c.dataset.state === 'anon';
+  /** Whom you are waiting for, once your own part is done: the step's name would claim otherwise
+   *  ("Zustimmen" with nothing to agree to yet). */
+  function waitingFor() {
+    if (step.i < 1) return '';
+    const cs = chips();
+    if (!cs.length) return '';
+    const other = cs.slice(1).find((c) => !finished(c));
+    if (finished(cs[0]) && other) return other.dataset.who;
+    const s = m().self, p = (m().peers || []).find((x) => !x.confirmed);
+    if (s && s.confirmed && p) return roleLabelFor(p.role);
+    return '';
+  }
+  function renderPeople() {
+    const cs = chips();
+    people.textContent = ''; who.textContent = '';
+    const selfDone = !!cs[0] && finished(cs[0]);
+    const someoneThere = cs.slice(1).some((c) => c.dataset.state !== 'away');
+    cs.forEach((c, i) => {
+      const st = c.dataset.state, label = (c.querySelector('.chip-label') || c).textContent;
+      const b = document.createElement('button');
+      b.type = 'button';
+      // Pulsing: whose move it is — yours once someone is there (or as a guest), theirs once yours is done.
+      const turn = i === 0 ? st === 'turn' && (myRole === 'callee' || someoneThere) : st === 'open' && selfDone;
+      b.className = `ch-person ${i ? 'peer' : 'self'} st-${st}${turn ? ' is-turn' : ''}`;
+      b.setAttribute('aria-expanded', String(whoOpen));
+      b.setAttribute('aria-controls', 'ch-who');
+      b.setAttribute('aria-label', label);
+      const av = document.createElement('span'); av.className = 'ch-av'; av.setAttribute('aria-hidden', 'true');
+      av.textContent = finished(c) && st === 'done' ? '' : [...(c.dataset.who || '?')][0];
+      const nm = document.createElement('span'); nm.className = 'ch-pname'; nm.textContent = c.dataset.who || '';
+      b.append(av, nm);
+      if (TAG[st]) { const tg = document.createElement('span'); tg.className = 'ch-tag'; tg.textContent = t(TAG[st]); b.appendChild(tg); }
+      people.appendChild(b);
+      const line = document.createElement('span'); line.textContent = label; who.appendChild(line);
+    });
+    people.hidden = !cs.length;
+    who.hidden = !whoOpen || !cs.length;
+  }
+  /** The status line, as the head's second line: its first sentence, the rest behind ⓘ. Errors keep
+   *  their own coloured band below the head (style.css), so they are not repeated here. */
+  function renderSay() {
+    const text = (statusText && statusText.textContent || '').trim();
+    if (!text || statusBar.dataset.state === 'error') { say.hidden = true; more.hidden = true; return; }
+    const split = text.match(/^(.+?[.!?])\s+(\S[\s\S]*)$/);
+    sayText.textContent = split ? split[1] : text;
+    more.textContent = split ? split[2] : '';
+    info.hidden = !split;
+    if (!split) moreOpen = false;
+    info.setAttribute('aria-expanded', String(moreOpen));
+    more.hidden = !moreOpen;
+    say.hidden = false;
+  }
+  /** While the head is there it also keeps the page calm (since 2026-11-15): the device check is a
+   *  single line until it is wanted — open while waiting, where it is the one useful thing to do, and
+   *  gone on the review, where the call is about to start. */
+  function arrange(call) {
+    const mc = $('media-check');
+    if (!mc) return;
+    const live = !!$('mc-live') && !$('mc-live').hidden;
+    const rv = $('review'), reviewing = !!rv && !rv.hidden;
+    const fold = !call && !live && !reviewing && !mcOpened && !waitingFor();
+    mc.classList.toggle('mc-off', !call && !live && reviewing);
+    mc.classList.toggle('mc-fold', fold);
+    const h = mc.querySelector('h2');
+    if (h) {
+      if (fold) { h.setAttribute('role', 'button'); h.tabIndex = 0; h.setAttribute('aria-expanded', 'false'); }
+      else { h.removeAttribute('role'); h.removeAttribute('tabindex'); h.removeAttribute('aria-expanded'); }
+    }
+  }
 
   function refresh() {
     queued = false;
@@ -3875,16 +3983,19 @@ function initCallHead() {
       const open = document.body.classList.contains('trust-open');
       status.setAttribute('aria-expanded', String(open));
       logoBtn.setAttribute('aria-expanded', String(open));
+      say.hidden = true; more.hidden = true; people.hidden = true; who.hidden = true;
     } else {
       t0 = 0;
       title.classList.remove('unverified');
       status.removeAttribute('aria-expanded'); logoBtn.removeAttribute('aria-expanded');
-      title.textContent = step.label;
-      sub.appendChild(chip(t('Schritt {n} von {m}', { n: Math.min(step.i + 1, step.n), m: step.n })));
-      const s = m().self, peersNow = m().peers || [];
-      if (s && s.verified) sub.appendChild(chip(t('Du') + ' ✓', true));
-      peersNow.filter((p) => p.verified).forEach((p) => sub.appendChild(chip((p.name ? titleCase(p.name) : p.role ? roleLabelFor(p.role) : t('Gegenüber')) + ' ✓', true)));
+      const w = waitingFor();
+      const n = document.createElement('span'); n.className = 'ch-name'; n.textContent = w ? t('Warten auf {who}', { who: w }) : step.label;
+      title.append(n, chip(t('{n} von {m}', { n: Math.min(step.i + 1, step.n), m: step.n })));
+      title.lastChild.setAttribute('aria-label', t('Schritt {n} von {m}', { n: Math.min(step.i + 1, step.n), m: step.n }));
+      renderSay();
+      renderPeople();
     }
+    arrange(call);
     // the action
     source = null;
     if (call) {
@@ -3893,8 +4004,8 @@ function initCallHead() {
       act.textContent = t('{n} neu im Chat', { n: unread });
     } else {
       const a = ACTIONS.find((x) => shown($(x.id)) && (!x.when || x.when()));
-      act.hidden = !a;
       if (a) { source = $(a.id); act.className = a.cls; act.textContent = a.label(source); }
+      act.hidden = !a || inSight(source);
     }
   }
   const later = () => { if (!queued) { queued = true; requestAnimationFrame(refresh); } };
@@ -3919,18 +4030,28 @@ function initCallHead() {
   status.addEventListener('click', toggleTrust);
   logoBtn.addEventListener('click', toggleTrust);
   noticeBtn.addEventListener('click', toChat);
+  info.addEventListener('click', () => { moreOpen = !moreOpen; refresh(); });
+  people.addEventListener('click', (e) => { if (e.target.closest('.ch-person')) { whoOpen = !whoOpen; refresh(); } });
+  const mcHead = $('media-check') && $('media-check').querySelector('h2');
+  const openMc = () => { if (!$('media-check').classList.contains('mc-fold')) return; mcOpened = true; refresh(); };
+  if (mcHead) {
+    mcHead.addEventListener('click', openMc);
+    mcHead.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMc(); } });
+  }
   // What the action copies changes outside this code: watch it instead of hooking every place.
   const obs = new MutationObserver(later);
   obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-wkind'] });
-  for (const id of ['review', 'review-actions', 'review-wait', 'confirm-btn', 'start-bar', 'auth', 'share', 'setup', 'trust-names', 'trust-bar', 'copy-label']) {
+  for (const id of ['review', 'review-actions', 'review-wait', 'confirm-btn', 'start-bar', 'auth', 'share', 'setup', 'trust-names', 'trust-bar', 'copy-label', 'identities', 'status-bar', 'mc-live']) {
     const el = $(id);
-    if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden', 'disabled', 'class'], childList: true, characterData: true, subtree: ['copy-label', 'trust-names', 'start-bar', 'auth'].includes(id) });
+    if (el) obs.observe(el, { attributes: true, attributeFilter: ['hidden', 'disabled', 'class', 'data-state'], childList: true, characterData: true, subtree: ['copy-label', 'trust-names', 'start-bar', 'auth', 'identities', 'status-bar'].includes(id) });
   }
-  // Web: the logo shrinks to its smallest width (160 px) once the page has moved.
   // The setup wizard moves between its steps by classes inside its cards: a click is when that happens.
   document.addEventListener('click', later, true);
-  const onScroll = () => box.classList.toggle('ch-compact', window.scrollY > 24);
+  // Web: the logo shrinks to its smallest width (160 px) once the page has moved. Scrolling also
+  // decides whether the page's own button is in sight (see inSight).
+  const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); later(); };
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', later, { passive: true });
   if ('IntersectionObserver' in window && chatLog) {
     new IntersectionObserver((es) => {
       chatInView = es[es.length - 1].isIntersecting;
@@ -3949,7 +4070,12 @@ function initCallHead() {
       if (box.hidden === !on) return;
       box.hidden = !on;
       document.body.classList.toggle('has-head', on);
-      if (!on) { t0 = 0; unread = 0; noticeBox.hidden = true; clearTimeout(noticeTimer); }
+      if (!on) {
+        t0 = 0; unread = 0; noticeBox.hidden = true; clearTimeout(noticeTimer);
+        moreOpen = false; whoOpen = false;
+        const mc = $('media-check');
+        if (mc) mc.classList.remove('mc-fold', 'mc-off');
+      }
       onScroll(); refresh();
     },
     step(i, n, label) { step = { i, n, label }; later(); },
@@ -5206,10 +5332,14 @@ function applyDynamicType() {
     if (idx < 0) idx = 0;
     const kind = st[idx];
     document.body.dataset.wkind = kind;
-    // In words, not dots: five dots were easy to miscount. What the step is about, its own
-    // heading says (the two sides are asked as questions).
-    dots.className = 'wiz-dots wiz-step';
-    dots.textContent = t('Schritt {n} von {m}', { n: idx + 1, m: st.length });
+    // Dots again since 2026-11-15, the current one drawn long: in words ("Schritt 2 von 5") it
+    // stood right below the call's head and its "1 von 3", two counters that did not agree. The
+    // words stay for screen readers. What the step is about, its own heading says.
+    dots.className = 'wiz-dots';
+    dots.textContent = '';
+    dots.setAttribute('role', 'img');
+    dots.setAttribute('aria-label', t('Schritt {n} von {m}', { n: idx + 1, m: st.length }));
+    st.forEach((_, i) => { const d = document.createElement('i'); d.className = 'dot' + (i < idx ? ' done' : i === idx ? ' active' : ''); dots.appendChild(d); });
     back.disabled = idx === 0;
     // From the invite step on the card is the summary of the choices — going back means changing them.
     back.textContent = t(kind === 'invite' ? 'Ändern' : 'Zurück');

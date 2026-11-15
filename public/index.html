@@ -44,10 +44,21 @@
           <button type="button" id="ch-logo-btn" class="ch-logo-btn" aria-label="whosit — EUDI Verified Contact"></button>
           <button id="ring-sound" class="theme-toggle ring-sound" type="button" aria-pressed="true" aria-label="Töne: an" hidden></button>
         </div>
-        <button type="button" id="ch-status" class="ch-status" disabled>
-          <span id="ch-title" class="ch-title"></span>
-          <span id="ch-sub" class="ch-sub"></span>
-        </button>
+        <!-- Before the call: the step, one sentence on it (the rest behind ⓘ) and who is how far,
+             as small pills (a tap shows the full lines). In the call: name, duration, encryption. -->
+        <div class="ch-main">
+          <button type="button" id="ch-status" class="ch-status" disabled>
+            <span id="ch-title" class="ch-title"></span>
+            <span id="ch-sub" class="ch-sub"></span>
+          </button>
+          <div id="ch-say" class="ch-say" hidden>
+            <span id="ch-say-text" aria-live="polite"></span>
+            <button type="button" id="ch-info" class="ch-info" aria-expanded="false" aria-controls="ch-more" aria-label="Mehr dazu" data-i18n-attr="aria-label" hidden>i</button>
+          </div>
+          <p id="ch-more" class="ch-more" hidden></p>
+          <div id="ch-people" class="ch-people" hidden></div>
+          <div id="ch-who" class="ch-who" hidden></div>
+        </div>
         <div class="ch-action"><button type="button" id="ch-action" hidden></button></div>
         <div id="ch-notice" class="ch-notice" role="status" aria-live="polite" hidden>
           <span id="ch-notice-text" class="ch-notice-text"></span>
@@ -158,14 +169,6 @@
       <!-- The step wizard is available everywhere and can be switched off here — the switch
            belongs in the card, not in a menu nobody opens. Stays visible on every step, so the
            way out never has to be searched for. -->
-      <label class="wiz-switch" id="wiz-switch-row">
-        <!-- `checked` already in the markup: the default is "guided", and without the attribute
-             the checkmark would briefly be wrong until the first run of syncActive(). -->
-        <input type="checkbox" id="wiz-switch" checked />
-        <!-- The label names what a click DOES, so it flips with the state (initSetupWizard). As
-             "Schritt für Schritt einrichten" with a ticked box it read like a step to complete. -->
-        <span id="wiz-switch-label">Alles auf einer Seite zeigen</span>
-      </label>
 
       <div id="mode-block">
       <span class="field-label" data-i18n>Verbindungsart</span>
@@ -239,6 +242,16 @@
         <span id="wiz-dots" class="wiz-dots" aria-live="polite"></span>
         <button type="button" id="wiz-next" data-i18n>Weiter</button>
       </div>
+      <!-- The way out of the steps, at the card's foot since 2026-11-15: at its head it stood
+           between the step's question and the call's own head. Still on every step. -->
+      <label class="wiz-switch" id="wiz-switch-row">
+        <!-- `checked` already in the markup: the default is "guided", and without the attribute
+             the checkmark would briefly be wrong until the first run of syncActive(). -->
+        <input type="checkbox" id="wiz-switch" checked />
+        <!-- The label names what a click DOES, so it flips with the state (initSetupWizard). As
+             "Schritt für Schritt einrichten" with a ticked box it read like a step to complete. -->
+        <span id="wiz-switch-label">Alles auf einer Seite zeigen</span>
+      </label>
     </section>
 
     <!-- Identify (host disclosure OR guest request) — sits next to the setup -->
@@ -248,13 +261,17 @@
       <!-- Guest only: what it takes, before anything else. Setting up the wallet takes minutes and
            the ID card PIN — learnt at the button, it is too late for a call that starts now. A
            neutral wallet icon: the d-you logo must not appear on its own (Touchpoint Design Guide). -->
-      <div class="need-box" id="need-box" hidden>
-        <p class="need-title" data-i18n>Das brauchst du</p>
+      <details class="need-box" id="need-box" hidden>
+        <!-- Folded since 2026-11-15: the summary still says before the button that the app is
+             needed (Touchpoint Design Guide); how to set it up and the way without it are one tap
+             away. What the guest gives and gets stays open below. -->
+        <summary class="need-title"><span data-i18n-html>Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.</span> <span class="need-more" data-i18n>Mehr</span></summary>
         <ul>
           <li><svg class="need-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span><span data-i18n-html>Die App <strong>d-you Wallet</strong> auf deinem Smartphone, eingerichtet mit deinem Ausweis (Online-Ausweisfunktion und PIN).</span> <a href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Noch nicht eingerichtet? So geht’s</a></span></li>
           <li id="need-media"><svg class="need-ic need-ic-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><svg class="need-ic need-ic-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg><span id="need-media-text" data-i18n>Kamera und Mikrofon an diesem Gerät.</span></li>
         </ul>
-      </div>
+        <p class="hint wallet-alt" id="wallet-alt" hidden data-i18n>Keine d-you Wallet? Sag der Person Bescheid, die dich eingeladen hat. Sie kann den Anruf auch ohne Ausweisprüfung starten.</p>
+      </details>
       <p class="hint" id="auth-hint" data-i18n-html>Du gibst <strong>nur diese Angaben</strong> aus deinem Ausweis frei — sonst nichts:</p>
       <ul class="consent" id="consent-list"></ul>
       <!-- Guest only: what the other side gives in return, and whether they are already
@@ -272,8 +289,7 @@
         <button type="button" id="dyou-open" class="dyou-btn" aria-haspopup="dialog" aria-controls="wallet-modal">
           <img class="dyou-img" src="vendor/d-you/d-you-wallet_button_verify_de.svg" alt="Verifizieren mit d-you Wallet" width="202" height="55" />
         </button>
-        <p class="hint wallet-alt" id="wallet-alt" hidden data-i18n>Keine d-you Wallet? Sag der Person Bescheid, die dich eingeladen hat. Sie kann den Anruf auch ohne Ausweisprüfung starten.</p>
-        <a class="wallet-info-link" href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Was ist die d-you Wallet?</a>
+        <a class="wallet-info-link" id="wallet-info-link" href="https://eudi-wallet.gov.de/de" data-wallet-info target="_blank" rel="noopener" data-i18n>Was ist die d-you Wallet?</a>
       </div>
     </section>
     </div><!-- /setup-zone -->
@@ -466,8 +482,10 @@
          Im Markup steht sie NACH der rechten Spalte, damit sie auf schmalen Screens (dort ist
          .setup-columns `display: contents`) hinter dem Formular landet und nicht davor. -->
     <!-- App-Staerken: nur auf Wizard-Schritt 1 (mobil/App), unter "Anruf einrichten" -->
-    <section id="app-strengths" class="app-strengths" aria-label="Vorteile">
-      <h2 data-i18n data-brand-product>Warum whosit?</h2>
+    <!-- A <details> since 2026-11-15: on one column it starts folded to its heading (app.js
+         initCalmFlow), in the side column of wide screens open. -->
+    <details id="app-strengths" class="app-strengths" open>
+      <summary><h2 data-i18n data-brand-product>Warum whosit?</h2></summary>
       <div class="strength">
         <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
         <div><h3 data-i18n>Du weißt, mit wem du sprichst</h3><p data-i18n>Beide weisen sich per EUDI-Wallet aus — echte, amtlich geprüfte Namen statt Fantasie.</p></div>
@@ -491,7 +509,7 @@
         <span class="s-ic gold"><svg viewBox="0 0 24 24" fill="#FFCC00" stroke="none" aria-hidden="true"><path d="M12 2.5l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14.9l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2.5z"/></svg></span>
         <div><h3 data-i18n>Europäischer Standard</h3><p data-i18n>Auf Basis von eIDAS 2.0 und der EUDI-Wallet. Kein Konto nötig – whosit läuft im Browser.</p></div>
       </div>
-    </section>
+    </details>
     </div><!-- /setup-columns -->
 
     <!-- Call banner (audio/chat) -->

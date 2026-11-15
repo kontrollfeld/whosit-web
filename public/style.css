@@ -302,7 +302,7 @@ header { margin-bottom: 22px; }
 }
 .ch-card {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "logo status action" "notice notice notice";
+  grid-template-areas: "logo main action" "notice notice notice";
   align-items: center; gap: 4px 16px; padding: 12px 18px;
   background: rgba(255, 255, 255, 0.96); color: var(--ch-text);
   border: 1px solid var(--ch-line); border-radius: 20px;
@@ -319,8 +319,9 @@ header { margin-bottom: 22px; }
 .ring-sound { flex: none; min-height: 30px; width: 30px; align-self: center; background: #f1f5f9; border-color: var(--ch-line); color: var(--ch-faint); }
 .ring-sound:hover:not(:disabled) { background: #f1f5f9; color: var(--ch-muted); border-color: #cfd8e6; }
 .ring-sound[aria-pressed="false"] { color: var(--ch-muted); }
+.ch-main { grid-area: main; min-width: 0; display: grid; gap: 6px; justify-items: start; }
 .ch-status {
-  grid-area: status; min-width: 0; display: grid; gap: 3px; justify-items: start; justify-content: start; align-content: center; text-align: left;
+  min-width: 0; max-width: 100%; display: grid; gap: 3px; justify-items: start; justify-content: start; align-content: center; text-align: left;
   padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; min-height: 0; white-space: normal;
 }
 .ch-status:disabled { cursor: default; opacity: 1; }
@@ -332,6 +333,7 @@ header { margin-bottom: 22px; }
 /* a call where nobody is verified says so in the trust bar's warning colour */
 .ch-title.unverified { color: #7a5200; }
 .ch-warn { flex: none; width: 17px; height: 17px; border-radius: 50%; background: #f0c36d url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a5200' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 7v6M12 17h.01'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.ch-sub:empty { display: none; }
 .ch-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.8rem; color: var(--ch-muted); font-weight: 400; }
 .ch-chip { display: inline-flex; padding: 1px 9px; border-radius: 999px; background: #f1f5f9; color: var(--ch-muted); font-size: 0.76rem; white-space: nowrap; }
 .ch-chip.ok { background: var(--ch-ok-soft); color: var(--ch-ok); }
@@ -350,6 +352,68 @@ header { margin-bottom: 22px; }
 .ch-notice-btn { flex: none; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; color: var(--ch-accent); font-weight: 600; font-size: 0.84rem; }
 .ch-notice-btn:hover:not(:disabled) { background: none; transform: none; filter: none; text-decoration: underline; }
 @keyframes ch-drop { from { opacity: 0; transform: translateY(-6px); } }
+/* Before the call (since 2026-11-15): the status line's first sentence under the step, the rest
+   behind ⓘ; who is how far as pills — a tap lists the participants card's own lines. */
+.ch-say { display: flex; align-items: flex-start; gap: 8px; font-size: 0.84rem; color: var(--ch-muted); }
+.ch-say[hidden], .ch-more[hidden], .ch-people[hidden], .ch-who[hidden] { display: none; }
+.ch-info {
+  flex: none; width: 20px; height: 20px; min-height: 0; padding: 0; margin-top: 1px; border-radius: 50%;
+  border: 1px solid var(--ch-line); background: #fff; color: var(--ch-muted); box-shadow: none;
+  font: 600 0.7rem/1 Georgia, serif; font-style: italic; display: inline-grid; place-items: center;
+}
+.ch-info:hover:not(:disabled) { background: #f1f5f9; transform: none; filter: none; }
+.ch-info[aria-expanded="true"] { background: var(--ch-accent-soft); border-color: transparent; color: var(--ch-accent); }
+.ch-more { margin: 0; padding: 7px 10px; border-radius: 10px; background: #f1f5f9; color: var(--ch-muted); font-size: 0.82rem; }
+.ch-people { display: flex; flex-wrap: wrap; gap: 6px; }
+.ch-person {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 3px 10px 3px 4px;
+  border-radius: 999px; border: 1px solid var(--ch-line); background: #f1f5f9; box-shadow: none;
+  color: var(--ch-muted); font-size: 0.78rem; font-weight: 500; white-space: nowrap;
+}
+.ch-person:hover:not(:disabled) { background: #e9eef5; transform: none; filter: none; }
+.ch-person:focus-visible { outline: 2px solid var(--ch-accent); outline-offset: 2px; }
+.ch-av {
+  flex: none; width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center;
+  background: #fff; border: 1.5px dashed var(--ch-faint); font-size: 0.62rem; font-weight: 700; color: var(--ch-muted);
+}
+.ch-pname { color: var(--ch-text); }
+.ch-tag::before { content: "· "; }
+.ch-person.peer .ch-av { border-color: #b69cf0; color: #7c3aed; }
+.ch-person.st-open .ch-av, .ch-person.is-turn .ch-av { border-style: solid; }
+.ch-person.st-away { opacity: 0.7; }
+.ch-person.st-anon { opacity: 0.8; }
+.ch-person.st-done { background: var(--ch-ok-soft); border-color: #9fd9c3; }
+.ch-person.st-done .ch-av {
+  border: 0; background: var(--ch-ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 11px no-repeat;
+}
+.ch-person.peer.st-done { background: #f3edfe; border-color: #c9b5f5; }
+.ch-person.peer.st-done .ch-av { background-color: #7c3aed; }
+/* whose move it is: yours in blue, theirs in their violet — as the participants card's chips pulse */
+.ch-person.is-turn { border-color: var(--ch-accent); background: var(--ch-accent-soft); }
+.ch-person.is-turn .ch-av { border-color: var(--ch-accent); color: var(--ch-accent); animation: ch-turn 1.8s ease-in-out infinite; }
+.ch-person.peer.is-turn { border-color: #c9b5f5; background: #f3edfe; }
+.ch-person.peer.is-turn .ch-av { border-color: #7c3aed; color: #7c3aed; }
+@keyframes ch-turn { 50% { box-shadow: 0 0 0 4px rgba(3, 105, 161, 0.16); } }
+.ch-who { display: grid; gap: 3px; width: 100%; padding-top: 6px; border-top: 1px solid var(--ch-line); font-size: 0.8rem; color: var(--ch-muted); }
+.ch-title .ch-chip { font-weight: 400; }
+/* With the head, the page loses what it now says (since 2026-11-15): the participants card before
+   the call (in the call it is what the names open), the status line unless it reports an error,
+   and on the web the introduction above the call. */
+body.has-head:not(.in-call) #identities,
+body.has-head:not(.in-call) #status-bar:not([data-state="error"]),
+body.has-head header .sub { display: none !important; }
+/* The device check as one line until it is wanted (app.js initCallHead → arrange). */
+#media-check.mc-off { display: none !important; }
+#media-check.mc-fold { padding-block: 12px; }
+#media-check.mc-fold > :not(h2) { display: none !important; }
+#media-check.mc-fold h2 { margin: 0; cursor: pointer; font-size: 0.95rem; }
+#media-check.mc-fold h2::after {
+  content: ""; margin-left: auto; width: 16px; height: 16px; flex: none; opacity: 0.6;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6b85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+#media-check.mc-fold h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+/* In the app "Warum whosit?" is not part of the call: whoever has the app has chosen it. */
+html.native-app body.has-head .app-strengths { display: none !important; }
 /* With the head, the ring and the step name are up there: no second logo, no second stepper, and
    in the call no trust bar (the head's names open what it opened). */
 body.has-head header .logo,
@@ -361,12 +425,14 @@ body.has-head .status-kicker { display: none !important; }
 /* Phone: logo and switch on top, where the call stands and the action below. */
 @media (max-width: 640px) {
   .call-head { margin-inline: -8px; }
-  .ch-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "logo logo" "status action" "notice notice"; gap: 8px 10px; padding: 10px 14px; }
+  .ch-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "logo logo" "main action" "notice notice"; gap: 8px 10px; padding: 10px 14px; }
+  .ch-action { align-self: end; }
   .ch-logo-btn, .call-head.ch-compact .ch-logo-btn { width: 160px; }
   .ch-action button { min-height: 38px; padding: 7px 13px; font-size: 0.86rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ch-card, .ch-logo-btn { transition: none; }
+  .ch-person.is-turn .ch-av { animation: none; }
   .ch-notice { animation: none; }
 }
 /* The whosit logo is the file from public/logo/, never rebuilt from mark plus text. The white
@@ -1217,7 +1283,16 @@ details.policy-note .policy-official { font-style: italic; }
   border: 1px solid var(--accent-border); border-radius: 12px;
   padding: 12px 14px; margin: 0 0 14px;
 }
-.need-box .need-title { margin: 0 0 8px; font-weight: 600; color: var(--text); }
+.need-box .need-title { margin: 0; font-weight: 400; color: var(--text); }
+/* Folded to one line since 2026-11-15 (a <details>): the summary says what is needed, "Mehr" opens how. */
+.need-box { padding-block: 10px; }
+.need-box > summary { list-style: none; cursor: pointer; }
+.need-box > summary::-webkit-details-marker { display: none; }
+.need-box > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.need-box .need-more { color: var(--accent); font-weight: 600; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+.need-box[open] .need-more { display: none; }
+.need-box[open] > summary { margin-bottom: 10px; }
+.need-box .wallet-alt { margin: 10px 0 0; }
 .need-box ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .need-box li { display: flex; gap: 10px; align-items: flex-start; color: var(--text); }
 .need-box li[hidden] { display: none; }
@@ -1618,9 +1693,9 @@ html.dt-large body.wizard #wiz-nav { flex-wrap: wrap; }
 html.dt-large .wiz-dots.wiz-step { order: -1; flex-basis: 100%; }
 .wiz-dots .dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--border-strong); transition: background var(--t), transform var(--t);
+  background: var(--border-strong); transition: background var(--t), width var(--t);
 }
-.wiz-dots .dot.active { background: var(--accent); transform: scale(1.25); }
+.wiz-dots .dot.active { background: var(--accent); width: 20px; border-radius: 4px; }
 .wiz-dots .dot.done { background: var(--ok); }
 /* step gating — by step kind (data-wkind): mode · you · guest · invite · auth.
  * Each step hides the parts that do NOT belong to it (never force display, so the
@@ -1728,6 +1803,18 @@ body.pre-start.wizard[data-wkind="mode"] .app-strengths { display: block; }
   body:not(.in-call):not(.call-ended) .app-strengths { display: block; }
 }
 .app-strengths h2 { font-size: 0.95rem; margin: 0 0 14px; color: var(--navy); }
+/* a <details> since 2026-11-15: folded, only its heading, as a row that opens */
+.app-strengths > summary { list-style: none; cursor: pointer; display: flex; align-items: center; }
+.app-strengths > summary::-webkit-details-marker { display: none; }
+.app-strengths > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.app-strengths:not([open]) { padding-bottom: 0; }
+.app-strengths:not([open]) > summary h2 { margin-bottom: 14px; }
+.app-strengths > summary::after {
+  content: ""; margin: 0 0 14px auto; width: 16px; height: 16px; flex: none; opacity: 0.6; transition: transform var(--t);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6b85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.app-strengths[open] > summary::after { transform: rotate(180deg); }
+@media (min-width: 1020px) { .app-strengths > summary { cursor: default; } .app-strengths > summary::after { display: none; } }
 .strength { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 16px; }
 .strength .s-ic {
   flex: none; width: 38px; height: 38px; border-radius: 11px;
@@ -1931,7 +2018,7 @@ body.link-down .schedule-actions { opacity: 0.55; }
    actual decisions. */
 .wiz-switch {
   display: flex; align-items: center; gap: 8px;
-  margin: -2px 0 16px;
+  margin: 14px auto 0;
   cursor: pointer;
   font-size: 0.84rem;
   color: var(--text-muted);

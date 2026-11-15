@@ -652,7 +652,15 @@
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— more than one guest, also while the call is running. Unticked, the call stays private between two.",
     "Dieser Anruf ist privat und bereits besetzt.": "This call is private and already taken.",
     "Weitere Angaben": "More details",
-    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Someone new has taken the other seat. Please review and agree again."
+    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Someone new has taken the other seat. Please review and agree again.",
+    "noch offen": "not yet",
+    "noch nicht da": "not here yet",
+    "anonym": "anonymous",
+    "Warten auf {who}": "Waiting for {who}",
+    "{n} von {m}": "{n} of {m}",
+    "Mehr dazu": "More about this",
+    "Mehr": "More",
+    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "You need the <strong>d-you Wallet</strong> app with your ID card."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1307,6 +1315,14 @@
     "— mehr als ein Gast, auch noch während des Anrufs. Ohne Haken bleibt der Anruf privat zu zweit.": "— plus d’un invité, y compris pendant l’appel. Sans cette case, l’appel reste privé à deux.",
     "Dieser Anruf ist privat und bereits besetzt.": "Cet appel est privé et déjà occupé.",
     "Weitere Angaben": "Autres données",
-    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Une nouvelle personne a pris l’autre place. Veuillez vérifier et donner à nouveau votre accord."
+    "Am anderen Platz ist jemand Neues. Bitte prüfe und stimme erneut zu.": "Une nouvelle personne a pris l’autre place. Veuillez vérifier et donner à nouveau votre accord.",
+    "noch offen": "pas encore",
+    "noch nicht da": "pas encore là",
+    "anonym": "anonyme",
+    "Warten auf {who}": "En attente de {who}",
+    "{n} von {m}": "{n} sur {m}",
+    "Mehr dazu": "En savoir plus",
+    "Mehr": "Plus",
+    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "Il te faut l’application <strong>d-you Wallet</strong> avec ta carte d’identité."
   }
 }

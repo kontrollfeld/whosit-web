@@ -832,9 +832,20 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
 - **The call's head** (`#call-head`, `initCallHead`, since 2026-11-14): an island at the top that
   stays while the page scrolls, from the first step of a call to its end. It holds the logo with
   its ring as the progress (220 px, 160 px once the page has moved; 160 px in the app), the
-  "Töne" switch, where the call stands (step name, "Schritt n von 3", who has identified) and the
-  ONE thing to do next: "Verbinden ✓", "Anruf starten", the wallet or "Link kopieren". That button
-  is a copy that presses the page's own button, which keeps its place, its checks and its label.
+  "Töne" switch, where the call stands and the ONE thing to do next: "Verbinden ✓", "Anruf
+  starten", the wallet or "Link kopieren". That button is a copy that presses the page's own
+  button, which keeps its place, its checks and its label; it shows only while that button is out
+  of sight (one main button per screen, since 2026-11-15).
+  Before the call it is also the page's orientation (since 2026-11-15, to keep the page calm): the
+  step's name with "n von 3" (once your part is done, whom you are waiting for: "Warten auf
+  Gast"), the status line's first sentence (the rest behind ⓘ; errors keep their coloured band
+  below the head) and one pill per participant — dashed: not joined, outlined: still open, pulsing:
+  whose move it is, ticked: identified, faint: anonymous; a tap lists the participants card's own
+  lines. The participants card, the status line and, on the web, the introduction above the call
+  step back meanwhile. The device check is a single line until tapped, open while you wait and gone
+  on the review; "Warum whosit?" folds to its heading on one column and is not shown in the app's
+  call; a guest's "Das brauchst du" is one line with "Mehr" (what they give and get stays open);
+  the setup steps count in dots, and "Alles auf einer Seite zeigen" sits at the card's foot.
   "Verbinden ✓" is the consent, so it is given with the review in view: pressed while the review
   is out of view, it first scrolls the review up, and the next press connects.
   In the call it shows who is on the other side (the trust bar's names, whose tap it takes over:
