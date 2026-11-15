@@ -177,6 +177,11 @@
         <button type="button" data-mode="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>Audio</button>
         <button type="button" data-mode="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button>
       </div>
+      <!-- The guest has to prepare: wallet installed and the ID card read in. Said once, at the
+           start (since 2026-11-15): in the guided setup only on its first step, so the invite
+           step has room for the link. Only while the guest is asked for something — "Nichts
+           abfragen" needs no wallet (app.js updatePreview). -->
+      <p class="hint invite-wallet-note" id="invite-wallet-note"><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span data-i18n-html>Dein Gast braucht die App <strong>d-you Wallet</strong>, eingerichtet mit dem eigenen Ausweis. Sag am besten vorher Bescheid – das Einrichten dauert ein paar Minuten.</span></p>
       </div><!-- /mode-block -->
 
       <div class="party you">
@@ -308,9 +313,6 @@
            makes the setup read-only (lockSetup). Whoever invites first and is overtaken by
            their guest has pinned the call to the defaults and then sees only a dead form.
            So say it before it happens. -->
-      <!-- The guest has to prepare: wallet installed and the ID card read in. Only while the guest
-           is asked for something — "Nichts abfragen" needs no wallet. -->
-      <p class="hint invite-wallet-note" id="invite-wallet-note"><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span data-i18n-html>Dein Gast braucht die App <strong>d-you Wallet</strong>, eingerichtet mit dem eigenen Ausweis. Sag am besten vorher Bescheid – das Einrichten dauert ein paar Minuten.</span></p>
       <p class="hint invite-lock-note" id="invite-lock-note" data-i18n>Sobald dein Gast beitritt, lassen sich die Einstellungen nicht mehr ändern.</p>
       <div id="schedule-block" hidden>
       <!-- Voreinstellung, kein fester Wert: dieser Titel landet im Kalender des Gastes und in

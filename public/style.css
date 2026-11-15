@@ -1321,6 +1321,8 @@ details.policy-note .policy-official { font-style: italic; }
 .invite-wallet-note { display: flex; gap: 8px; align-items: flex-start; }
 .invite-wallet-note[hidden] { display: none; }
 .invite-wallet-note .h-ic { flex: none; margin-top: 2px; }
+/* since 2026-11-15 on the first setup step, below the connection type */
+#mode-block .invite-wallet-note { margin: 14px 0 0; }
 
 /* The d-you button: the asset as it is — no background, border, shadow or filter of ours, and the
    operator's accent colour cannot reach it. Free space around it, as the guide asks. */
