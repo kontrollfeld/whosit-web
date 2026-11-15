@@ -369,6 +369,7 @@ header { margin-bottom: 22px; }
   display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 3px 10px 3px 4px;
   border-radius: 999px; border: 1px solid var(--ch-line); background: #f1f5f9; box-shadow: none;
   color: var(--ch-muted); font-size: 0.78rem; font-weight: 500; white-space: nowrap;
+  max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
 .ch-person:hover:not(:disabled) { background: #e9eef5; transform: none; filter: none; }
 .ch-person:focus-visible { outline: 2px solid var(--ch-accent); outline-offset: 2px; }
@@ -378,6 +379,7 @@ header { margin-bottom: 22px; }
 }
 .ch-pname { color: var(--ch-text); }
 .ch-tag::before { content: "· "; }
+.ch-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ch-person.peer .ch-av { border-color: #b69cf0; color: #7c3aed; }
 .ch-person.st-open .ch-av, .ch-person.is-turn .ch-av { border-style: solid; }
 .ch-person.st-away { opacity: 0.7; }
@@ -424,13 +426,16 @@ body.has-head.in-call #trust-bar,
 body.has-head.in-call #status-bar[data-state="ok"] { display: none !important; }
 /* the app names the stage in the status card's kicker; the head names it now */
 body.has-head .status-kicker { display: none !important; }
-/* Phone: logo and switch on top, where the call stands and the action below. */
+/* Phone: logo and switch on top, where the call stands below, the action in a row of its own at
+   full width. Beside the text (until 2026-11-15) a long label ("Mit Wallet ausweisen") squeezed
+   the sentence into a narrow column and lay over the pills. Like the button, the row is there only
+   while the page's own button is out of sight. */
 @media (max-width: 640px) {
   .call-head { margin-inline: -8px; }
-  .ch-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "logo logo" "main action" "notice notice"; gap: 8px 10px; padding: 10px 14px; }
-  .ch-action { align-self: end; }
+  .ch-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "logo" "main" "action" "notice"; gap: 8px; padding: 10px 14px; }
+  .ch-action:not(:has(> button:not([hidden]))) { display: none; }
   .ch-logo-btn, .call-head.ch-compact .ch-logo-btn { width: 160px; }
-  .ch-action button { min-height: 38px; padding: 7px 13px; font-size: 0.86rem; }
+  .ch-action button { flex: 1; min-height: 38px; padding: 7px 13px; font-size: 0.86rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ch-card, .ch-logo-btn { transition: none; }
@@ -533,7 +538,10 @@ html.native-app body:not(.in-call) .status-kicker:not(:empty) {
   padding: 20px;
   margin-bottom: 16px;
   box-shadow: var(--shadow);
-  animation: rise var(--t) both;
+  /* backwards, not both (2026-11-15): a fill that outlasts the animation keeps a transform on the
+     card, which makes it the containing block of anything fixed inside it — the review's connect
+     bar then hung at the card's foot instead of the screen's. */
+  animation: rise var(--t) backwards;
 }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 .card h2 {
@@ -1604,6 +1612,14 @@ html.native-app .app-footer { display: none; }
 /* keep the sticky call controls above the tab bar */
 html.native-app .call-controls { bottom: calc(66px + env(safe-area-inset-bottom)); }
 html.native-app body.in-call .call-controls { bottom: max(14px, calc(6px + env(safe-area-inset-bottom))); }
+/* and what the page pins to the bottom before the call (2026-11-15): the review's connect bar and
+   the setup's summary sat behind the tab bar, so the bar's "Verbinden" could not be seen or reached */
+@media (max-width: 640px) {
+  html.native-app #review:not([hidden]) .review-actions { bottom: calc(63px + env(safe-area-inset-bottom)); padding-bottom: 10px; }
+  /* the bar's height (two rows of buttons) on top of the tab bar's, which main already leaves free */
+  html.native-app #review:not([hidden]) { padding-bottom: 140px; }
+  html.native-app #setup .preview { bottom: calc(73px + env(safe-area-inset-bottom)); }
+}
 
 /* tab switching: settings tab hides the call flow */
 html.native-app body[data-tab="settings"] #setup-columns,
