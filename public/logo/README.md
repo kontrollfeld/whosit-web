@@ -28,7 +28,9 @@ It is played in exactly two ways (brand owner, 2026-11-14):
   usual playback level), and a letter not
   reached yet stays faint (20 % opacity). Star and tick flash after the Z of a verified call only;
   in a call where nobody presented anything the R stays faint and silent. In the call's head (the
-  sticky island at the top of a call, since 2026-11-14) and, for the Z, on the card in the middle of the screen. Outside a call the logo is the file.
+  sticky island at the top of a call, since 2026-11-14) only; the card in the middle of the screen
+  that showed the Z when the call connected was removed on 2026-11-16. Outside a call the logo is
+  the file.
 
 - Animate the logo only with this, everywhere. No other choreography, no variants.
 - Only on light ground (it uses the colour file), and never on operator-branded instances.

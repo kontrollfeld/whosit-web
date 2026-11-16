@@ -3667,7 +3667,7 @@ function getAudioCtx() {
   return audioCtx;
 }
 // Safari counts a touch as a user gesture only on touchend/click, not on pointerdown.
-for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); loadLogoMoment(); playPendingRingQ(); }, { passive: true, capture: true });
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { getAudioCtx(); loadSoundMarks(); playPendingRingQ(); }, { passive: true, capture: true });
 
 /* "Töne" switch (footer on the website, a row in the app's settings, and next to the logo in the
    call's head while its ring follows the steps of a call — the same setting in all places): off silences the
@@ -3742,19 +3742,12 @@ function loadSoundMarks() {
    nobody was checked), Z when the call connects; star and tick flash after the Z of a verified call. Each letter lights with
    its own tones of the sound mark, very quietly (RING_GAIN): a hint, not a signal. A letter not
    reached yet is faint; outside a call, and after it, the logo is the file again.
-   Where: the call's head (initCallHead; light ground in both themes — the animation uses the
-   colour file) and, when the call connects, a light card in the middle of the screen that lets
-   taps through and is gone after about 3 s. Only on unbranded instances (it is our
-   logo); with "reduce motion" the letters change without moving and there is no card. The tones
-   follow the "Töne" switch. The logo file is fetched with the sound mark (first gesture), so the
-   picture does not lag behind the sound. */
+   Where: the call's head only (initCallHead; light ground in both themes — the animation uses the
+   colour file); the card in the middle of the screen at the Z was removed on 2026-11-16. Only on
+   unbranded instances (it is our logo); with "reduce motion" the letters change without moving.
+   The tones follow the "Töne" switch. */
 const RING_GAIN = 0.025; // 26 dB under the sound mark's 0.5
-let logoMomentShown = false, logoMomentSvg = null;
-function loadLogoMoment() {
-  if (OPERATOR_BRANDED || logoMomentSvg || !window.whositLogoAnimation) return logoMomentSvg;
-  logoMomentSvg = whositLogoAnimation.load('logo/logo-horizontal-colour.svg').catch(() => null);
-  return logoMomentSvg;
-}
+let logoMomentShown = false;
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const ring = { ctl: null, ready: null, state: { Q: false, R: false, Z: false }, active: 0, pendingQ: false };
 function ringAllowed() { return !OPERATOR_BRANDED && !soloMode && !isEmbedded && !!window.whositLogoAnimation; }
@@ -4152,7 +4145,8 @@ function playPendingRingQ() {
     if (playSoundMark('connected', RING_GAIN, whositLogoAnimation.letters.Q)) ring.pendingQ = false;
   });
 }
-/** The call connected: the Z, in the header and on the card, once per page. */
+/** The call connected: the Z in the header, once per page. Until 2026-11-16 it also lit on a card
+ *  in the middle of the screen; that card is gone (it stood in front of the call as it began). */
 async function showLogoMoment() {
   if (logoMomentShown || OPERATOR_BRANDED || !window.whositLogoAnimation) return;
   logoMomentShown = true;
@@ -4165,18 +4159,6 @@ async function showLogoMoment() {
     ring.ctl.set({ Q: true, R: verified, Z: false });
     lightLetter(ring.ctl, 'Z', { flash: verified, clock });
   }
-  const box = $('logo-moment');
-  if (!box || reducedMotion()) return;
-  const svg = await loadLogoMoment();
-  if (!svg || ended) return;
-  if (!box.firstChild) { const card = document.createElement('div'); card.className = 'logo-moment-card'; card.appendChild(svg); box.appendChild(card); }
-  const card = whositLogoAnimation.steps(svg);
-  card.set({ Q: true, R: verified, Z: false });
-  box.hidden = false; box.classList.remove('out');
-  await card.light('Z', { clock, flash: verified });
-  await new Promise((r) => setTimeout(r, verified ? 700 : 400)); // the flash takes 0.7 s
-  box.classList.add('out');
-  setTimeout(() => { box.hidden = true; box.classList.remove('out'); }, 450);
 }
 
 /** `span`: only this part of the mark ({ from, to } in seconds — one letter of QRZ), faded out at
@@ -5130,7 +5112,7 @@ function playAppIntro() {
   root.addEventListener('click', () => { if (clock && clock.audio) clock.audio.pause(); finish(); }, { once: true });
   setTimeout(finish, 8000); // whatever happens, the app is never held behind it
   (async () => {
-    // Its own copy of the logo, not the call's (loadLogoMoment): one svg cannot be in two places.
+    // Its own copy of the logo, not the call head's: one svg cannot be in two places.
     const svg = await whositLogoAnimation.load('logo/logo-horizontal-colour.svg').catch(() => null);
     if (done) return;
     if (!svg) return finish();
