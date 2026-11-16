@@ -1615,6 +1615,8 @@ function renderWalletOffer(offer) {
   const qrData = offer.crossDeviceUri || offer.uri;
   // eslint-disable-next-line no-undef
   new QRCode(qrContainer, { text: qrData, width: 232, height: 232, correctLevel: QRCode.CorrectLevel.M });
+  // qrcodejs puts the encoded link into a title: a tooltip over the code that blocks the scan.
+  qrContainer.removeAttribute('title');
   authLink.href = offer.uri || qrData;
 }
 
