@@ -4010,7 +4010,10 @@ function initCallHead() {
       if (!verified) { const b = document.createElement('span'); b.className = 'ch-warn'; b.setAttribute('aria-hidden', 'true'); title.appendChild(b); }
       if (verified) { const b = document.createElement('span'); b.className = 'ch-ok'; b.setAttribute('aria-hidden', 'true'); title.appendChild(b); }
       const n = document.createElement('span'); n.className = 'ch-name'; n.textContent = names ? names.textContent : '';
-      title.appendChild(n);
+      // The way to the shared data (the trust bar's chevron, which the head replaces in a call).
+      const chev = document.createElement('span'); chev.className = 'ch-chev'; chev.setAttribute('aria-hidden', 'true');
+      title.append(n, chev);
+      status.title = t('Geprüfte Angaben');
       const tm = document.createElement('span'); tm.className = 'ch-time'; tm.textContent = clock();
       const lk = document.createElement('span'); lk.className = 'ch-lock';
       lk.textContent = document.body.classList.contains('link-shaky') ? t('Verbindung stockt …') : t('Ende-zu-Ende verschlüsselt');
@@ -4022,6 +4025,7 @@ function initCallHead() {
     } else {
       t0 = 0;
       title.classList.remove('unverified');
+      status.removeAttribute('title');
       status.removeAttribute('aria-expanded'); logoBtn.removeAttribute('aria-expanded');
       const w = waitingFor();
       const n = document.createElement('span'); n.className = 'ch-name'; n.textContent = w ? t('Warten auf {who}', { who: w }) : step.label;
@@ -4085,7 +4089,28 @@ function initCallHead() {
   // decides whether the page's own button is in sight (see inSight).
   let sightQueued = false;
   const laterSight = () => { if (!sightQueued) { sightQueued = true; requestAnimationFrame(() => { sightQueued = false; sight(); }); } };
-  const onScroll = () => { box.classList.toggle('ch-compact', window.scrollY > 24); laterSight(); };
+  /* Compact once the page has moved. The head is in the flow, so shrinking it moved everything
+     below it up, the browser's scroll anchoring (or a page too short to stay past 24px) pulled
+     the scroll position back, the head grew again — and so on: on a call's short page it
+     flickered while scrolling (2026-11-16). Now the space it gives up stays as margin below it
+     (animated alongside), so nothing below moves. Measured with transitions off, then the change
+     is made again so that it animates. */
+  const setCompact = (on) => {
+    if (box.classList.contains('ch-compact') === on) return;
+    if (!on) { box.classList.remove('ch-compact'); box.style.marginBottom = ''; return; }
+    box.classList.add('ch-still');
+    const full = box.offsetHeight;
+    box.classList.add('ch-compact');
+    const small = box.offsetHeight;
+    box.classList.remove('ch-compact');
+    void box.offsetHeight;
+    box.classList.remove('ch-still');
+    void box.offsetHeight;
+    const keep = Math.max(0, full - small) + (parseFloat(getComputedStyle(box).marginBottom) || 0);
+    box.classList.add('ch-compact');
+    box.style.marginBottom = keep + 'px';
+  };
+  const onScroll = () => { setCompact(window.scrollY > 24); laterSight(); };
   window.addEventListener('scroll', onScroll, { passive: true });
   // What the page scrolls into view (the wizard's next step, a card that opens) lands below the
   // head, not under it (since 2026-11-15): the root's scroll padding is the head's height plus

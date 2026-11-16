@@ -316,6 +316,19 @@ header { margin-bottom: 22px; }
 .ch-logo-btn svg { display: block; width: 100%; height: auto; }
 .call-head.ch-compact .ch-logo-btn { width: 160px; }
 .call-head.ch-compact .ch-card { padding-block: 8px; }
+/* The space the compact head gives up stays below it (app.js setCompact); ch-still is only for
+   measuring. */
+.call-head { transition: margin-bottom var(--t); }
+.call-head.ch-still, .call-head.ch-still * { transition: none !important; }
+/* In a call: the chevron after the name says that a tap shows the shared data. */
+.ch-chev {
+  flex: none; width: 16px; height: 16px; color: var(--ch-muted); background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform var(--t);
+}
+.ch-status[aria-expanded="true"] .ch-chev { transform: rotate(180deg); }
+.ch-status:not(:disabled):hover .ch-chev { color: var(--ch-text); }
 .ring-sound { flex: none; min-height: 30px; width: 30px; align-self: center; background: #f1f5f9; border-color: var(--ch-line); color: var(--ch-faint); }
 .ring-sound:hover:not(:disabled) { background: #f1f5f9; color: var(--ch-muted); border-color: #cfd8e6; }
 .ring-sound[aria-pressed="false"] { color: var(--ch-muted); }
@@ -1185,7 +1198,10 @@ details.policy-note .policy-official { font-style: italic; }
   /* With the head the header column is empty in a call; its margin and the grid's row gap left
      50px of nothing between the head and the stage. */
   body.has-head.in-call .setup-columns-left { display: none; }
-  body.has-head.in-call .setup-columns { row-gap: 0; }
+  /* ... and what opens from the head (participants, shared data) starts at the stage's left edge,
+     not beside an empty column. */
+  body.has-head.in-call .setup-columns { row-gap: 0; grid-template-columns: minmax(0, 1fr); }
+  body.has-head.in-call .setup-columns-right { grid-column: 1; }
   /* The steps start where the status line's text starts, not in the middle of the column. */
   body.in-call:has(#peers.fluid:not([hidden])) .stepper { justify-content: flex-start; padding-left: 14px; }
 }
