@@ -1172,6 +1172,22 @@ details.policy-note .policy-official { font-style: italic; }
   body.has-head:not(.in-call):not(.call-ended) .setup-columns-left { display: none; }
   body.has-head:not(.in-call):not(.call-ended) .setup-columns > #app-strengths { grid-row: 1; }
   body.has-head:not(.in-call):not(.call-ended) .setup-columns-right > #status-bar { margin-top: 0; }
+  /* In a video call (2026-11-16): what sits above the stage is as wide as the stage (#peers.fluid)
+     and starts at its left edge, so the logo stands above the picture's left side. Before, the
+     head (760px), the header columns (1180px), the trust bar (reading width) and the stage
+     (1500px) each had their own width, centred: a staircase. Margins, not a transform, for the
+     head and the bar: the bar's hover rule resets transforms. */
+  body.in-call:has(#peers.fluid:not([hidden])) .setup-columns { width: min(96vw, 1500px); }
+  body.in-call:has(#peers.fluid:not([hidden])) .call-head,
+  body.in-call:has(#peers.fluid:not([hidden])) #trust-bar {
+    max-width: none; width: min(96vw, 1500px); margin-left: calc((100% - min(96vw, 1500px)) / 2);
+  }
+  /* With the head the header column is empty in a call; its margin and the grid's row gap left
+     50px of nothing between the head and the stage. */
+  body.has-head.in-call .setup-columns-left { display: none; }
+  body.has-head.in-call .setup-columns { row-gap: 0; }
+  /* The steps start where the status line's text starts, not in the middle of the column. */
+  body.in-call:has(#peers.fluid:not([hidden])) .stepper { justify-content: flex-start; padding-left: 14px; }
 }
 
 /* setup zone: on wide screens, when the host both configures AND identifies, the two
