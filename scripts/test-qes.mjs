@@ -40,6 +40,32 @@ check(identity.matchIdentity({ cn: 'Anna Host', given: 'Anna', family: 'Host' },
 check(identity.matchIdentity({ cn: 'X', given: '', family: '' }, { givenName: '', familyName: '' }).status === 'unknown', 'anonymous → unknown');
 check(identity.matchIdentity({ cn: 'Müller Anna', given: '', family: '' }, { givenName: 'Anna', familyName: 'Mueller' }).status === 'match', 'CN fallback, reversed order + umlaut');
 
+// A CMS container that itself ends in 0x00 must survive the zero padding of /Contents. Stripping
+// trailing zeros cut such signatures short — about one in 256, the old flaky test:qes.
+console.log('signature extraction:');
+{
+  const hex = (u) => Array.from(u, (b) => b.toString(16).padStart(2, '0')).join('');
+  const short = Uint8Array.of(0x30, 0x03, 0x02, 0x01, 0x00); // SEQUENCE { INTEGER 0 }
+  const long = new Uint8Array(3 + 200); long.set([0x30, 0x81, 200]); long[3] = 0x04; long[4] = 197; // ends in 0x00
+  const pad = (u, n) => { const p = new Uint8Array(u.byteLength + n); p.set(u); return p; };
+  check(hex(identity.cmsFromContents(pad(short, 40))) === hex(short), 'short-form DER ending in 0x00 keeps its last byte');
+  check(identity.cmsFromContents(pad(long, 40)).byteLength === long.byteLength, 'long-form DER ending in 0x00 keeps its length');
+  check(identity.cmsFromContents(short).byteLength === short.byteLength, 'unpadded DER unchanged');
+  const indef = pad(Uint8Array.of(0x30, 0x80, 0x02, 0x01, 0x00, 0x00, 0x00), 8);
+  check(identity.cmsFromContents(indef).byteLength === indef.byteLength, 'indefinite-length BER returned whole');
+
+  const head = '%PDF-1.4\n1 0 obj\n<< /Type /Sig /ByteRange [0 AAAA BBBB CCCC] /Contents ';
+  const contents = '<' + hex(pad(short, 40)) + '>';
+  const a = head.length, b = a + contents.length;
+  const tail = ' /M (D:20261117100000Z) >>\nendobj\n%%EOF\n';
+  const fill = (x, n) => String(n).padStart(x.length, ' ');
+  const pdf = head.replace('AAAA', fill('AAAA', a)).replace('BBBB', fill('BBBB', b)).replace('CCCC', fill('CCCC', tail.length)) + contents + tail;
+  const sigs = identity.extractSignatureRanges(new TextEncoder().encode(pdf));
+  check(sigs.length === 1 && hex(sigs[0].cmsDer) === hex(short), 'extraction from /Contents keeps a final 0x00 byte', sigs.map((x) => hex(x.cmsDer)).join());
+  const blank = pdf.replace(hex(pad(short, 40)), '0'.repeat(hex(pad(short, 40)).length));
+  check(identity.extractSignatureRanges(new TextEncoder().encode(blank)).length === 0, 'an unfilled placeholder is no signature');
+}
+
 // ---- 2. two-signer ceremony (integration) ----
 console.log('two-signer PAdES ceremony:');
 // pkijs needs an explicit engine under Node (the browser default engine self-registers).

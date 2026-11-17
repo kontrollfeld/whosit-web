@@ -36,6 +36,27 @@ function latin1(bytes) {
 function hexToU8(h) { return new Uint8Array(h.match(/.{2}/g).map((b) => parseInt(b, 16))); }
 
 /**
+ * The CMS container without the zero padding that fills the rest of /Contents. Its length comes
+ * from the DER header, not from stripping trailing zeros: a DER container can itself end in 0x00
+ * (about one signature in 256), and stripping cut those signatures short. Indefinite-length BER
+ * has no length in its header; it is returned whole, the parser stops at its end-of-contents.
+ */
+export function cmsFromContents(padded) {
+  if (padded.byteLength < 2) return padded;
+  const first = padded[1];
+  let header = 2, len = first;
+  if (first === 0x80) return padded;
+  if (first > 0x80) {
+    const n = first & 0x7f;
+    if (n > 4 || padded.byteLength < 2 + n) return padded;
+    len = 0;
+    for (let i = 0; i < n; i++) len = len * 256 + padded[2 + i];
+    header = 2 + n;
+  }
+  return header + len <= padded.byteLength ? padded.subarray(0, header + len) : padded;
+}
+
+/**
  * Parse ALL embedded signatures ({ ranges, cmsDer }) in file order. The newest
  * incremental update is the LAST entry. (Shared with qes/verify.js.)
  */
@@ -46,9 +67,9 @@ export function extractSignatureRanges(bytes) {
   let m;
   while ((m = re.exec(s))) {
     const [b0, l0, b1, l1] = m.slice(1).map(Number);
-    const hexStr = s.slice(b0 + l0, b1).replace(/[<>]/g, '').replace(/(00)+$/, '');
-    if (hexStr.length && hexStr.length % 2 === 0) {
-      out.push({ ranges: [b0, l0, b1, l1], cmsDer: hexToU8(hexStr), pdfTime: sigDictTime(s, m.index, b1) });
+    const hexStr = s.slice(b0 + l0, b1).replace(/[<>\s]/g, '');
+    if (hexStr.length && hexStr.length % 2 === 0 && /^[0-9a-f]+$/i.test(hexStr) && /[1-9a-f]/i.test(hexStr)) {
+      out.push({ ranges: [b0, l0, b1, l1], cmsDer: cmsFromContents(hexToU8(hexStr)), pdfTime: sigDictTime(s, m.index, b1) });
     }
   }
   return out;
