@@ -1196,6 +1196,31 @@ if (navigator.share) {
   });
 }
 
+// ---- the invitation as a QR code ----
+// For someone in the same room. The guest link is drawn as it is when the dialog opens (with an
+// appointment, ensurePlannedInvite puts the signed one into shareInput first).
+const qrBtn = $('qr-btn');
+const inviteQr = $('invite-qr');
+if (qrBtn && inviteQr && window.QRCode && inviteQr.showModal) {
+  const code = $('iq-code');
+  qrBtn.addEventListener('click', async () => {
+    await ensurePlannedInvite();
+    const url = shareInput.value;
+    if (!url) return;
+    code.innerHTML = '';
+    new QRCode(code, { text: url, width: 640, height: 640, correctLevel: QRCode.CorrectLevel.M });
+    code.removeAttribute('title');
+    try { $('iq-host').textContent = new URL(url).host; } catch { $('iq-host').textContent = ''; }
+    inviteQr.showModal();
+  });
+  $('iq-close').addEventListener('click', () => inviteQr.close());
+  // A click on the backdrop lands on the dialog element itself, outside its box.
+  inviteQr.addEventListener('click', (e) => {
+    const r = inviteQr.getBoundingClientRect();
+    if (e.target === inviteQr && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) inviteQr.close();
+  });
+} else if (qrBtn) qrBtn.hidden = true;
+
 // ---- state ----
 let ws;
 let myRole = null;

@@ -660,7 +660,10 @@
     "{n} von {m}": "{n} of {m}",
     "Mehr dazu": "More about this",
     "Mehr": "More",
-    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "You need the <strong>d-you Wallet</strong> app with your ID card."
+    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "You need the <strong>d-you Wallet</strong> app with your ID card.",
+    "QR-Code": "QR code",
+    "Scannen und beitreten": "Scan to join",
+    "QR-Code mit dem Einladungs-Link": "QR code with the invitation link"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1323,6 +1326,9 @@
     "{n} von {m}": "{n} sur {m}",
     "Mehr dazu": "En savoir plus",
     "Mehr": "Plus",
-    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "Il te faut l’application <strong>d-you Wallet</strong> avec ta carte d’identité."
+    "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "Il te faut l’application <strong>d-you Wallet</strong> avec ta carte d’identité.",
+    "QR-Code": "Code QR",
+    "Scannen und beitreten": "Scanner pour rejoindre",
+    "QR-Code mit dem Einladungs-Link": "Code QR avec le lien d’invitation"
   }
 }
