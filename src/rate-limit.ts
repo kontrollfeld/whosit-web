@@ -41,7 +41,26 @@ export function clientIp(req: Request): string {
   return peer;
 }
 
-/** `perWindow` requests per 10 minutes per IP; `0` (or invalid) = off. */
+/**
+ * The key a client is COUNTED under: its IPv4 address, or the /64 network of its IPv6 address.
+ * An IPv6 subscriber or rented server holds a whole /64 — 2^64 addresses — so counting single
+ * IPv6 addresses let one machine walk past every per-address limit by changing its address.
+ * A /64 is one household or one server, the same unit an IPv4 address stands for.
+ */
+export function limitKey(ip: string): string {
+  let a = ip.toLowerCase().split('%')[0]; // a zone id (fe80::1%eth0) names an interface, not a host
+  if (a.startsWith('::ffff:') && isIP(a.slice(7)) === 4) a = a.slice(7);
+  if (isIP(a) !== 6) return a;
+  const parts = (s: string) => (s ? s.split(':') : []);
+  const width = (gs: string[]) => gs.reduce((n, g) => n + (g.includes('.') ? 2 : 1), 0); // a trailing IPv4 is two groups
+  const halves = a.split('::');
+  const groups = halves.length === 2
+    ? [...parts(halves[0]), ...Array(Math.max(0, 8 - width(parts(halves[0])) - width(parts(halves[1])))).fill('0'), ...parts(halves[1])]
+    : parts(a);
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(':')}::/64`;
+}
+
+/** `perWindow` requests per 10 minutes per IP (IPv6: per /64, see limitKey); `0` (or invalid) = off. */
 export function rateLimit(perWindow: number): RequestHandler {
   if (!Number.isFinite(perWindow) || perWindow <= 0) return (_req, _res, next) => next();
   const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -55,7 +74,7 @@ export function rateLimit(perWindow: number): RequestHandler {
       while (buckets.size >= MAX_BUCKETS) buckets.delete(buckets.keys().next().value as string);
       lastSweep = now;
     }
-    const ip = clientIp(req);
+    const ip = limitKey(clientIp(req));
     let b = buckets.get(ip);
     if (!b || b.resetAt <= now) { b = { count: 0, resetAt: now + WINDOW_MS }; buckets.set(ip, b); }
     if (++b.count > perWindow) {

@@ -56,7 +56,7 @@ import { initUsage, callStarted, participantLeft } from './usage';
 import { derivePseudonym, auditHash } from './pseudonym';
 import { mayHost, hostGateActive, hostGateSize, assertHostGateOrExit, enforceHostDisclosure } from './host-gate';
 import { staffGateActive, verifyStaffToken } from './staff-token';
-import { rateLimit, rateLimitFromEnv, clientIp } from './rate-limit';
+import { rateLimit, rateLimitFromEnv, clientIp, limitKey } from './rate-limit';
 import { appPagePolicy } from './csp';
 
 // A configured host gate must also be ABLE to work. If this instance's policy permits no
@@ -1769,9 +1769,27 @@ function requestCredential(ws: WebSocket, msg: any): void {
 
 // Abuse limits per client IP (2026-11-05, audit #3). Every new room creates a session at the
 // verifier — without a brake, one script could fill EUDIPLO with them. Generous enough for an
-// office behind one address; each is an env variable, 0 = off.
+// office behind one address; each is an env variable, 0 = off. An IPv6 client counts by its /64
+// (limitKey) — single IPv6 addresses are free to change and would not brake anyone.
 const WS_PER_IP = rateLimitFromEnv('EUDI_WS_PER_IP', 30);
 const NEW_ROOMS_PER_IP = rateLimitFromEnv('EUDI_NEW_ROOMS_PER_IP', 60); // per 10 minutes
+// …and one for the whole instance (2026-11-17): many addresses together — a botnet — get past any
+// per-address brake, and every room holds sessions at the verifier, which all instances share.
+// Above this many open rooms a NEW room is refused; rooms that exist, and calls in them, go on.
+// Needs a room store that can count (the built-in one can); without a count there is no cap.
+const MAX_ROOMS = rateLimitFromEnv('EUDI_MAX_ROOMS', 300);
+let lastFullWarning = 0;
+function roomCapReached(): boolean {
+  if (!MAX_ROOMS || !ext.roomStore.activeCount) return false;
+  const open = ext.roomStore.activeCount();
+  if (open < MAX_ROOMS) return false;
+  const now = Date.now();
+  if (now - lastFullWarning > 60_000) {
+    lastFullWarning = now;
+    console.warn(`⚠️  EUDI_MAX_ROOMS reached: ${open} rooms open — new rooms are refused until some close.`);
+  }
+  return true;
+}
 const RENEW_AUTH_MS = 10_000;
 const wsPerIp = new Map<string, number>();
 const newRooms = new Map<string, number[]>();
@@ -1786,7 +1804,7 @@ function newRoomAllowed(ip: string, now = Date.now()): boolean {
 }
 
 wss.on('connection', (ws, request) => {
-  const ip = clientIp(request as any);
+  const ip = limitKey(clientIp(request as any));
   const open = (wsPerIp.get(ip) ?? 0) + 1;
   if (WS_PER_IP && open > WS_PER_IP) {
     ws.close(1013, 'too many connections');
@@ -1824,7 +1842,12 @@ wss.on('connection', (ws, request) => {
 
     if (msg.type === 'join') {
       const roomId = String(msg.roomId || '');
-      if (roomId && ext.roomStore.has && !ext.roomStore.has(roomId) && !newRoomAllowed(ip)) {
+      const isNewRoom = !!roomId && !!ext.roomStore.has && !ext.roomStore.has(roomId);
+      if (isNewRoom && roomCapReached()) {
+        send(ws, { type: 'error', message: 'too many open rooms on this server — try again in a few minutes' });
+        return;
+      }
+      if (isNewRoom && !newRoomAllowed(ip)) {
         send(ws, { type: 'error', message: 'too many new rooms from this address — try again in a few minutes' });
         return;
       }

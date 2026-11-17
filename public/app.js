@@ -1447,6 +1447,7 @@ const SERVER_ERRORS = [
   [/roomId/, 'Dieser Link ist unvollständig – öffne bitte den ganzen Link aus der Einladung.'],
   [/EUDIPLO|offer failed/i, 'Die Ausweisprüfung ist gerade nicht erreichbar. Versuch es in einem Moment noch einmal.'],
   [/too many new rooms/i, 'Von diesem Anschluss wurden gerade sehr viele Anrufe gestartet. Versuch es in ein paar Minuten noch einmal.'],
+  [/too many open rooms/i, 'Gerade sind sehr viele Anrufe gleichzeitig offen. Versuch es in ein paar Minuten noch einmal.'],
   [/without a verifier/i, 'Auf dieser Instanz ist keine Ausweisprüfung eingerichtet – Anrufe bleiben anonym.'],
   [/channel binding/i, 'Die Verbindung ließ sich nicht sicher zuordnen. Lade die Seite neu und versuch es noch einmal.'],
 ];
