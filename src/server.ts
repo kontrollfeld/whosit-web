@@ -12,6 +12,7 @@
  *   5. Media (A/V) and a chat DataChannel then flow directly P2P between the browsers.
  */
 import 'dotenv/config';
+import './log-time'; // before anything logs: every line carries its time
 import path from 'path';
 import http from 'http';
 import { randomUUID, createHash, timingSafeEqual, createHmac } from 'crypto';

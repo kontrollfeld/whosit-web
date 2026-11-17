@@ -173,7 +173,7 @@ try {
 
   console.log('\nThe record');
   // Without the audit-trail module the record goes to stdout (src/audit.ts), one JSON line each.
-  const audit = appLog.join('').split('\n').filter((l) => l.startsWith('[audit] ')).join('\n');
+  const audit = appLog.join('').split('\n').filter((l) => /^(\S+ \S+ )?\[audit\] /.test(l)).map((l) => l.replace(/^\S+ \S+ (?=\[audit\] )/, '')).join('\n');
   check('a verified line with attribute names', /"event":"verified"/.test(audit) && /"claimKeys":\["given_name","family_name"\]/.test(audit), audit.slice(-400));
   check('never a value', !/Erika|Mustermann|Mallory/.test(audit) && !appLog.join('').includes('Mustermann'), 'a value leaked');
 
