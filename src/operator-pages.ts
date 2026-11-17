@@ -178,16 +178,24 @@ export function resolveOperatorNotFound(cfg: OperatorPagesConfig): string | null
 }
 
 /** redirects.json, re-read only when the file changes. A broken file is reported once and then
- *  treated as empty — a typo must not take the site down, and it must not go unnoticed either. */
-let redirectCache: { mtimeMs: number; map: Map<string, string> } | null = null;
+ *  treated as empty — a typo must not take the site down, and it must not go unnoticed either.
+ *
+ *  "Changes" is decided by the file's identity (device, inode), size and both timestamps — not by
+ *  mtime alone. A site published as a reproducible archive carries the same fixed mtime in every
+ *  release, so a new redirects.json looked unchanged and stayed unread until a restart. A new
+ *  release is a new file (new inode) and therefore noticed; an edit in place changes ctime. */
+let redirectCache: { key: string; map: Map<string, string> } | null = null;
 
 /** Where a path should be redirected to, or null. Targets must be a path on this site ("/…") or
  *  an https:// address; anything else in the file is ignored. */
 export function resolveOperatorRedirect(cfg: OperatorPagesConfig, urlPath: string): string | null {
   const file = path.join(cfg.dir, 'redirects.json');
-  let mtimeMs: number;
-  try { mtimeMs = fs.statSync(file).mtimeMs; } catch { redirectCache = null; return null; }
-  if (!redirectCache || redirectCache.mtimeMs !== mtimeMs) {
+  let key: string;
+  try {
+    const st = fs.statSync(file);
+    key = `${st.dev}:${st.ino}:${st.size}:${st.mtimeMs}:${st.ctimeMs}`;
+  } catch { redirectCache = null; return null; }
+  if (!redirectCache || redirectCache.key !== key) {
     const map = new Map<string, string>();
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -200,7 +208,7 @@ export function resolveOperatorRedirect(cfg: OperatorPagesConfig, urlPath: strin
     } catch (e) {
       console.warn(`[operator-pages] redirects.json ignored: ${(e as Error).message}`);
     }
-    redirectCache = { mtimeMs, map };
+    redirectCache = { key, map };
   }
   return redirectCache.map.get(urlPath) ?? null;
 }

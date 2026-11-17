@@ -20,7 +20,7 @@
  * Usage: npm run test:operatorpages
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, renameSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -373,6 +373,19 @@ try {
     check('a javascript: target is ignored', js.status !== 301, `HTTP ${js.status} → ${js.headers.get('location')}`);
     const pr = await go('/protokoll-relativ');
     check('a protocol-relative target is ignored', pr.status !== 301, `HTTP ${pr.status} → ${pr.headers.get('location')}`);
+
+    // A release of the operator's site replaces redirects.json with a new file that carries the
+    // same fixed mtime as the old one (reproducible archives stamp every file with the epoch).
+    // The new redirect must still take effect without a restart.
+    utimesSync(join(dir, 'redirects.json'), 0, 0);
+    const before = await go('/neu-im-release');
+    check('(a redirect not yet in the file is not answered)', before.status !== 301, `HTTP ${before.status}`);
+    writeFileSync(join(dir, 'redirects.next.json'), JSON.stringify({ '/alt': '/technik', '/neu-im-release': '/technik' }));
+    utimesSync(join(dir, 'redirects.next.json'), 0, 0);
+    renameSync(join(dir, 'redirects.next.json'), join(dir, 'redirects.json'));
+    const after = await go('/neu-im-release');
+    check('a new redirects.json with an unchanged mtime is read without a restart',
+      after.status === 301 && after.headers.get('location') === '/technik', `HTTP ${after.status} → ${after.headers.get('location')}`);
 
     const missing = await fetch(`http://127.0.0.1:${PORT_WITH}/gibt-es-nicht`, { headers: { accept: 'text/html' } });
     const missingText = await missing.text();
