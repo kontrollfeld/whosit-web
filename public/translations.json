@@ -664,7 +664,23 @@
     "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "You need the <strong>d-you Wallet</strong> app with your ID card.",
     "QR-Code": "QR code",
     "Scannen und beitreten": "Scan to join",
-    "QR-Code mit dem Einladungs-Link": "QR code with the invitation link"
+    "QR-Code mit dem Einladungs-Link": "QR code with the invitation link",
+    "Vor Ort": "In person",
+    "Lass dein Gegenüber den QR-Code mit dem eigenen Handy scannen – oder schick den Link.": "Let the other person scan the QR code with their own phone – or send the link.",
+    "Lass dein Gegenüber den QR-Code scannen. Ausweisen kannst du dich gleich oder danach.": "Let the other person scan the QR code. You can identify yourself now or afterwards.",
+    "Dein Gegenüber möchte sehen, wer du bist – weise dich mit deiner Wallet aus.": "The person in front of you wants to see who you are – identify with your wallet.",
+    "Ausweis geprüft": "ID checked",
+    "Ausweis geprüft ✓": "ID checked ✓",
+    "Geprüft um {time} Uhr": "Checked at {time}",
+    "Vergleicht die Namen mit dem, was ihr vorher ausgemacht habt. Die Angaben stehen nur auf diesem Bildschirm, whosit speichert sie nicht.": "Compare the names with what you agreed beforehand. The data is only on this screen; whosit does not store it.",
+    "Fertig": "Done",
+    "Fertig.": "Done.",
+    "Dein Gegenüber hat die Prüfung beendet.": "The other person has closed the check.",
+    "Neue Prüfung starten": "Start a new check",
+    "Ohne Anruf, für ein Treffen: Dein Gegenüber scannt den QR-Code mit dem eigenen Handy. Ihr seht beide die amtlichen Angaben – ohne Foto.": "Without a call, for a meeting: the other person scans the QR code with their own phone. You both see the official data – without a photo.",
+    "Prüfung einrichten": "Set up the check",
+    "Geprüft": "Checked",
+    "Wähle, was du sehen möchtest, und lass dein Gegenüber den QR-Code scannen.": "Choose what you want to see and let the other person scan the QR code."
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1331,6 +1347,22 @@
     "Du brauchst die App <strong>d-you Wallet</strong> mit deinem Ausweis.": "Il te faut l’application <strong>d-you Wallet</strong> avec ta carte d’identité.",
     "QR-Code": "Code QR",
     "Scannen und beitreten": "Scanner pour rejoindre",
-    "QR-Code mit dem Einladungs-Link": "Code QR avec le lien d’invitation"
+    "QR-Code mit dem Einladungs-Link": "Code QR avec le lien d’invitation",
+    "Vor Ort": "Sur place",
+    "Lass dein Gegenüber den QR-Code mit dem eigenen Handy scannen – oder schick den Link.": "Fais scanner le code QR par la personne en face avec son propre téléphone – ou envoie le lien.",
+    "Lass dein Gegenüber den QR-Code scannen. Ausweisen kannst du dich gleich oder danach.": "Fais scanner le code QR par la personne en face. Tu peux t’identifier maintenant ou après.",
+    "Dein Gegenüber möchte sehen, wer du bist – weise dich mit deiner Wallet aus.": "La personne en face veut savoir qui tu es – identifie-toi avec ton wallet.",
+    "Ausweis geprüft": "Identité vérifiée",
+    "Ausweis geprüft ✓": "Identité vérifiée ✓",
+    "Geprüft um {time} Uhr": "Vérifiée à {time}",
+    "Vergleicht die Namen mit dem, was ihr vorher ausgemacht habt. Die Angaben stehen nur auf diesem Bildschirm, whosit speichert sie nicht.": "Comparez les noms avec ce que vous aviez convenu. Les données ne figurent que sur cet écran, whosit ne les enregistre pas.",
+    "Fertig": "Terminé",
+    "Fertig.": "Terminé.",
+    "Dein Gegenüber hat die Prüfung beendet.": "La personne en face a terminé la vérification.",
+    "Neue Prüfung starten": "Nouvelle vérification",
+    "Ohne Anruf, für ein Treffen: Dein Gegenüber scannt den QR-Code mit dem eigenen Handy. Ihr seht beide die amtlichen Angaben – ohne Foto.": "Sans appel, pour une rencontre : la personne en face scanne le code QR avec son propre téléphone. Vous voyez tous les deux les données officielles – sans photo.",
+    "Prüfung einrichten": "Préparer la vérification",
+    "Geprüft": "Vérifié",
+    "Wähle, was du sehen möchtest, und lass dein Gegenüber den QR-Code scannen.": "Choisis ce que tu veux voir et fais scanner le code QR par la personne en face."
   }
 }

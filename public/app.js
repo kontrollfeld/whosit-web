@@ -335,7 +335,9 @@ const ATTRIBUTES = [
 // the standard policy's four rows they only ticked the same boxes a second time. See renderPresets().
 let presets = [];
 const labelFor = (k) => (ATTRIBUTES.find((a) => a.key === k) || {}).label || k;
-const modeLabel = (m) => (m === 'audio' ? 'Audio' : m === 'chat' ? 'Chat' : 'Video');
+const modeLabel = (m) => (m === 'audio' ? 'Audio' : m === 'chat' ? 'Chat' : m === 'inperson' ? 'Vor Ort' : 'Video');
+/** Neither camera nor microphone: a chat, and "Vor Ort" (the two stand in front of each other). */
+const noMedia = () => mode === 'chat' || mode === 'inperson';
 
 // per-attribute Lucide-style icons (inner SVG markup), shown in checklists + data rows
 const ATTR_ICONS = {
@@ -518,6 +520,7 @@ function buildSetup() {
     mode = btn.dataset.mode;
     modeSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
     onConfigChange();
+    syncMediaCheck();
   }));
   discloseSeg.querySelectorAll('[data-disclose]').forEach((btn) => btn.addEventListener('click', () => setDiscloseMode(btn.dataset.disclose)));
   requestSeg.querySelectorAll('[data-request]').forEach((btn) => btn.addEventListener('click', () => setRequestMode(btn.dataset.request)));
@@ -673,11 +676,36 @@ function ensureWalletAttr(prefix) {
 const previewMode = $('preview-mode');
 // Whether the guest is asked for anything — only then do invitations say to set up the wallet.
 let guestNeedsWallet = true;
+/** "Vor Ort": the hint under the mode, and the QR code right in the invitation card. */
+let shareQrText = '';
+function syncInPerson() {
+  const here = mode === 'inperson';
+  const note = $('inperson-note');
+  if (note) note.hidden = !here;
+  const title = $('setup-title');
+  if (title) title.textContent = t(here ? 'Prüfung einrichten' : 'Anruf einrichten');
+  const box = $('share-qr');
+  const btn = $('qr-btn');
+  const url = shareInput.value;
+  const show = here && !!url && !!window.QRCode;
+  if (box) {
+    if (show && url !== shareQrText) {
+      box.innerHTML = '';
+      new QRCode(box, { text: url, width: 480, height: 480, correctLevel: QRCode.CorrectLevel.M });
+      box.removeAttribute('title');
+      shareQrText = url;
+    }
+    box.hidden = !show;
+  }
+  if (btn && window.QRCode && $('invite-qr') && $('invite-qr').showModal) btn.hidden = here;
+  setInviteWhen(inviteWhen);
+}
 function updatePreview(req, disc) {
   guestNeedsWallet = !!(req && req.length);
   const inviteWalletNote = $('invite-wallet-note');
   if (inviteWalletNote) inviteWalletNote.hidden = !guestNeedsWallet;
-  if (previewMode) previewMode.textContent = mode === 'audio' ? t('Audio') : mode === 'chat' ? t('Chat') : t('Video');
+  if (previewMode) previewMode.textContent = t(modeLabel(mode));
+  syncInPerson();
   previewDisclose.textContent = disc && disc.length ? disc.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
   previewRequest.textContent = req && req.length ? req.map((k) => t(labelFor(k))).join(', ') : t('nichts (anonym)');
 }
@@ -884,7 +912,7 @@ if (inviteCfg && inviteCfg.role === 'host') {
 // Scheduled call: adopt the mode and both directions from the invitation, so that preview and
 // setup show the same thing the server holds.
 if (inviteCfg) {
-  if (inviteCfg.mode === 'video' || inviteCfg.mode === 'audio' || inviteCfg.mode === 'chat') mode = inviteCfg.mode;
+  if (['video', 'audio', 'chat', 'inperson'].includes(inviteCfg.mode)) mode = inviteCfg.mode;
   requestMode = inviteCfg.request.length ? 'data' : 'anon';
   discloseMode = inviteCfg.disclose.length ? 'data' : 'anon';
 }
@@ -913,7 +941,7 @@ function setInviteWhen(when) {
   if (scheduleBlock) scheduleBlock.hidden = !later;
   if (scheduleShare) scheduleShare.hidden = !later || !capOn('calendar-invite');
   if (shareHint) shareHint.textContent = !later
-    ? t('Teile diesen Link mit der Person, die du anrufen möchtest.')
+    ? (mode === 'inperson' ? t('Lass dein Gegenüber den QR-Code mit dem eigenen Handy scannen – oder schick den Link.') : t('Teile diesen Link mit der Person, die du anrufen möchtest.'))
     : capOn('calendar-invite')
       ? t('Wähle den Termin und teile die Einladung — als Link, Kalendereintrag oder Wallet-Karte.')
       : t('Wähle den Termin und teile den Einladungs-Link — er gilt dann auch ohne geöffnetes Fenster.');
@@ -953,6 +981,7 @@ function plannedConfigKey(range, c) {
 function resetPlannedLinks() {
   plannedInvite = null; plannedGuestUrl = null; plannedHostUrl = null;
   if (roomId && !inviteCfg) shareInput.value = linkFor(`room=${roomId}`);
+  syncInPerson();
   if (hostLinkRow) hostLinkRow.hidden = true;
   if (hostLinkHint) hostLinkHint.hidden = true;
 }
@@ -991,6 +1020,7 @@ async function ensurePlannedInvite() {
     // later opens the appointment through THEIR link, it stays on this device.
     try { localStorage.setItem('eudi_invite_' + j.room, j.guestToken); } catch {}
     shareInput.value = plannedGuestUrl;
+    syncInPerson();
     if (hostLinkRow && hostUrlInput) { hostUrlInput.value = plannedHostUrl; hostLinkRow.hidden = false; }
     if (hostLinkHint) hostLinkHint.hidden = false;
     return plannedInvite;
@@ -1229,6 +1259,7 @@ let myName = '';
 let selfVerified = false;
 let callStarted = false;
 let ended = false;
+let inPersonDone = false; // "Vor Ort": the check is done (showInPersonDone)
 let isOpenRoom = false; // multi-guest room with late-join (server-driven)
 let lastStatusMsg = null; // latest status: claims per peer feed the tile banderoles + chip rebuilds
 let reconnectAttempts = 0;
@@ -1761,7 +1792,7 @@ function renderAuthCard(role, attrs, opts) {
   if (needBox) {
     needBox.hidden = !guestBox;
     const media = $('need-media');
-    media.hidden = mode === 'chat';
+    media.hidden = noMedia();
     media.classList.toggle('is-audio', mode === 'audio');
     $('need-media-text').textContent = t(mode === 'audio' ? 'Ein Mikrofon an diesem Gerät.' : 'Kamera und Mikrofon an diesem Gerät.');
   }
@@ -1827,7 +1858,8 @@ const STEPS_GUEST = ['Ausweisen', 'Zustimmen', 'Verbunden'];
 function updateStepper(active) {
   updateRing(active);
   if (!stepperEl || soloMode || isEmbedded) return;
-  const labels = myRole === 'callee' ? STEPS_GUEST : STEPS_HOST;
+  // "Vor Ort" ends in a check, not a connection.
+  const labels = (myRole === 'callee' ? STEPS_GUEST : STEPS_HOST).map((l, i, a) => (i === a.length - 1 && mode === 'inperson' ? 'Geprüft' : l));
   stepperEl.innerHTML = '';
   labels.forEach((label, i) => {
     const li = document.createElement('li');
@@ -1837,7 +1869,7 @@ function updateStepper(active) {
     // item even though the connection has long been up.
     // …but only once the connection is actually up. Ticked from the moment both had confirmed,
     // it said "Verbunden ✓" right above "Verbindung wird aufgebaut …".
-    const done = i < active || (i === active && i === labels.length - 1 && anyConnected());
+    const done = i < active || (i === active && i === labels.length - 1 && (anyConnected() || inPersonDone));
     const no = document.createElement('span'); no.className = 'step-dot'; no.textContent = done ? '✓' : String(i + 1);
     const tx = document.createElement('span'); tx.textContent = t(label);
     li.append(no, tx);
@@ -2085,6 +2117,9 @@ function renderPeerBlocks(container, peers, renderInto, withNames) {
 }
 
 function renderStatus(msg) {
+  // "Vor Ort", done: the result stays as it was agreed. Once one side closes it the room no longer
+  // reveals anything, and that must not empty the other side's screen.
+  if (inPersonDone) { if (msg.revealed) renderResult(msg); return; }
   const hadStatus = !!lastStatusMsg; // a resumed seat arrives verified — nothing happened just now
   lastStatusMsg = msg;
   syncBanderoleTriggers();
@@ -2280,7 +2315,10 @@ function renderStatus(msg) {
     // The status says where the host is, not what comes three steps later: "Weise dich aus"
     // greeted a host who had not chosen anything yet (and an anonymous host, who has nothing to
     // identify at all).
-    if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
+    const here = msg.mode === 'inperson';
+    if (here && !peerPresent && !hostMustScan) setStatus('Wähle, was du sehen möchtest, und lass dein Gegenüber den QR-Code scannen.');
+    else if (here && !peerPresent) setStatus('Lass dein Gegenüber den QR-Code scannen. Ausweisen kannst du dich gleich oder danach.');
+    else if (!peerPresent && msg.configPinned) setStatus('Geplanter Anruf — warte auf deinen Gast …');
     else if (!peerPresent && hostMustScan) setStatus('Richte den Anruf ein und schick den Link an deinen Gast. Ausweisen kannst du dich gleich oder später, wenn der Anruf beginnt.');
     else if (!peerPresent && msg.self.verified) setStatus(presentedOf(msg.self) ? 'Du bist ausgewiesen ✓ – schick jetzt den Link an deinen Gast.' : 'Du bleibst anonym – schick jetzt den Link an deinen Gast.', 'ok');
     else if (!peerPresent) setStatus('Richte den Anruf ein und schick den Link an deinen Gast.');
@@ -2298,7 +2336,8 @@ function renderStatus(msg) {
     // Say what kind of call this is: "Du wurdest eingeladen" alone left a first-time guest
     // guessing whether a camera was about to switch on.
     if (!msg.self.verified) {
-      setStatus(msg.mode === 'audio' ? 'Du bist zu einem Audioanruf eingeladen – weise dich mit deiner Wallet aus.'
+      setStatus(msg.mode === 'inperson' ? 'Dein Gegenüber möchte sehen, wer du bist – weise dich mit deiner Wallet aus.'
+        : msg.mode === 'audio' ? 'Du bist zu einem Audioanruf eingeladen – weise dich mit deiner Wallet aus.'
         : msg.mode === 'chat' ? 'Du bist zu einem Chat eingeladen – weise dich mit deiner Wallet aus.'
         : 'Du bist zu einem Videoanruf eingeladen – weise dich mit deiner Wallet aus.', 'prompt');
     }
@@ -2454,7 +2493,7 @@ function mediaErrorState(e) {
 
 async function ensureMedia() {
   if (localStream !== null) return localStream;
-  if (mode === 'chat') { stopPreview(); setMediaState('skipped'); localStream = false; return false; }
+  if (noMedia()) { stopPreview(); setMediaState('skipped'); localStream = false; return false; }
   // A running device check hands its stream over: no second prompt, no flicker, and exactly the
   // devices that were just tested.
   if (previewStream && previewStreamMode === mode) {
@@ -2526,7 +2565,7 @@ function localTracks() { return localStream && localStream.getTracks ? localStre
  * (retryMedia) takes over these transceivers rather than adding new ones.
  */
 function ensureReceiving(pc) {
-  if (mode === 'chat' || typeof pc.addTransceiver !== 'function') return;
+  if (noMedia() || typeof pc.addTransceiver !== 'function') return;
   const kinds = new Set(pc.getTransceivers().map((tr) => tr.receiver && tr.receiver.track && tr.receiver.track.kind).filter(Boolean));
   for (const kind of mode === 'video' ? ['audio', 'video'] : ['audio']) {
     if (!kinds.has(kind)) { try { pc.addTransceiver(kind, { direction: 'recvonly' }); } catch { /* old browser */ } }
@@ -2662,6 +2701,7 @@ function removePeer(peerId) {
 async function startCall(msg) {
   if (ended) return;
   if (msg.mode) mode = msg.mode;
+  if (mode === 'inperson') { showInPersonDone(); return; }
 
   if (!callStarted) {
     callStarted = true;
@@ -3275,6 +3315,7 @@ function revealCall() {
 
 // A peer left (grace expired) or hung up: drop just that connection/tile.
 function onPeerGone(from) {
+  if (inPersonDone) { finishInPerson(false); return; }
   if (ended || !from) return;
   // Read the name before the peer is gone: "Erika Mustermann hat aufgelegt." tells the one left
   // behind what happened; "Alle anderen haben den Anruf verlassen." made them count heads.
@@ -3368,6 +3409,46 @@ function showWalletDone() {
     setTimeout(() => { location.href = appUrl; }, 400);
   }
 }
+// ---- "Vor Ort": the check without a call ----
+// Both verified and agreed: the server sends `ready` and the result is the end of it. Nothing is
+// connected, no camera, no call minutes. "Fertig" leaves the room; the other side keeps its result.
+const inPersonBox = $('inperson-done');
+function showInPersonDone() {
+  if (!inPersonDone) {
+    inPersonDone = true;
+    document.body.classList.add('in-person-done');
+    reviewBox.hidden = true; authBox.hidden = true; shareBox.hidden = true; setupBox.hidden = true; startBar.hidden = true;
+    updateStepper(2);
+    syncMediaCheck();
+    haptic('success');
+    showLogoMoment();
+    $('ipd-time').textContent = t('Geprüft um {time} Uhr', { time: new Date().toLocaleTimeString(i18nLocale, { hour: '2-digit', minute: '2-digit' }) });
+  }
+  inPersonBox.hidden = false;
+  resultBox.hidden = false;
+  resultCollapseInit = true; resultToggle.hidden = true; setResultCollapsed(false);
+  if (lastStatusMsg && lastStatusMsg.revealed) renderResult(lastStatusMsg);
+  setStatus('Ausweis geprüft ✓', 'ok');
+}
+/** `mine`: this side pressed "Fertig"; otherwise the other side closed first. */
+function finishInPerson(mine) {
+  if (ended) return;
+  ended = true;
+  wsSend({ type: 'hangup' });
+  markRoomEnded();
+  document.body.classList.add('call-ended');
+  $('ipd-finish').hidden = true;
+  const wasGuest = myRole ? myRole === 'callee' : roomArrival() === 'invited';
+  if (wasGuest && !isNativeApp() && !isEmbedded) setStatus(t('Fertig.') + ' ' + t('Du kannst dieses Fenster jetzt schließen.'), 'ok');
+  else {
+    setStatus(mine ? 'Fertig.' : 'Dein Gegenüber hat die Prüfung beendet.', 'ok');
+    restartLabel.textContent = t('Neue Prüfung starten');
+    restartBtn.hidden = false;
+  }
+  postToParent('ended', {});
+}
+$('ipd-finish').addEventListener('click', () => { haptic('medium'); finishInPerson(true); });
+
 function hangUp() { if (ended) return; ended = true; haptic('medium'); wsSend({ type: 'hangup' }); teardownCall(); markRoomEnded(); showEnded('Du hast aufgelegt.'); }
 /**
  * An ad-hoc call that ended stays ended in this browser: reloaded, the page used to enter the empty
@@ -4281,7 +4362,7 @@ function applySink(el) {
 function syncMediaCheck() {
   if (!mcCard) return;
   const can = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  const show = can && !callStarted && !ended && !soloMode && !isEmbedded && !!myRole && mode !== 'chat';
+  const show = can && !callStarted && !ended && !inPersonDone && !soloMode && !isEmbedded && !!myRole && !noMedia();
   mcCard.hidden = !show;
   // A different call type needs a different stream (audio only vs. with camera); the call itself
   // takes the stream over, so only stop it while there is no call to hand it to.

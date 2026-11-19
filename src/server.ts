@@ -67,7 +67,7 @@ assertHostGateOrExit(
   policyDescriptor().walletRequestable.includes('family_name'),
 );
 import type { Room, Participant, Role, Mode } from './rooms';
-import { linkPair, isLinked } from './rooms';
+import { linkPair, isLinked, isMode } from './rooms';
 import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
@@ -586,7 +586,7 @@ app.post('/invite', inviteCors, rateLimit(RATE_LIMIT_INVITE), (req, res) => {
     console.log(`[staff] Termin ausgestellt von "${v.payload.label}"`);
   }
   const body = (req.body || {}) as Record<string, unknown>;
-  const mode: Mode = body.mode === 'audio' || body.mode === 'chat' ? body.mode : 'video';
+  const mode: Mode = isMode(body.mode) ? body.mode : 'video';
   const start = Date.parse(String(body.start ?? ''));
   const end = Date.parse(String(body.end ?? ''));
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
@@ -1675,6 +1675,7 @@ function broadcastStatus(room: Room): void {
 // Glare avoidance: of each pair, the LOWER peerId creates the offer.
 function maybeConnect(room: Room): void {
   if (!hasAdmittedHost(room)) return;
+  if (room.mode === 'inperson') return maybeFinishInPerson(room);
   if (isMultiParty() && room.openRoom) return maybeConnectOpen(room);
   if (room.participants.length < 2) return;
   // A genuinely gathered multi-party room (>2 present) waits for the host to press
@@ -1694,6 +1695,26 @@ function maybeConnect(room: Room): void {
     send(p.ws, { type: 'ready', mode: room.mode, peers });
   }
   callStarted(room);
+  if (!readyFired.has(room)) {
+    readyFired.add(room);
+    firePlugins((p) => p.onReady?.({ roomId: room.id, mode: room.mode }));
+  }
+}
+
+// In person: the same gate as a call (everyone verified and agreed), then the room is locked and
+// everyone is told it is done — with `ready`, so a reconnecting page lands on the result again.
+// No pair is linked: there is nothing to connect, so no signaling is relayed (isLinked), and it is
+// not a call, so it adds nothing to the call minutes (./usage). The values themselves reach the
+// pages through broadcastStatus, which reveals them once everyone agreed — as in a call.
+function maybeFinishInPerson(room: Room): void {
+  if (room.participants.length < 2) return;
+  if (isMultiParty() && room.participants.length > 2 && !room.starting) return;
+  if (!room.participants.every((p) => p.verified && p.confirmed)) return;
+  room.locked = true;
+  for (const p of room.participants) {
+    const peers = ext.roomStore.peersOf(room, p).map((peer) => ({ peerId: peer.peerId, name: fullName(peer), role: peer.role }));
+    send(p.ws, { type: 'ready', mode: room.mode, peers });
+  }
   if (!readyFired.has(room)) {
     readyFired.add(room);
     firePlugins((p) => p.onReady?.({ roomId: room.id, mode: room.mode }));
@@ -1896,7 +1917,7 @@ wss.on('connection', (ws, request) => {
         }
         throw e;
       }
-      if (msg.mode === 'video' || msg.mode === 'audio' || msg.mode === 'chat') room.mode = msg.mode;
+      if (isMode(msg.mode)) room.mode = msg.mode;
       room.openRoom = isMultiParty() && msg.openRoom === true; // late-join multi-guest room
       room.requestedAttrs = nextRequest;
       // ENFORCE BEFORE ANYTHING ELSE. From here on only `newDisclose` exists — the list the

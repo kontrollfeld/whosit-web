@@ -164,7 +164,7 @@
     <!-- Configure + identify: side by side on wide screens (cause → effect) -->
     <div id="setup-zone" class="setup-zone">
     <section id="setup" class="card" hidden>
-      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span data-i18n>Anruf einrichten</span></h2>
+      <h2><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span id="setup-title" data-i18n>Anruf einrichten</span></h2>
 
       <!-- The step wizard is available everywhere and can be switched off here — the switch
            belongs in the card, not in a menu nobody opens. Stays visible on every step, so the
@@ -176,7 +176,14 @@
         <button type="button" data-mode="video" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>Video</button>
         <button type="button" data-mode="audio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>Audio</button>
         <button type="button" data-mode="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button>
+        <!-- In person (2026-11-19): the two stand in front of each other and only check who the
+             other is — the same flow up to the agreement, then the result and nothing to connect. -->
+        <button type="button" data-mode="inperson"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg><span data-i18n>Vor Ort</span></button>
       </div>
+      <!-- What "Vor Ort" does, and what it does not: the German PID carries no photo, so whosit
+           confirms the official name and that the person in front of you can open that wallet —
+           not that they look like their ID card. Said before anyone relies on more. -->
+      <p class="hint invite-wallet-note inperson-note" id="inperson-note" hidden><svg class="h-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span data-i18n>Ohne Anruf, für ein Treffen: Dein Gegenüber scannt den QR-Code mit dem eigenen Handy. Ihr seht beide die amtlichen Angaben – ohne Foto.</span></p>
       <!-- The guest has to prepare: wallet installed and the ID card read in. Said once, at the
            start (since 2026-11-15): in the guided setup only on its first step, so the invite
            step has room for the link. Only while the guest is asked for something — "Nichts
@@ -349,6 +356,8 @@
           <span data-i18n>QR-Code</span>
         </button>
       </div>
+      <!-- "Vor Ort": the code right in the card — the person it is for is standing next to you. -->
+      <div id="share-qr" class="qr share-qr" role="img" aria-label="QR-Code mit dem Einladungs-Link" data-i18n-attr="aria-label" hidden></div>
 
       <!-- Scheduled call: the host's own access. Two links, because the appointment link fixes
            the role — whoever opens the host link enters as host. It belongs in the
@@ -475,6 +484,14 @@
       <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n data-verified-only>Geprüfte Angaben</span><span data-i18n data-testmode-only hidden>Angaben im Anruf</span>
         <button id="result-toggle" class="collapse-btn" type="button" aria-expanded="true" hidden><span id="result-toggle-label" data-i18n>Ausblenden</span></button>
       </h2>
+      <!-- "Vor Ort": the check is done once both agreed; nothing connects. Closing it ends the room. -->
+      <div id="inperson-done" class="inperson-done" hidden>
+        <div class="ipd-mark" aria-hidden="true"></div>
+        <p class="ipd-title" id="ipd-title" data-i18n>Ausweis geprüft</p>
+        <p class="ipd-time" id="ipd-time"></p>
+        <p class="hint ipd-note" data-i18n>Vergleicht die Namen mit dem, was ihr vorher ausgemacht habt. Die Angaben stehen nur auf diesem Bildschirm, whosit speichert sie nicht.</p>
+        <button type="button" id="ipd-finish" data-i18n>Fertig</button>
+      </div>
       <p class="hint" data-i18n-html data-verified-only>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
       <p class="hint" data-i18n data-testmode-only hidden>Testbetrieb: Auf dieser Instanz wird nichts geprüft — beide bleiben anonym.</p>
       <div class="review-grid">

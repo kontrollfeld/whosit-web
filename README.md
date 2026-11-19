@@ -34,6 +34,13 @@ repositories, domain and packages now carry the name *whosit*.
 themselves with an **EUDI wallet (PID, the EU digital identity)** and see **before connecting**
 which fields will be exchanged — the values only once **both** have agreed.
 
+**In person** (*Vor Ort*, since 2026-11-19) is the same exchange without a call: two people who
+meet — say, to hand over something sold online — check who the other is. The host shows a QR
+code, the other person scans it with their own phone, both agree, both see the verified data, and
+nothing is connected: no camera, no TURN, no call minutes. The German PID carries no photo, so it
+confirms the official name and that the person in front of you can open that wallet, not their
+face.
+
 Self-hostable with `docker compose`: Node backend + Traefik (Let's Encrypt, WSS) + coturn
 (TURN). No framework, few dependencies, state in RAM.
 

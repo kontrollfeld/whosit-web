@@ -14,7 +14,9 @@
  *   - before anyone confirmed: an offer and an ICE candidate from the guest do not arrive;
  *   - with only the host confirmed: still nothing;
  *   - after both confirmed and "ready": offer, answer and ICE pass, in both directions;
- *   - after the guest withdraws consent (decline): nothing passes any more.
+ *   - after the guest withdraws consent (decline): nothing passes any more;
+ *   - "Vor Ort" (mode inperson): both agreed, "ready" says inperson, and still nothing passes —
+ *     there is nothing to connect; the room is locked and no call minutes are counted.
  *
  * Usage: npm run test:signaling-gate
  */
@@ -126,6 +128,40 @@ try {
   guest.send({ type: 'offer', to: hostId, data: sdp('offer') });
   await sleep(500);
   check('no further offer from the guest', host.count('offer') === before, `${host.count('offer')} vs ${before}`);
+
+  console.log('\n"Vor Ort": done after the agreement, nothing connects');
+  {
+    const r3 = randomUUID();
+    const h3 = await socket(); clients.push(h3);
+    h3.send({ type: 'join', roomId: r3, clientId: randomUUID() });
+    const h3s = await h3.wait('status', (m) => m.self?.verified === true);
+    h3.send({ type: 'set-config', mode: 'inperson', requestedAttrs: [], disclosedAttrs: [], openRoom: false });
+    await h3.wait('status', (m) => m.mode === 'inperson');
+    const g3 = await socket(); clients.push(g3);
+    g3.send({ type: 'join', roomId: r3, clientId: randomUUID() });
+    const g3s = await g3.wait('status', (m) => m.self?.verified === true && m.peers?.length === 1);
+    check('the guest learns it is "Vor Ort"', g3s.mode === 'inperson', g3s.mode);
+    const usageBefore = log.join('').split('[usage] call ended').length;
+    h3.send({ type: 'confirm' }); g3.send({ type: 'confirm' });
+    const [hr, gr] = await Promise.all([h3.wait('ready'), g3.wait('ready')]);
+    check('"ready" names the mode, on both sides', hr.mode === 'inperson' && gr.mode === 'inperson', `${hr.mode} ${gr.mode}`);
+    const revealed = await g3.wait('status', (m) => m.revealed === true).catch(() => null);
+    check('the result is revealed as in a call', !!revealed);
+    g3.send({ type: 'offer', to: h3s.self.peerId, data: sdp('offer') });
+    h3.send({ type: 'ice', to: g3s.self.peerId, data: cand });
+    await sleep(500);
+    check('no offer passes: there is nothing to connect', h3.count('offer') === 0);
+    check('no ICE candidate (no address) passes', g3.count('ice') === 0);
+    const late = await socket(); clients.push(late);
+    late.send({ type: 'join', roomId: r3, clientId: randomUUID() });
+    const lr = await Promise.race([late.wait('joined').catch(() => null), late.wait('room-full').catch(() => null)]);
+    check('the room is locked after the check', lr?.type === 'room-full', JSON.stringify(lr));
+    h3.send({ type: 'hangup' });
+    const gone = await g3.wait('hangup').catch(() => null);
+    check('"Fertig" reaches the other side', !!gone);
+    await sleep(300);
+    check('no call minutes are counted', log.join('').split('[usage] call ended').length === usageBefore);
+  }
 
   console.log('\nA newcomer does not take the host seat of a host who dropped out briefly');
   // Full ad-hoc room, the host's connection drops (grace window). A third person arrives: the

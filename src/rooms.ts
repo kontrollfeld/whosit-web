@@ -21,7 +21,11 @@ import type { Offer } from './eudiplo';
 import { purgeVerifierSession } from './verifier-session';
 
 export type Role = 'caller' | 'callee';
-export type Mode = 'video' | 'audio' | 'chat';
+/** `inperson` (2026-11-19): the two stand in front of each other and only check who the other is.
+ *  The flow is the same up to the agreement; then the room shows the result and connects nothing. */
+export type Mode = 'video' | 'audio' | 'chat' | 'inperson';
+export const MODES: readonly Mode[] = ['video', 'audio', 'chat', 'inperson'];
+export const isMode = (m: unknown): m is Mode => typeof m === 'string' && (MODES as readonly string[]).includes(m);
 
 export interface Participant {
   clientId: string;
@@ -80,7 +84,7 @@ export interface Participant {
 export interface Room {
   id: string;
   participants: Participant[];
-  mode: Mode;              // video | audio | chat (set by the host)
+  mode: Mode;              // video | audio | chat | inperson (set by the host)
   requestedAttrs: SemanticAttr[]; // attributes the host requests FROM every guest
   disclosedAttrs: SemanticAttr[]; // attributes the host SHARES about themselves
   /** Set once the call started ('ready' sent): no further joins (no late-join in v1). */
