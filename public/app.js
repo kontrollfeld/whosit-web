@@ -860,6 +860,42 @@ const hasSeatHere = backFromWallet && !!roomId && (() => {
 const walletDoneElsewhere = backFromWallet && !hasSeatHere;
 if (hasSeatHere) history.replaceState(null, '', `/?room=${encodeURIComponent(roomId)}`);
 
+/**
+ * Back from the wallet in a NEW tab, while the old one is still open: the new tab wins.
+ *
+ * iOS opens a link that another app calls in a new Safari tab, always — no app and no page can
+ * bring the tab back that started the wallet. So after the wallet there are two tabs for one seat:
+ * the old one, which went to the background, and the new one in front. When Safari comes back
+ * both reconnect, and whichever joins LAST takes the seat (`session-taken-over`). Until
+ * 2026-11-19 that was a race; when the old tab lost it, fine — when it won, the tab in front of the
+ * person said "opened in another window", and the call went on in a tab they could not see.
+ *
+ * So the return tab marks the room before it connects (tab id and load time). A tab that was
+ * loaded BEFORE that mark checks it before every connect and gives way instead of reclaiming the
+ * seat; an open one also hears it at once (`storage`). A tab loaded after the mark (a reload, the
+ * link opened again on purpose) is not affected — it takes over as before.
+ */
+const TAB_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2);
+const TAB_LOADED_AT = Date.now();
+const RETURN_KEY = roomId ? 'eudi_return_' + roomId : null;
+if (hasSeatHere && RETURN_KEY) {
+  try { localStorage.setItem(RETURN_KEY, JSON.stringify({ tab: TAB_ID, at: TAB_LOADED_AT })); } catch { /* no storage: the old race */ }
+}
+// A mark only matters while the old tab could still be open; after a day it is just left over.
+try {
+  for (const k of Object.keys(localStorage)) {
+    if (!k.startsWith('eudi_return_') || k === RETURN_KEY) continue;
+    let at = 0; try { at = JSON.parse(localStorage.getItem(k)).at || 0; } catch {}
+    if (TAB_LOADED_AT - at > 86_400_000) localStorage.removeItem(k);
+  }
+} catch { /* storage blocked */ }
+function returnTabElsewhere() {
+  if (!RETURN_KEY) return false;
+  let mark = null;
+  try { mark = JSON.parse(localStorage.getItem(RETURN_KEY) || 'null'); } catch { return false; }
+  return !!mark && mark.tab !== TAB_ID && typeof mark.at === 'number' && mark.at >= TAB_LOADED_AT;
+}
+
 // Only NOW, because the identifier is tied to the room (see stableClientId). Not created at all
 // on the "done, go back" page: a stored id would make a reload of it join the room after all.
 const clientId = walletDoneElsewhere ? null : stableClientId(roomId);
@@ -1450,7 +1486,24 @@ async function sendJoin() {
   wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival() });
 }
 
+/** The seat went to another tab or window: end here, and never reconnect from this one. */
+function showTakenOver() {
+  ended = true;
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  teardownCall();
+  showEnded('Dieser Anruf wurde in einem anderen Fenster geöffnet. Dort geht es weiter — dieses Fenster kannst du schließen.');
+}
+/** A return tab from the wallet holds the seat now (see RETURN_KEY): give way, do not reclaim it. */
+function yieldToReturnTab() {
+  if (ended || !returnTabElsewhere()) return false;
+  showTakenOver();
+  if (ws) { try { ws.close(); } catch {} } // `ended` keeps onclose from scheduling a reconnect
+  return true;
+}
+window.addEventListener('storage', (e) => { if (RETURN_KEY && e.key === RETURN_KEY) yieldToReturnTab(); });
+
 function connect() {
+  if (yieldToReturnTab()) return;
   // Pin this to THIS socket: a displaced predecessor often reports its `close` only later. Without
   // the check it would then declare the fresh socket dead and start a second schedule — two chains
   // reconnecting each other.
@@ -1458,6 +1511,8 @@ function connect() {
   ws = sock;
   sock.onopen = async () => {
     if (ws !== sock) return;
+    // The return tab may have marked the room while this socket was connecting.
+    if (yieldToReturnTab()) return;
     reconnectAttempts = 0;
     setLinkDown(false);
     if (!callStarted) setStatus('Verbunden – Raum wird betreten …');
@@ -1512,11 +1567,7 @@ function handle(msg) {
       break;
     // Taken over in another tab or window. Reconnecting MUST end here — otherwise both sides
     // reclaim the seat from each other every second.
-    case 'session-taken-over':
-      ended = true;
-      teardownCall();
-      showEnded('Dieser Anruf wurde in einem anderen Fenster geöffnet. Dort geht es weiter — dieses Fenster kannst du schließen.');
-      break;
+    case 'session-taken-over': showTakenOver(); break;
     // Sign-in refused: this person is not on the instance's allowlist. Deliberately an ending
     // rather than an error inside a running flow — the server has removed the participant from
     // the room, so there would be no "try again" to offer.

@@ -388,6 +388,14 @@ of the German EUDI wallet "d-you Wallet" (launch 2 January 2027):
     chosen once for the domain): with `app=1` the "done" page tries `whosit://open/zurueck?r=…` once
     by itself and shows "Zurück zur whosit-App". Every app build since 26 reads that like the https
     link.
+  - **Same phone, browser: the return comes in a NEW tab.** iOS opens a link that another app
+    calls in a new Safari tab, always; nothing can bring back the tab that started the wallet. Both
+    tabs then reconnect, and the one that joins last takes the seat. So the return tab marks the
+    room in `localStorage` (`eudi_return_<room>`: tab id, load time) before it connects, and a tab
+    loaded before that mark gives way instead of reclaiming the seat ("opened in another window").
+    The call goes on in the tab in front; the old one stays in the tab list and can be closed. A
+    tab loaded after the mark (reload, link opened again) takes over as before. Until 2026-11-19
+    this was a race, and when the old tab won, the tab in front showed "opened in another window".
   - A link opened from the browser's address bar never opens an app — test app links by tapping
     them in Notes or Messages.
   - "Neuen Raum/Anruf starten" (`startFreshCall`) must drop every marker of the old room — `r`,
