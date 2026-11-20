@@ -16,7 +16,9 @@
  *   - after both confirmed and "ready": offer, answer and ICE pass, in both directions;
  *   - after the guest withdraws consent (decline): nothing passes any more;
  *   - "Vor Ort" (mode inperson): both agreed, "ready" says inperson, and still nothing passes —
- *     there is nothing to connect; the room is locked and no call minutes are counted;
+ *     there is nothing to connect; the room is locked and no call minutes are counted. A page that
+ *     does not name "inperson" among its `modes` (one from before, kept by an app) is refused before
+ *     it is seated, and the host is told why — it would run the check as a video call;
  *   - a far side whose connection drops in the call: the other is told at once (`peer-away`), not
  *     only when the grace window ends, and hears `peer-back` and a fresh `ready` when it returns.
  *
@@ -139,8 +141,16 @@ try {
     const h3s = await h3.wait('status', (m) => m.self?.verified === true);
     h3.send({ type: 'set-config', mode: 'inperson', requestedAttrs: [], disclosedAttrs: [], openRoom: false });
     await h3.wait('status', (m) => m.mode === 'inperson');
+    const old = await socket(); clients.push(old);
+    old.send({ type: 'join', roomId: r3, clientId: randomUUID() }); // a page from before `modes`
+    const refused = await old.wait('invite-invalid').catch(() => null);
+    check('a page that does not know "Vor Ort" is refused', refused?.reason === 'outdated', JSON.stringify(refused));
+    check('… and never seated', old.count('joined') === 0 && old.count('status') === 0);
+    const told = await h3.wait('peer-outdated').catch(() => null);
+    check('the host hears why', told?.mode === 'inperson', JSON.stringify(told));
+    check('… and is not told that someone left', h3.count('peer-left') === 0);
     const g3 = await socket(); clients.push(g3);
-    g3.send({ type: 'join', roomId: r3, clientId: randomUUID() });
+    g3.send({ type: 'join', roomId: r3, clientId: randomUUID(), modes: ['video', 'audio', 'chat', 'inperson'] });
     const g3s = await g3.wait('status', (m) => m.self?.verified === true && m.peers?.length === 1);
     check('the guest learns it is "Vor Ort"', g3s.mode === 'inperson', g3s.mode);
     const usageBefore = log.join('').split('[usage] call ended').length;
@@ -155,7 +165,7 @@ try {
     check('no offer passes: there is nothing to connect', h3.count('offer') === 0);
     check('no ICE candidate (no address) passes', g3.count('ice') === 0);
     const late = await socket(); clients.push(late);
-    late.send({ type: 'join', roomId: r3, clientId: randomUUID() });
+    late.send({ type: 'join', roomId: r3, clientId: randomUUID(), modes: ['inperson'] });
     const lr = await Promise.race([late.wait('joined').catch(() => null), late.wait('room-full').catch(() => null)]);
     check('the room is locked after the check', lr?.type === 'room-full', JSON.stringify(lr));
     h3.send({ type: 'hangup' });

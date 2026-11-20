@@ -27,6 +27,13 @@ export type Mode = 'video' | 'audio' | 'chat' | 'inperson';
 export const MODES: readonly Mode[] = ['video', 'audio', 'chat', 'inperson'];
 export const isMode = (m: unknown): m is Mode => typeof m === 'string' && (MODES as readonly string[]).includes(m);
 
+/** What a page can run, from the `modes` of its `join` (since 2026-11-20). A page from before that
+ *  does not say, and knows the first three: it runs any other mode as a video call. Pages stay
+ *  around after a new mode is added — an app on a phone keeps the page it was built with until it
+ *  is updated. */
+export const LEGACY_MODES: readonly Mode[] = ['video', 'audio', 'chat'];
+export const clientModes = (v: unknown): readonly Mode[] => (Array.isArray(v) ? v.filter(isMode) : LEGACY_MODES);
+
 export interface Participant {
   clientId: string;
   /** Public id used to address signaling messages between peers (mesh routing).

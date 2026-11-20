@@ -336,8 +336,13 @@ const ATTRIBUTES = [
 let presets = [];
 const labelFor = (k) => (ATTRIBUTES.find((a) => a.key === k) || {}).label || k;
 const modeLabel = (m) => (m === 'audio' ? 'Audio' : m === 'chat' ? 'Chat' : m === 'inperson' ? 'Vor Ort' : 'Video');
-/** Neither camera nor microphone: a chat, and "Vor Ort" (the two stand in front of each other). */
-const noMedia = () => mode === 'chat' || mode === 'inperson';
+/** Neither camera nor microphone: a chat, and "Vor Ort" (the two stand in front of each other) —
+ *  and any mode this page does not know. Only the two call types it knows ask for a device. */
+const noMedia = () => mode !== 'video' && mode !== 'audio';
+/** The modes this page can run, sent with `join`. The server refuses this page a room whose mode
+ *  is not among them — rather than let it run that room as something else (an app keeps its page
+ *  until it is updated; a page from before "Vor Ort" took the check for a video call). */
+const PAGE_MODES = ['video', 'audio', 'chat', 'inperson'];
 
 // per-attribute Lucide-style icons (inner SVG markup), shown in checklists + data rows
 const ATTR_ICONS = {
@@ -1484,7 +1489,7 @@ function roomArrival() {
 }
 async function sendJoin() {
   await ensureLocalCertificate();
-  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival() });
+  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival(), modes: PAGE_MODES });
 }
 
 /** The seat went to another tab or window: end here, and never reconnect from this one. */
@@ -1595,6 +1600,14 @@ function handle(msg) {
     case 'peer-left': onPeerGone(msg.from); break;
     case 'peer-away': onPeerAway(msg.from); break;
     case 'peer-back': onPeerBack(msg.from); break;
+    // Someone came with a page (usually an app) that cannot run this room, and was turned away.
+    // They only see that the link does not work; the reason is told here, to the one who can
+    // tell them.
+    case 'peer-outdated':
+      setStatus(t('Die App deines Gegenübers kennt „{art}“ noch nicht. Bitte darum, die App zu aktualisieren oder den Link im Browser zu öffnen – und es dann noch einmal zu versuchen.',
+        { art: t(modeLabel(msg.mode)) }), 'error');
+      haptic('error');
+      break;
     case 'hangup': onPeerGone(msg.from); break;
     // in-call credential requests — see the section further below
     case 'credential-pending':
@@ -3686,6 +3699,13 @@ function showInviteProblem(reason, opensAt, startsAt) {
   setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true;
   reviewBox.hidden = true; resultBox.hidden = true; startBar.hidden = true;
   restartBtn.hidden = true;
+  // This page cannot run the room's mode (see PAGE_MODES); a newer one can.
+  if (reason === 'outdated') {
+    setStatus(isNativeApp()
+      ? 'Diese Version der App kennt diese Verbindungsart noch nicht. Bitte aktualisiere die App – oder öffne den Link im Browser.'
+      : 'Diese Seite ist veraltet und kennt diese Verbindungsart noch nicht. Bitte lade sie neu.', 'error');
+    return;
+  }
   if (reason === 'too-early' && opensAt) {
     const fmt = (s) => new Date(s * 1000).toLocaleString(i18nLocale, { dateStyle: 'full', timeStyle: 'short' });
     const opens = new Date(opensAt * 1000).toLocaleTimeString(i18nLocale, { hour: '2-digit', minute: '2-digit' });
