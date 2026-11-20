@@ -88,11 +88,21 @@ import {
   verifyInviteForRoom, type InvitePayload,
 } from './invite-token';
 
-const GRACE_MS = 90_000; // keep a disconnected participant this long so it can resume
+/**
+ * Keep a disconnected participant this long so it can resume.
+ *
+ * Five minutes rather than the 90 seconds it was until 2026-11-20. Someone who verifies with the
+ * same phone for both sides — the other device's QR code first, then their own — has their browser
+ * in the background for well over a minute, and the old window removed them in between. A held
+ * seat costs little: before the call a guest's seat in its grace window goes to a newcomer anyway
+ * (see the ghost eviction in ./rooms), and the one left waiting is told at once that the other is
+ * away (`peer-away`), so they are not looking at a "connecting" that never comes.
+ */
+const GRACE_MS = 5 * 60_000;
 /**
  * Scheduled calls hold the seat considerably longer. For an appointment, waiting is the normal
  * case — someone who opens the window at 14:00 and waits for 14:15 will have their device
- * sleep in between. After 90 seconds they would be removed, return via the invitation, and
+ * sleep in between. After the ad-hoc window they would be removed, return via the invitation, and
  * `resetIdentity` would demand a SECOND wallet presentation.
  *
  * Harmless, because in a `p-` room every seat is bound to a role from the signed token: a
@@ -1691,6 +1701,8 @@ function maybeConnect(room: Room): void {
       name: fullName(peer),
       role: peer.role,
       initiator: p.peerId < peer.peerId, // I open the offer to peers with a higher id
+      // Inside its grace window: a page that (re)joins now learns it here, it missed `peer-away`.
+      away: peer.graceTimer !== undefined,
     }));
     send(p.ws, { type: 'ready', mode: room.mode, peers });
   }
@@ -2318,6 +2330,11 @@ wss.on('connection', (ws, request) => {
       console.log(`[room] removed ${participant.role} (${participant.clientId.slice(0, 8)}) after grace`);
     }, grace);
     console.log(`[room] ${participant.role} (${participant.clientId.slice(0, 8)}) disconnected — ${grace / 1000}s grace`);
+    // Tell the others now, not when the grace runs out. Until 2026-11-20 they learned nothing
+    // before `peer-left`: a far side that dropped right after both agreed left the other looking
+    // at "connecting …" for the whole window. The page decides what to show — a running direct
+    // connection does not need the server and carries on.
+    for (const peer of ext.roomStore.peersOf(room, participant)) send(peer.ws, { type: 'peer-away', from: participant.peerId });
   });
 });
 
@@ -2541,6 +2558,8 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   if (!participant.verified && !requiresWalletPresentation(requiredAttrs)) participant.verified = true;
 
   send(ws, { type: 'joined', role: participant.role, peerId: participant.peerId, resumed });
+  // Back within the grace window: the others were told `peer-away`, so they hear the end of it.
+  if (resumed) for (const peer of ext.roomStore.peersOf(room, participant)) send(peer.ws, { type: 'peer-back', from: participant.peerId });
   broadcastStatus(room);
   maybeConnect(room); // a resumed-and-confirmed participant jumps straight to the call
 

@@ -1295,6 +1295,7 @@ let myName = '';
 let selfVerified = false;
 let callStarted = false;
 let ended = false;
+const awayPeers = new Set(); // peers inside their server grace window (onPeerAway)
 let inPersonDone = false; // "Vor Ort": the check is done (showInPersonDone)
 let isOpenRoom = false; // multi-guest room with late-join (server-driven)
 let lastStatusMsg = null; // latest status: claims per peer feed the tile banderoles + chip rebuilds
@@ -1592,6 +1593,8 @@ function handle(msg) {
     case 'answer': onRemoteAnswer(msg.from, msg.data); break;
     case 'ice': onRemoteIce(msg.from, msg.data); break;
     case 'peer-left': onPeerGone(msg.from); break;
+    case 'peer-away': onPeerAway(msg.from); break;
+    case 'peer-back': onPeerBack(msg.from); break;
     case 'hangup': onPeerGone(msg.from); break;
     // in-call credential requests — see the section further below
     case 'credential-pending':
@@ -2574,6 +2577,65 @@ async function ensureMedia() {
 }
 
 /**
+ * The camera for the call — without letting its prompt hold the call up.
+ *
+ * Until 2026-11-20 the call waited for `ensureMedia()` before it opened a single connection. A
+ * permission prompt nobody answered (the person had turned to the other device, or the phone lay
+ * on the desk) therefore stopped this side from offering or answering at all, and the other one
+ * looked at "connecting …" with nothing on the wire.
+ *
+ * Now the call waits at most MEDIA_WAIT_MS. Media that is there by then (the usual case: the
+ * device check already holds the stream, or the prompt was answered quickly) goes into the
+ * connections from the start, exactly as before. Media that comes later is added to the running
+ * connections and negotiated (addLateMedia). A refusal changes nothing: the call runs without
+ * this side's picture, as it always did.
+ */
+const MEDIA_WAIT_MS = 1500;
+let callMediaPromise = null;
+function callMedia() {
+  if (!callMediaPromise) callMediaPromise = ensureMedia().then((stream) => { if (stream) addLateMedia(); return stream; });
+  return Promise.race([callMediaPromise, new Promise((r) => setTimeout(r, MEDIA_WAIT_MS))]);
+}
+
+/** Put media that arrived after the connections were built onto them (see callMedia). */
+function addLateMedia() {
+  if (ended) return;
+  for (const [peerId, p] of peers) {
+    if (p.pc.connectionState === 'closed') continue;
+    const sent = new Set(p.pc.getSenders().map((s) => s.track).filter(Boolean));
+    for (const tr of localTracks()) if (!sent.has(tr)) { try { p.pc.addTrack(tr, localStream); } catch (e) { console.warn('addTrack:', e && e.message); } }
+    renegotiateForMedia(peerId, p);
+  }
+  enforceLocalMuteState();
+}
+
+/**
+ * Offer again once a connection sends tracks it has not negotiated yet.
+ *
+ * Only on a stable connection that has been negotiated once: a negotiation still to come (this
+ * side waits for the first offer, or is about to make it) carries the tracks anyway, and one in
+ * progress is waited for — after it, the check is repeated, because its answer may already have
+ * included them.
+ */
+function renegotiateForMedia(peerId, p) {
+  const pc = p.pc;
+  if (ended || pc.signalingState === 'closed' || !pc.currentRemoteDescription) return;
+  if (pc.signalingState !== 'stable') {
+    pc.addEventListener('signalingstatechange', function again() {
+      if (pc.signalingState !== 'stable' && pc.signalingState !== 'closed') return;
+      pc.removeEventListener('signalingstatechange', again);
+      renegotiateForMedia(peerId, p);
+    });
+    return;
+  }
+  const unsent = pc.getTransceivers().some((tr) => tr.sender && tr.sender.track && !/send/.test(tr.currentDirection || ''));
+  if (!unsent) return;
+  pc.createOffer()
+    .then((offer) => pc.setLocalDescription(offer).then(() => { p.offered = true; wsSend({ type: 'offer', to: peerId, data: offer }); }))
+    .catch((e) => console.warn('renegotiate for late media:', e && e.message));
+}
+
+/**
  * Retry after a refusal.
  *
  * Before any connection exists this is trivial: `getPeer()` attaches the tracks when it creates
@@ -2763,13 +2825,13 @@ async function startCall(msg) {
     // No permission hint here: it comes from ensureMedia() as a standing notice, and therefore
     // on the answering path too.
     setStatus('Verbindung wird aufgebaut …', 'wait');
-    await ensureMedia();
-    await refreshIce();
+    await Promise.all([callMedia(), refreshIce()]);
   }
 
   for (const info of (msg.peers || [])) {
     const p = getPeer(info.peerId, info);
     if (p.tile && info.name) p.tile.querySelector('.name').textContent = titleCase(info.name);
+    if (info.away) onPeerAway(info.peerId); else awayPeers.delete(info.peerId);
     if (info.initiator && p.pc.connectionState !== 'connected') {
       if (!p.dc) { p.dc = p.pc.createDataChannel('chat'); wireChat(p.dc, info.peerId); }
       ensureReceiving(p.pc);
@@ -2786,9 +2848,16 @@ async function startCall(msg) {
 async function onRemoteOffer(from, offer) {
   // Second line behind the server's gate: no answer (and so no addresses) before 'ready'.
   if (ended || !from || !callStarted) return;
-  await ensureMedia();
-  await refreshIce();
+  await Promise.all([callMedia(), refreshIce()]);
   const p = getPeer(from); // pc.ondatachannel (label-routed) is set in getPeer
+  // Both sides offered at once (typically both added a late camera at the same moment). The
+  // initiator's offer wins: it ignores this one, and the other side rolls its own back and
+  // answers. Its tracks still go along — they sit on the transceivers of the initiator's
+  // m-lines, so the answer carries them.
+  if (p.pc.signalingState === 'have-local-offer') {
+    if (p.initiator) return;
+    try { await p.pc.setLocalDescription({ type: 'rollback' }); } catch (e) { console.warn('rollback:', e && e.message); }
+  }
   await p.pc.setRemoteDescription(offer);
   if (!verifyPeerBinding(from)) return;
   p.remoteDescSet = true; flushIce(from);
@@ -3382,6 +3451,30 @@ function onPeerGone(from) {
   if (stagePeer === from) { stagePeer = null; stageAuto = false; }
   if (peers.size === 0) { ended = true; teardownCall(); markRoomEnded(); showEnded(goneName ? t('{name} hat aufgelegt.', { name: goneName }) : goneAnon); }
   else { setStatus(goneName ? t('{name} hat den Anruf verlassen.', { name: goneName }) : 'Ein Teilnehmer hat den Anruf verlassen.'); revealCall(); }
+}
+
+/**
+ * The far side lost its connection to the server and is inside its grace window (`peer-away`).
+ *
+ * Only worth saying while the direct connection to them is not up: a running call does not need
+ * the server and carries on. Before the call nothing is shown — a trip to the wallet app is the
+ * normal reason to be away then.
+ */
+const AWAY_STATUS = '{name} ist gerade nicht erreichbar – wir warten, ob die Verbindung zurückkommt …';
+const AWAY_STATUS_ANON = 'Die Gegenseite ist gerade nicht erreichbar – wir warten, ob sie zurückkommt …';
+function onPeerAway(from) {
+  if (ended || !from) return;
+  awayPeers.add(from);
+  const p = peers.get(from);
+  if (!callStarted || !p || p.pc.connectionState === 'connected') return;
+  if (p.name) setStatus(t(AWAY_STATUS, { name: titleCase(p.name) }), 'wait');
+  else setStatus(AWAY_STATUS_ANON, 'wait');
+}
+function onPeerBack(from) {
+  if (!awayPeers.delete(from) || ended || !callStarted) return;
+  const p = peers.get(from);
+  // The server sends `ready` again right after, and the connection is rebuilt from there.
+  if (p && p.pc.connectionState !== 'connected') setStatus('Verbindung wird aufgebaut …', 'wait');
 }
 
 // ---- hang up ----

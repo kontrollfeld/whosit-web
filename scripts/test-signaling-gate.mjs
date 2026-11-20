@@ -16,7 +16,9 @@
  *   - after both confirmed and "ready": offer, answer and ICE pass, in both directions;
  *   - after the guest withdraws consent (decline): nothing passes any more;
  *   - "Vor Ort" (mode inperson): both agreed, "ready" says inperson, and still nothing passes —
- *     there is nothing to connect; the room is locked and no call minutes are counted.
+ *     there is nothing to connect; the room is locked and no call minutes are counted;
+ *   - a far side whose connection drops in the call: the other is told at once (`peer-away`), not
+ *     only when the grace window ends, and hears `peer-back` and a fresh `ready` when it returns.
  *
  * Usage: npm run test:signaling-gate
  */
@@ -161,6 +163,32 @@ try {
     check('"Fertig" reaches the other side', !!gone);
     await sleep(300);
     check('no call minutes are counted', log.join('').split('[usage] call ended').length === usageBefore);
+  }
+
+  console.log('\nThe far side drops in the call: the other hears it at once, and its return');
+  {
+    const r4 = randomUUID(), guestCid = randomUUID();
+    const h4 = await socket(); clients.push(h4);
+    h4.send({ type: 'join', roomId: r4, clientId: randomUUID() });
+    await h4.wait('status', (m) => m.self?.verified === true);
+    const g4 = await socket(); clients.push(g4);
+    g4.send({ type: 'join', roomId: r4, clientId: guestCid });
+    const g4s = await g4.wait('status', (m) => m.self?.verified === true && m.peers?.length === 1);
+    h4.send({ type: 'confirm' }); g4.send({ type: 'confirm' });
+    await Promise.all([h4.wait('ready'), g4.wait('ready')]);
+    const readyBefore = h4.count('ready');
+    g4.ws.terminate();
+    const away = await h4.wait('peer-away', () => true, 3000).catch(() => null);
+    check('the host is told the guest is away, within the grace window', away?.from === g4s.self.peerId, JSON.stringify(away));
+    check('the guest is not reported as gone', h4.count('peer-left') === 0);
+    const g4b = await socket(); clients.push(g4b);
+    g4b.send({ type: 'join', roomId: r4, clientId: guestCid });
+    const back = await h4.wait('peer-back', () => true, 3000).catch(() => null);
+    check('the host hears the guest is back', back?.from === g4s.self.peerId, JSON.stringify(back));
+    await h4.wait('ready', () => h4.count('ready') > readyBefore, 3000).catch(() => null);
+    check('and gets a fresh "ready" to connect again', h4.count('ready') > readyBefore);
+    const lastReady = [...h4.seen].reverse().find((m) => m.type === 'ready');
+    check('which no longer marks the guest as away', lastReady?.peers?.[0]?.away === false, JSON.stringify(lastReady?.peers));
   }
 
   console.log('\nA newcomer does not take the host seat of a host who dropped out briefly');

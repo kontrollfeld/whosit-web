@@ -788,6 +788,7 @@ works with no further effort.
 | The mock verifies but the app does not react | `PUBLIC_URL` is wrong → the webhook URL is unreachable. It must be the URL at which the app is reachable *for the mock*. |
 | WebSocket 403 | `ALLOWED_ORIGINS` does not match the domain being used. |
 | Camera/microphone blocked | Only over HTTPS or `localhost` (secure context). |
+| "Verbindung wird aufgebaut …" and nothing happens | Usually the other side has gone (page closed, phone locked, app switched). Its seat is held for 5 minutes (15 for scheduled calls) in case it returns; the page left behind says so ("… ist gerade nicht erreichbar") as soon as the server notices — within a minute when the connection merely stalls (heartbeat). The server log shows `[room] … disconnected — 300s grace`. |
 
 ## What is included
 
@@ -807,7 +808,11 @@ in-call credentials, custom branding, and a self-hosting stack with your own TUR
   instances), and "join muted" / "join with camera off". Without a chosen camera the front one is
   asked for (`facingMode: 'user'`) — phones and the app could otherwise open the back camera. The permission prompt comes
   here, not after both sides have identified. A running check hands its stream to the call (no
-  second prompt); switching the call type stops it. Chosen devices are remembered in
+  second prompt); switching the call type stops it. If the prompt only comes at the call and is
+  left open, the call does not wait for it: after 1.5 s the connection is built without this
+  side's camera, and the picture is added and negotiated once the prompt is answered
+  (`callMedia`). Until 2026-11-20 an unanswered prompt kept that side from offering or answering
+  at all, and the other side saw "Verbindung wird aufgebaut …" with nothing on the wire. Chosen devices are remembered in
   `localStorage` (`eudi_devices`); the "join muted" choices are not.
 - **Arrival notice.** When the other side joins, and again when it has identified ("Dein Gast hat
   sich ausgewiesen"): a short sound (Web Audio, so only after the page has seen a gesture), and
