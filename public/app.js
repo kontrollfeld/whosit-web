@@ -4361,7 +4361,17 @@ function initCallHead() {
     box.classList.add('ch-compact');
     box.style.marginBottom = keep + 'px';
   };
-  const onScroll = () => { setCompact(window.scrollY > 24); laterSight(); };
+  /* Two thresholds, not one (2026-11-20). Even with the space kept, the head still flickered
+     while scrolling on a desktop call: the page moved a few pixels back and forth across the
+     single 24px line (the browser settling the scroll position while the head and its margin
+     animate), and every crossing switched the head again. Now it turns compact past 24px and full
+     again only back at the top, so a few pixels either way cannot switch it. */
+  const onScroll = () => {
+    const y = window.scrollY;
+    if (y > 24) setCompact(true);
+    else if (y < 4) setCompact(false);
+    laterSight();
+  };
   window.addEventListener('scroll', onScroll, { passive: true });
   // What the page scrolls into view (the wizard's next step, a card that opens) lands below the
   // head, not under it (since 2026-11-15): the root's scroll padding is the head's height plus
