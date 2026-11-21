@@ -2653,8 +2653,24 @@ async function ensureMedia() {
 const MEDIA_WAIT_MS = 1500;
 let callMediaPromise = null;
 function callMedia() {
-  if (!callMediaPromise) callMediaPromise = ensureMedia().then((stream) => { if (stream) addLateMedia(); return stream; });
+  if (!callMediaPromise) callMediaPromise = ensureMedia().then((stream) => { onCallMediaSettled(stream); return stream; });
   return Promise.race([callMediaPromise, new Promise((r) => setTimeout(r, MEDIA_WAIT_MS))]);
+}
+
+/**
+ * The call's media is settled — there, or refused. What the call set up without it is set up again
+ * now: the microphone and camera buttons (revealCall showed them with no stream yet, i.e. not at
+ * all — the "missing mute button" of 2026-11-21, on the side whose prompt was answered late), the
+ * "you are muted" watch, the background picker, and what the other side knows about this one's
+ * microphone and camera.
+ */
+function onCallMediaSettled(stream) {
+  if (ended) return;
+  if (stream) addLateMedia();
+  showMediaControls();
+  syncMutedWatch();
+  refreshAllBadges();
+  for (const dc of openChannels()) announceMediaState(dc);
 }
 
 /** Put media that arrived after the connections were built onto them (see callMedia). */
@@ -3856,18 +3872,26 @@ function wireChat(channel, peerId) {
     revealCall();
     // Whoever connects later (or meets someone who started muted) must see the state as it is,
     // not only the changes that follow.
-    try { if (micMuted) channel.send(JSON.stringify({ k: 'mic', on: false })); if (camOff) channel.send(JSON.stringify({ k: 'cam', on: false })); } catch {}
-    // No device at all (none there, or not allowed) — the other side would otherwise wait for a
-    // picture or a voice that never comes. `none` lets them say why.
-    try {
-      const has = (kind) => localTracks().some((tr) => tr.kind === kind);
-      if (mode !== 'chat' && !has('audio')) channel.send(JSON.stringify({ k: 'mic', on: false, none: true }));
-      if (mode === 'video' && !has('video')) channel.send(JSON.stringify({ k: 'cam', on: false, none: true }));
-    } catch {}
+    announceMediaState(channel);
     if (!chatOpenedShown) { chatOpenedShown = true; addChat('System', soloMode ? 'Loopback-Kanal offen.' : 'Sichere Verbindung steht – Chat ist aktiv.', true); }
   };
   channel.onmessage = (e) => handleChatData(peerId, e.data);
   channel.onclose = () => { if (![...peers.values()].some((p) => p.dc && p.dc.readyState === 'open')) { chatInput.disabled = true; chatSend.disabled = true; emojiBtn.disabled = true; fileBtn.disabled = true; } };
+}
+/**
+ * Tell one connection how this side's microphone and camera stand: muted or not, and `none` when
+ * there is no device at all (none there, or not allowed) — the other side would otherwise wait for
+ * a picture or a voice that never comes, and `none` lets them say why.
+ *
+ * Nothing while the media is still pending (callMedia): a "no microphone" sent before the prompt
+ * was answered used to stay on the other side for the whole call. onCallMediaSettled says it then.
+ */
+function announceMediaState(channel) {
+  if (localStream === null) return;
+  const has = (kind) => localTracks().some((tr) => tr.kind === kind);
+  const send = (o) => { try { channel.send(JSON.stringify(o)); } catch {} };
+  if (mode !== 'chat') send(has('audio') ? { k: 'mic', on: !micMuted } : { k: 'mic', on: false, none: true });
+  if (mode === 'video') send(has('video') ? { k: 'cam', on: !camOff } : { k: 'cam', on: false, none: true });
 }
 // Envelope router: binary → file chunk; string → JSON control (msg/file/end) or legacy text.
 function handleChatData(peerId, data) {
