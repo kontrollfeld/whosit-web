@@ -4178,6 +4178,24 @@ function initCallHead() {
   const title = $('ch-title'), sub = $('ch-sub'), status = $('ch-status'), act = $('ch-action'), logoBtn = $('ch-logo-btn');
   const say = $('ch-say'), sayText = $('ch-say-text'), info = $('ch-info'), more = $('ch-more'), people = $('ch-people'), who = $('ch-who');
   const noticeBox = $('ch-notice'), noticeText = $('ch-notice-text'), noticeBtn = $('ch-notice-btn');
+  const modeBadge = $('ch-mode');
+  let modeKey = '';
+  /** The connection mode as icon and word, the icon taken from the setup's own buttons. Only once the
+   *  server has spoken: before that a guest's `mode` is still the default. Not in the call — what it
+   *  is shows there by itself. */
+  function renderMode(call) {
+    if (!modeBadge) return;
+    const icon = modeSeg && modeSeg.querySelector(`[data-mode="${mode}"] svg`);
+    modeBadge.hidden = call || !lastStatusMsg || !icon;
+    if (modeBadge.hidden) return;
+    const key = mode + '|' + (document.documentElement.lang || '');
+    if (key === modeKey) return;
+    modeKey = key;
+    const word = document.createElement('span');
+    word.textContent = t(modeLabel(mode));
+    modeBadge.replaceChildren(icon.cloneNode(true), word);
+    modeBadge.setAttribute('aria-label', t('Verbindungsart: {mode}', { mode: word.textContent }));
+  }
   let step = { i: 0, n: 3, label: '' }, t0 = 0, unread = 0, noticeTimer = 0, chatInView = false, source = null, queued = false;
   let moreOpen = false, whoOpen = false, mcOpened = false;
   const inCall = () => document.body.classList.contains('in-call');
@@ -4357,6 +4375,7 @@ function initCallHead() {
       renderPeople();
     }
     arrange(call);
+    renderMode(call);
     // the action
     source = null;
     if (call) {

@@ -313,6 +313,19 @@ header { margin-bottom: 22px; }
 .ch-logo { grid-area: logo; display: flex; align-items: center; gap: 6px; }
 .ch-logo-btn { display: block; width: 220px; padding: 0; border: 0; background: none; box-shadow: none; line-height: 0; border-radius: 8px; transition: width var(--t); }
 .ch-logo-btn:disabled { cursor: default; opacity: 1; }
+/* The connection mode (app.js renderMode): top right of the head on a phone, next to the logo
+   on a wide screen. */
+.ch-mode {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px; flex: none;
+  padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--ch-accent-soft); color: var(--ch-accent);
+  font-size: 0.78rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.ch-mode[hidden] { display: none; }
+.ch-mode svg { width: 15px; height: 15px; flex: none; }
+/* The logo keeps its smallest width (160 px); on the narrowest phones the mode shows as its icon
+   alone (the word stays for screen readers in aria-label). */
+.ch-logo-btn { flex: none; }
+@media (max-width: 349px) { .ch-mode { padding: 5px 7px; } .ch-mode span { display: none; } }
 .ch-logo-btn svg { display: block; width: 100%; height: auto; }
 .call-head.ch-compact .ch-logo-btn { width: 160px; }
 .call-head.ch-compact .ch-card { padding-block: 8px; }

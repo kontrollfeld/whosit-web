@@ -43,6 +43,9 @@
         <div class="ch-logo">
           <button type="button" id="ch-logo-btn" class="ch-logo-btn" aria-label="whosit — EUDI Verified Contact"></button>
           <button id="ring-sound" class="theme-toggle ring-sound" type="button" aria-pressed="true" aria-label="Töne: an" hidden></button>
+          <!-- The way this check runs (Video, Audio, Chat, Vor Ort), through the whole flow up to the
+               call: a guest arrives by link or QR code and has not chosen it. Display only. -->
+          <span id="ch-mode" class="ch-mode" role="img" hidden></span>
         </div>
         <!-- Before the call: the step, one sentence on it (the rest behind ⓘ) and who is how far,
              as small pills (a tap shows the full lines). In the call: name, duration, encryption. -->
