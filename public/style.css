@@ -2051,8 +2051,8 @@ body.link-down .schedule-actions { opacity: 0.55; }
   color: var(--warn-text);
 }
 .media-notice .icon { width: 20px; height: 20px; flex: none; }
-.media-notice #media-notice-text { flex: 1 1 14rem; }
-.media-notice #media-retry-btn { flex: none; }
+.media-notice #media-notice-text, .media-notice #update-notice-text { flex: 1 1 14rem; }
+.media-notice #media-retry-btn, .media-notice #update-reload-btn { flex: none; }
 /* Waiting is not an error: while the browser dialog is open, everything is fine. */
 .media-notice[data-state="wait"] {
   background: var(--accent-soft);

@@ -127,6 +127,14 @@
          explains it — once instead of twice. Hidden from screen readers: the stepper says it. -->
     <div id="status-bar" class="status" role="status" aria-live="polite"><span class="status-body"><span id="status-kicker" class="status-kicker" aria-hidden="true"></span><span id="status-text" data-i18n>Verbindung wird hergestellt …</span></span></div>
 
+    <!-- A newer version is out (app.js, showUpdateNotice): standing, for the same reason as the
+         media notice below. Its look is the media notice's waiting state — nothing is wrong yet. -->
+    <div id="update-notice" class="media-notice" data-state="wait" role="status" aria-live="polite" hidden>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      <span id="update-notice-text"></span>
+      <button type="button" id="update-reload-btn" class="ghost" data-i18n>Neu laden</button>
+    </div>
+
     <!-- Media permission: a separate, STANDING notice — deliberately not the status line. That
          one is overwritten two lines later during connection setup (app.js, startCall), so a
          denied permission would vanish without trace: the call would report "Verbunden ✓" but

@@ -152,6 +152,8 @@ try {
     const g3 = await socket(); clients.push(g3);
     g3.send({ type: 'join', roomId: r3, clientId: randomUUID(), modes: ['video', 'audio', 'chat', 'inperson'] });
     const g3s = await g3.wait('status', (m) => m.self?.verified === true && m.peers?.length === 1);
+    const g3j = await g3.wait('joined');
+    check('"joined" names the server\'s page protocol', Number.isInteger(g3j.protocol) && g3j.protocol >= 1, JSON.stringify(g3j));
     check('the guest learns it is "Vor Ort"', g3s.mode === 'inperson', g3s.mode);
     const usageBefore = log.join('').split('[usage] call ended').length;
     h3.send({ type: 'confirm' }); g3.send({ type: 'confirm' });

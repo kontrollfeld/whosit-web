@@ -343,6 +343,9 @@ const noMedia = () => mode !== 'video' && mode !== 'audio';
  *  is not among them — rather than let it run that room as something else (an app keeps its page
  *  until it is updated; a page from before "Vor Ort" took the check for a video call). */
 const PAGE_MODES = ['video', 'audio', 'chat', 'inperson'];
+/** The page protocol this page speaks, sent with `join`; the server answers with its own in
+ *  `joined`. Moves with PROTOCOL in src/rooms.ts — see there when to raise it. */
+const PAGE_PROTOCOL = 1;
 
 // per-attribute Lucide-style icons (inner SVG markup), shown in checklists + data rows
 const ATTR_ICONS = {
@@ -1489,7 +1492,7 @@ function roomArrival() {
 }
 async function sendJoin() {
   await ensureLocalCertificate();
-  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival(), modes: PAGE_MODES });
+  wsSend({ type: 'join', roomId, clientId, wantAuth: soloMode, dtlsFingerprint: localFingerprint || undefined, inv: inviteToken || undefined, arrival: roomArrival(), modes: PAGE_MODES, protocol: PAGE_PROTOCOL });
 }
 
 /** The seat went to another tab or window: end here, and never reconnect from this one. */
@@ -1558,6 +1561,7 @@ function handle(msg) {
       myPeerId = msg.peerId || myPeerId;
       if (myRole === 'callee') { setupBox.hidden = true; shareBox.hidden = true; }
       postToParent('joined', { role: msg.role });
+      if (typeof msg.protocol === 'number' && msg.protocol > PAGE_PROTOCOL) showUpdateNotice();
       break;
     case 'room-full':
       // Followed a link into someone else's 1:1 call (a forwarded invitation): say why, not just "full".
@@ -1604,8 +1608,9 @@ function handle(msg) {
     // They only see that the link does not work; the reason is told here, to the one who can
     // tell them.
     case 'peer-outdated':
-      setStatus(t('Die App deines Gegenübers kennt „{art}“ noch nicht. Bitte darum, die App zu aktualisieren oder den Link im Browser zu öffnen – und es dann noch einmal zu versuchen.',
-        { art: t(modeLabel(msg.mode)) }), 'error');
+      setStatus(msg.mode
+        ? t('Die App deines Gegenübers kennt „{art}“ noch nicht. Bitte darum, die App zu aktualisieren oder den Link im Browser zu öffnen – und es dann noch einmal zu versuchen.', { art: t(modeLabel(msg.mode)) })
+        : 'Die App deines Gegenübers ist veraltet. Bitte darum, die App zu aktualisieren oder den Link im Browser zu öffnen – und es dann noch einmal zu versuchen.', 'error');
       haptic('error');
       break;
     case 'hangup': onPeerGone(msg.from); break;
@@ -2297,13 +2302,13 @@ function renderStatus(msg) {
     setReviewUrgency(othersReady);
     // "Vor Ort" connects nothing: agreeing there shows the data, and says so.
     const here = mode === 'inperson';
+    setI18nKey($('review-title'), here ? REVIEW_TITLE_HERE : REVIEW_TITLE);
+    setI18nKey($('review-hint'), here ? REVIEW_HINT_HERE : REVIEW_HINT);
     setStatus(othersReady
       ? (here ? 'Du bist dran: Dein Gegenüber hat zugestimmt — prüfe und stimme zu, um die Angaben zu sehen.'
         : isHost() ? 'Du bist dran: Dein Gast hat zugestimmt — prüfe und stimme zu, um zu verbinden.' : 'Du bist dran: Gastgeber:in hat zugestimmt — prüfe und stimme zu, um zu verbinden.')
       : here ? 'Prüfe, was geteilt wird, und stimme zu, um die Angaben zu sehen.' : 'Prüfe, was geteilt wird, und stimme zu, um zu verbinden.', 'prompt');
     return;
-    setI18nKey($('review-title'), here ? REVIEW_TITLE_HERE : REVIEW_TITLE);
-    setI18nKey($('review-hint'), here ? REVIEW_HINT_HERE : REVIEW_HINT);
   }
   reviewBox.hidden = true;
   setReviewUrgency(false);
@@ -2449,11 +2454,6 @@ function setActiveCard(el) {
 // The connect button carries the waiting state itself: after the click, "waiting for confirmation".
 // "Vor Ort" connects nothing, so there the button only agrees. The call head copies the label.
 const CONFIRM_LABEL = 'Verbinden ✓', CONFIRM_LABEL_HERE = 'Zustimmen ✓', CONFIRM_WAIT = 'Warte auf Zustimmung …';
-function setConfirmWaiting(w) {
-  confirmBtn.classList.toggle('waiting', w);
-  confirmBtn.disabled = w; declineBtn.disabled = w;
-  confirmBtn.textContent = t(w ? CONFIRM_WAIT : mode === 'inperson' ? CONFIRM_LABEL_HERE : CONFIRM_LABEL);
-}
 // The review card's heading and hint, as in index.html, and their "Vor Ort" wording.
 const REVIEW_TITLE = 'Vor dem Verbinden', REVIEW_TITLE_HERE = 'Vor dem Zustimmen';
 const REVIEW_HINT = 'Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet der Anruf, ohne dass etwas geteilt wird.';
@@ -2465,6 +2465,11 @@ function setI18nKey(el, key) {
   if (!el || el.dataset.i18nKey === key) return;
   el.dataset.i18nKey = key;
   if (el.hasAttribute('data-i18n-html')) el.innerHTML = t(key); else el.textContent = t(key);
+}
+function setConfirmWaiting(w) {
+  confirmBtn.classList.toggle('waiting', w);
+  confirmBtn.disabled = w; declineBtn.disabled = w;
+  confirmBtn.textContent = t(w ? CONFIRM_WAIT : mode === 'inperson' ? CONFIRM_LABEL_HERE : CONFIRM_LABEL);
 }
 
 /**
@@ -2481,14 +2486,14 @@ function setReviewUrgency(on) {
   if (on) reviewReady.textContent = t('Alle anderen sind bereit — es fehlt nur noch deine Zustimmung.');
 }
 startBtn.addEventListener('click', () => { startBtn.disabled = true; wsSend({ type: 'start-call' }); });
+// The dictionary may arrive after the review is up; its pass over the static page would put the
+// button's source text back ("Verbinden ✓" in a "Vor Ort" check).
+i18nReady.then(() => setConfirmWaiting(confirmBtn.classList.contains('waiting')));
 confirmBtn.addEventListener('click', () => { wsSend({ type: 'confirm' }); reviewWait.hidden = true; setConfirmWaiting(true); });
 declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended = true; teardownCall(); markRoomEnded(); showEnded('Du hast abgelehnt. Es wird keine Verbindung aufgebaut.'); });
 function onDeclined() { if (ended) return; ended = true; teardownCall(); markRoomEnded(); showEnded(isHost() ? 'Dein Gast hat abgelehnt. Es wird keine Verbindung aufgebaut.' : 'Gastgeber:in hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
 
 // ---- WebRTC (full mesh: one RTCPeerConnection per peer) ----
-// The dictionary may arrive after the review is up; its pass over the static page would put the
-// button's source text back ("Verbinden ✓" in a "Vor Ort" check).
-i18nReady.then(() => setConfirmWaiting(confirmBtn.classList.contains('waiting')));
 // peerId -> { pc, dc, pendingIce, remoteDescSet, initiator, name, role, video, tile }
 const peers = new Map();
 // ICE candidates that arrive BEFORE their peer's RTCPeerConnection exists (peerId → []).
@@ -2565,6 +2570,26 @@ function renderMediaNotice() {
   // While the browser dialog is open there is nothing to retry — the answer is still pending.
   mediaRetryBtn.hidden = mediaState === 'pending';
 }
+
+/**
+ * A newer version is out: the server speaks a newer page protocol than this page (see
+ * PAGE_PROTOCOL). This page still works — the server refuses the ones that would not — but it
+ * may miss what is new. Mostly an app: it keeps the page it was built with until it is updated,
+ * and reloading does not help there. A browser tab only gets here when it stayed open across an
+ * update, and reloading does help. Standing, like the media notice: the status line is rewritten
+ * at every step.
+ */
+function showUpdateNotice() {
+  const box = $('update-notice');
+  if (!box || isEmbedded) return;
+  const say = () => { $('update-notice-text').textContent = t(isNativeApp()
+    ? 'Es gibt eine neue Version der whosit-App. Bitte aktualisiere sie, damit alles funktioniert.'
+    : 'Diese Seite ist nicht mehr aktuell.'); };
+  say(); i18nReady.then(say);
+  $('update-reload-btn').hidden = isNativeApp();
+  box.hidden = false;
+}
+$('update-reload-btn')?.addEventListener('click', () => location.reload());
 
 function setMediaState(s) {
   mediaState = s;
@@ -3720,11 +3745,12 @@ function showInviteProblem(reason, opensAt, startsAt) {
   setupBox.hidden = true; shareBox.hidden = true; authBox.hidden = true;
   reviewBox.hidden = true; resultBox.hidden = true; startBar.hidden = true;
   restartBtn.hidden = true;
-  // This page cannot run the room's mode (see PAGE_MODES); a newer one can.
+  // This page cannot run the room (its mode, see PAGE_MODES, or a protocol it no longer meets);
+  // a newer one can.
   if (reason === 'outdated') {
     setStatus(isNativeApp()
-      ? 'Diese Version der App kennt diese Verbindungsart noch nicht. Bitte aktualisiere die App – oder öffne den Link im Browser.'
-      : 'Diese Seite ist veraltet und kennt diese Verbindungsart noch nicht. Bitte lade sie neu.', 'error');
+      ? 'Diese Version der App ist veraltet. Bitte aktualisiere die App – oder öffne den Link im Browser.'
+      : 'Diese Seite ist veraltet. Bitte lade sie neu.', 'error');
     return;
   }
   if (reason === 'too-early' && opensAt) {

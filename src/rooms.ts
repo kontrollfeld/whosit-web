@@ -34,6 +34,20 @@ export const isMode = (m: unknown): m is Mode => typeof m === 'string' && (MODES
 export const LEGACY_MODES: readonly Mode[] = ['video', 'audio', 'chat'];
 export const clientModes = (v: unknown): readonly Mode[] => (Array.isArray(v) ? v.filter(isMode) : LEGACY_MODES);
 
+/** The page protocol this server speaks, sent back in `joined`. A page that speaks an older one
+ *  shows that a newer version is out — before something goes wrong, not after. Raise it with
+ *  every change to what the server sends or expects that an older page would miss or misread
+ *  (a new message, mode or field it ought to act on). The page's own number is PAGE_PROTOCOL in
+ *  public/app.js and moves with it.
+ *    1 (2026-11-20): `modes` and `protocol` in `join`, `peer-outdated`, refusal reason `outdated`. */
+export const PROTOCOL = 1;
+/** Pages that speak less are refused at `join` (`invite-invalid` / `outdated`). A page from before
+ *  `protocol` sends none and counts as 0. Raise it only when an older page would go WRONG, not
+ *  merely miss something — every refused app has to be updated before it works again. A mode an
+ *  older page does not know is refused through `modes` already. */
+export const MIN_PAGE_PROTOCOL = 0;
+export const pageProtocol = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0);
+
 export interface Participant {
   clientId: string;
   /** Public id used to address signaling messages between peers (mesh routing).

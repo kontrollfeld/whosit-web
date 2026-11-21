@@ -67,7 +67,7 @@ assertHostGateOrExit(
   policyDescriptor().walletRequestable.includes('family_name'),
 );
 import type { Room, Participant, Role, Mode } from './rooms';
-import { linkPair, isLinked, isMode, clientModes } from './rooms';
+import { linkPair, isLinked, isMode, clientModes, pageProtocol, PROTOCOL, MIN_PAGE_PROTOCOL } from './rooms';
 import { loadExtensions } from './module-loader';
 import { communityRoomStore, noopVerificationSink } from './core/community';
 import type { Extensions, ModuleContext, SignalingPlugin, VerificationEvent, VerificationEventType } from './core/ports';
@@ -1885,7 +1885,7 @@ wss.on('connection', (ws, request) => {
         return;
       }
       const arrival = msg.arrival === 'creator' || msg.arrival === 'invited' ? msg.arrival : undefined;
-      await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv, arrival, msg.modes);
+      await handleJoin(ws, String(msg.roomId || ''), String(msg.clientId || ''), msg.wantAuth === true, origin, msg.dtlsFingerprint, msg.inv, arrival, msg.modes, msg.protocol);
       return;
     }
 
@@ -2389,7 +2389,7 @@ function leaveRoom(room: Room, participant: Participant, closedAt = Date.now()):
   firePlugins((p) => p.onHangup?.({ roomId: room.id, role: participant.role, clientId: participant.clientId, reason: 'left' }));
 }
 
-async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantAuth = false, origin = PUBLIC_URL, dtlsFingerprint?: unknown, inviteTok?: unknown, arrival?: 'creator' | 'invited', modes?: unknown): Promise<void> {
+async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantAuth = false, origin = PUBLIC_URL, dtlsFingerprint?: unknown, inviteTok?: unknown, arrival?: 'creator' | 'invited', modes?: unknown, protocol?: unknown): Promise<void> {
   if (!roomId) {
     send(ws, { type: 'error', message: 'missing roomId' });
     return;
@@ -2524,17 +2524,20 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   }
   // A page that does not know the room's mode would run it as something else. One from before
   // "Vor Ort" took the in-person check for a video call: it asked for camera and microphone, then
-  // waited for a connection that never comes. It is refused before it is seated. It can only say
-  // that the link does not work (`invite-invalid` is the refusal it knows), so whoever is already
-  // in the room hears the reason — in person, they can tell the other to update.
-  if (!clientModes(modes).includes(room.mode)) {
+  // waited for a connection that never comes. It is refused before it is seated, and so is a page
+  // older than MIN_PAGE_PROTOCOL. It can only say that the link does not work (`invite-invalid`
+  // is the refusal it knows), so whoever is already in the room hears the reason — in person,
+  // they can tell the other to update.
+  const knowsMode = clientModes(modes).includes(room.mode);
+  if (!knowsMode || pageProtocol(protocol) < MIN_PAGE_PROTOCOL) {
     refuseSeat(room, participant);
-    console.log(`[join] page does not know mode=${room.mode} — refused room=${auditHash('room', roomId)}`);
-    send(ws, { type: 'invite-invalid', reason: 'outdated', mode: room.mode });
+    console.log(`[join] outdated page (protocol=${pageProtocol(protocol)}, knows mode=${room.mode}: ${knowsMode}) — refused room=${auditHash('room', roomId)}`);
+    const mode = knowsMode ? undefined : room.mode;
+    send(ws, { type: 'invite-invalid', reason: 'outdated', mode });
     // Taking the seat back withdrew the agreements given so far (see withdrawConsents) — the
     // others see that first, and the reason after it, so it is what stays on their screen.
     if (room.participants.length) broadcastStatus(room);
-    for (const p of room.participants) send(p.ws, { type: 'peer-outdated', mode: room.mode });
+    for (const p of room.participants) send(p.ws, { type: 'peer-outdated', mode });
     return;
   }
   // Channel binding: the fingerprint MUST be known before the offer, because it travels into
@@ -2583,7 +2586,7 @@ async function handleJoin(ws: WebSocket, roomId: string, clientId: string, wantA
   // Covers both anonymous (empty) and derived-only sets — see ./wrp-policy.
   if (!participant.verified && !requiresWalletPresentation(requiredAttrs)) participant.verified = true;
 
-  send(ws, { type: 'joined', role: participant.role, peerId: participant.peerId, resumed });
+  send(ws, { type: 'joined', role: participant.role, peerId: participant.peerId, resumed, protocol: PROTOCOL });
   // Back within the grace window: the others were told `peer-away`, so they hear the end of it.
   if (resumed) for (const peer of ext.roomStore.peersOf(room, participant)) send(peer.ws, { type: 'peer-back', from: participant.peerId });
   broadcastStatus(room);
