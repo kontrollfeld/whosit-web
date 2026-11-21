@@ -2295,10 +2295,15 @@ function renderStatus(msg) {
     const others = msg.peers || [];
     const othersReady = others.length > 0 && others.every((x) => x.confirmed);
     setReviewUrgency(othersReady);
+    // "Vor Ort" connects nothing: agreeing there shows the data, and says so.
+    const here = mode === 'inperson';
     setStatus(othersReady
-      ? (isHost() ? 'Du bist dran: Dein Gast hat zugestimmt — prüfe und stimme zu, um zu verbinden.' : 'Du bist dran: Gastgeber:in hat zugestimmt — prüfe und stimme zu, um zu verbinden.')
-      : 'Prüfe, was geteilt wird, und stimme zu, um zu verbinden.', 'prompt');
+      ? (here ? 'Du bist dran: Dein Gegenüber hat zugestimmt — prüfe und stimme zu, um die Angaben zu sehen.'
+        : isHost() ? 'Du bist dran: Dein Gast hat zugestimmt — prüfe und stimme zu, um zu verbinden.' : 'Du bist dran: Gastgeber:in hat zugestimmt — prüfe und stimme zu, um zu verbinden.')
+      : here ? 'Prüfe, was geteilt wird, und stimme zu, um die Angaben zu sehen.' : 'Prüfe, was geteilt wird, und stimme zu, um zu verbinden.', 'prompt');
     return;
+    setI18nKey($('review-title'), here ? REVIEW_TITLE_HERE : REVIEW_TITLE);
+    setI18nKey($('review-hint'), here ? REVIEW_HINT_HERE : REVIEW_HINT);
   }
   reviewBox.hidden = true;
   setReviewUrgency(false);
@@ -2442,11 +2447,24 @@ function setActiveCard(el) {
 
 // ---- review actions ----
 // The connect button carries the waiting state itself: after the click, "waiting for confirmation".
-const CONFIRM_LABEL = 'Verbinden ✓', CONFIRM_WAIT = 'Warte auf Zustimmung …';
+// "Vor Ort" connects nothing, so there the button only agrees. The call head copies the label.
+const CONFIRM_LABEL = 'Verbinden ✓', CONFIRM_LABEL_HERE = 'Zustimmen ✓', CONFIRM_WAIT = 'Warte auf Zustimmung …';
 function setConfirmWaiting(w) {
   confirmBtn.classList.toggle('waiting', w);
   confirmBtn.disabled = w; declineBtn.disabled = w;
-  confirmBtn.textContent = t(w ? CONFIRM_WAIT : CONFIRM_LABEL);
+  confirmBtn.textContent = t(w ? CONFIRM_WAIT : mode === 'inperson' ? CONFIRM_LABEL_HERE : CONFIRM_LABEL);
+}
+// The review card's heading and hint, as in index.html, and their "Vor Ort" wording.
+const REVIEW_TITLE = 'Vor dem Verbinden', REVIEW_TITLE_HERE = 'Vor dem Zustimmen';
+const REVIEW_HINT = 'Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet der Anruf, ohne dass etwas geteilt wird.';
+const REVIEW_HINT_HERE = 'Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet die Prüfung, ohne dass etwas geteilt wird.';
+/** Give a static, translated element another source text. Its key changes with it, so the
+ *  translation pass when the dictionary arrives (i18n.js) keeps the new text. Markup only from
+ *  the dictionary, as in i18n.js. */
+function setI18nKey(el, key) {
+  if (!el || el.dataset.i18nKey === key) return;
+  el.dataset.i18nKey = key;
+  if (el.hasAttribute('data-i18n-html')) el.innerHTML = t(key); else el.textContent = t(key);
 }
 
 /**
@@ -2468,6 +2486,9 @@ declineBtn.addEventListener('click', () => { wsSend({ type: 'decline' }); ended 
 function onDeclined() { if (ended) return; ended = true; teardownCall(); markRoomEnded(); showEnded(isHost() ? 'Dein Gast hat abgelehnt. Es wird keine Verbindung aufgebaut.' : 'Gastgeber:in hat abgelehnt. Es wird keine Verbindung aufgebaut.'); }
 
 // ---- WebRTC (full mesh: one RTCPeerConnection per peer) ----
+// The dictionary may arrive after the review is up; its pass over the static page would put the
+// button's source text back ("Verbinden ✓" in a "Vor Ort" check).
+i18nReady.then(() => setConfirmWaiting(confirmBtn.classList.contains('waiting')));
 // peerId -> { pc, dc, pendingIce, remoteDescSet, initiator, name, role, video, tile }
 const peers = new Map();
 // ICE candidates that arrive BEFORE their peer's RTCPeerConnection exists (peerId → []).
