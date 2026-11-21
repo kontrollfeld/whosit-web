@@ -694,7 +694,11 @@
     "Diese Seite ist nicht mehr aktuell.": "This page is out of date.",
     "Neu laden": "Reload",
     "Vor dem Zustimmen": "Before agreeing",
-    "Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet die Prüfung, ohne dass etwas geteilt wird.": "These fields will be exchanged. The <strong>values become visible only when both consent</strong>. “Decline” ends the check without anything being shared."
+    "Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet die Prüfung, ohne dass etwas geteilt wird.": "These fields will be exchanged. The <strong>values become visible only when both consent</strong>. “Decline” ends the check without anything being shared.",
+    "Beide haben zugestimmt": "Both have agreed",
+    "Beide haben zugestimmt ✓": "Both have agreed ✓",
+    "Angaben vor Ort": "Details on site",
+    "Abgeschlossen um {time} Uhr": "Completed at {time}"
   },
   "fr": {
     "Video-, Audio- oder Chat-Anruf, bei dem ihr sicher wisst, mit wem ihr sprecht. Beide Seiten können sich per <strong>EUDI-Wallet</strong> ausweisen — und sehen <strong>vor dem Verbinden</strong>, was geteilt wird.": "Un appel vidéo, audio ou chat où vous savez avec certitude à qui vous parlez. Chaque partie peut s'identifier avec son <strong>portefeuille EUDI</strong> — et voir <strong>avant la connexion</strong> ce qui sera partagé.",
@@ -1391,6 +1395,10 @@
     "Diese Seite ist nicht mehr aktuell.": "Cette page n’est plus à jour.",
     "Neu laden": "Recharger",
     "Vor dem Zustimmen": "Avant d’accepter",
-    "Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet die Prüfung, ohne dass etwas geteilt wird.": "Ces champs seront échangés. Les <strong>valeurs ne deviennent visibles que lorsque les deux consentent</strong>. « Refuser » met fin à la vérification sans rien partager."
+    "Diese Felder werden ausgetauscht. Die <strong>Inhalte werden erst sichtbar, wenn beide zustimmen</strong>. Mit „Ablehnen“ endet die Prüfung, ohne dass etwas geteilt wird.": "Ces champs seront échangés. Les <strong>valeurs ne deviennent visibles que lorsque les deux consentent</strong>. « Refuser » met fin à la vérification sans rien partager.",
+    "Beide haben zugestimmt": "Les deux ont accepté",
+    "Beide haben zugestimmt ✓": "Les deux ont accepté ✓",
+    "Angaben vor Ort": "Informations sur place",
+    "Abgeschlossen um {time} Uhr": "Terminée à {time}"
   }
 }

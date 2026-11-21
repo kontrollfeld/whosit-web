@@ -1930,8 +1930,9 @@ const STEPS_GUEST = ['Ausweisen', 'Zustimmen', 'Verbunden'];
 function updateStepper(active) {
   updateRing(active);
   if (!stepperEl || soloMode || isEmbedded) return;
-  // "Vor Ort" ends in a check, not a connection.
-  const labels = (myRole === 'callee' ? STEPS_GUEST : STEPS_HOST).map((l, i, a) => (i === a.length - 1 && mode === 'inperson' ? 'Geprüft' : l));
+  // "Vor Ort" ends in a check, not a connection — and without a verifier, in nothing checked.
+  const last = verifierOff ? 'Fertig' : 'Geprüft';
+  const labels = (myRole === 'callee' ? STEPS_GUEST : STEPS_HOST).map((l, i, a) => (i === a.length - 1 && mode === 'inperson' ? last : l));
   stepperEl.innerHTML = '';
   labels.forEach((label, i) => {
     const li = document.createElement('li');
@@ -3625,13 +3626,16 @@ function showInPersonDone() {
     syncMediaCheck();
     haptic('success');
     showLogoMoment();
-    $('ipd-time').textContent = t('Geprüft um {time} Uhr', { time: new Date().toLocaleTimeString(i18nLocale, { hour: '2-digit', minute: '2-digit' }) });
+    const time = new Date().toLocaleTimeString(i18nLocale, { hour: '2-digit', minute: '2-digit' });
+    $('ipd-time').textContent = t(verifierOff ? 'Abgeschlossen um {time} Uhr' : 'Geprüft um {time} Uhr', { time });
   }
   inPersonBox.hidden = false;
   resultBox.hidden = false;
   resultCollapseInit = true; resultToggle.hidden = true; setResultCollapsed(false);
   if (lastStatusMsg && lastStatusMsg.revealed) renderResult(lastStatusMsg);
-  setStatus('Ausweis geprüft ✓', 'ok');
+  // Without a verifier nothing was checked: the card and status must not claim an ID check.
+  if (verifierOff) setI18nKey($('result-title-test'), 'Angaben vor Ort');
+  setStatus(verifierOff ? 'Beide haben zugestimmt ✓' : 'Ausweis geprüft ✓', 'ok');
 }
 /** `mine`: this side pressed "Fertig"; otherwise the other side closed first. */
 function finishInPerson(mine) {

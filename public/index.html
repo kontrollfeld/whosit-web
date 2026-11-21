@@ -489,15 +489,16 @@
          participant chips above. -->
     <!-- Verified data: values, visible only after mutual consent -->
     <section id="result" class="card" hidden>
-      <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n data-verified-only>Geprüfte Angaben</span><span data-i18n data-testmode-only hidden>Angaben im Anruf</span>
+      <h2><svg class="h-ic ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg><span data-i18n data-verified-only>Geprüfte Angaben</span><span id="result-title-test" data-i18n data-testmode-only hidden>Angaben im Anruf</span>
         <button id="result-toggle" class="collapse-btn" type="button" aria-expanded="true" hidden><span id="result-toggle-label" data-i18n>Ausblenden</span></button>
       </h2>
       <!-- "Vor Ort": the check is done once both agreed; nothing connects. Closing it ends the room. -->
       <div id="inperson-done" class="inperson-done" hidden>
         <div class="ipd-mark" aria-hidden="true"></div>
-        <p class="ipd-title" id="ipd-title" data-i18n>Ausweis geprüft</p>
+        <p class="ipd-title" id="ipd-title" data-i18n data-verified-only>Ausweis geprüft</p>
+        <p class="ipd-title" data-i18n data-testmode-only hidden>Beide haben zugestimmt</p>
         <p class="ipd-time" id="ipd-time"></p>
-        <p class="hint ipd-note" data-i18n>Vergleicht die Namen mit dem, was ihr vorher ausgemacht habt. Die Angaben stehen nur auf diesem Bildschirm, whosit speichert sie nicht.</p>
+        <p class="hint ipd-note" data-i18n data-verified-only>Vergleicht die Namen mit dem, was ihr vorher ausgemacht habt. Die Angaben stehen nur auf diesem Bildschirm, whosit speichert sie nicht.</p>
         <button type="button" id="ipd-finish" data-i18n>Fertig</button>
       </div>
       <p class="hint" data-i18n-html data-verified-only>Beide haben zugestimmt — diese Angaben wurden per <strong>EUDI-Wallet</strong> bestätigt:</p>
